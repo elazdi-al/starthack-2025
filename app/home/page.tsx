@@ -3,8 +3,9 @@
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { CalendarBlank, MapPin, Users, SignOut } from "phosphor-react";
+import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
 
 // Mock event data - replace with actual data source
 const events = [
@@ -44,19 +45,18 @@ const events = [
 
 export default function Home() {
   const router = useRouter();
-  const [authInfo, setAuthInfo] = useState<{ address?: string } | null>(null);
+  const { isAuthenticated, address } = useAuthCheck();
+  const { clearAuth } = useAuthStore();
 
+  // Redirect to login if not authenticated
   useEffect(() => {
-    // Check if user authenticated via Base (stored in localStorage)
-    if (typeof window !== 'undefined') {
-      const baseAddress = localStorage.getItem('base_auth_address');
-      if (baseAddress) {
-        setAuthInfo({ address: baseAddress });
-      }
+    if (!isAuthenticated) {
+      router.push('/');
     }
-  }, []);
+  }, [isAuthenticated, router]);
 
-  const handleClose = () => {
+  const handleSignOut = () => {
+    clearAuth(); // Clear Zustand auth state
     router.push('/');
   };
 
@@ -68,7 +68,8 @@ export default function Home() {
       <button
         className="absolute top-6 right-6 z-20 text-white/40 hover:text-white/80 transition-colors"
         type="button"
-        onClick={handleClose}
+        onClick={handleSignOut}
+        title="Sign Out"
       >
         <SignOut size={24} weight="regular" />
       </button>
@@ -78,9 +79,9 @@ export default function Home() {
         <h1 className="text-6xl tracking-tighter font-bold text-white/30 mb-2">
           Events
         </h1>
-        {authInfo?.address && (
+        {isAuthenticated && address && (
           <p className="text-sm text-white/50">
-            Connected: {authInfo.address.slice(0, 6)}...{authInfo.address.slice(-4)}
+            Connected: {address.slice(0, 6)}...{address.slice(-4)}
           </p>
         )}
       </div>

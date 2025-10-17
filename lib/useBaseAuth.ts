@@ -8,19 +8,17 @@
  * It supports both wallet_connect and fallback methods for maximum compatibility.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { createBaseAccountSDK } from "@base-org/account";
+import { useAuthStore } from './store/authStore';
 
 // Constants
 const APP_NAME = 'Stars';
 const BASE_CHAIN_ID = '0x2105'; // Base Mainnet - 8453
-const STORAGE_KEY = 'base_auth_address';
 
 // Types
 interface AuthState {
   readonly isLoading: boolean;
-  readonly isAuthenticated: boolean;
-  readonly address: string | null;
   readonly error: string | null;
 }
 
@@ -96,10 +94,22 @@ function getErrorMessage(error: unknown): string {
 export function useBaseAuth() {
   const [authState, setAuthState] = useState<AuthState>({
     isLoading: false,
-    isAuthenticated: false,
-    address: null,
     error: null,
   });
+
+  // Get auth state from Zustand store
+  const { 
+    isAuthenticated, 
+    address, 
+    setAuth, 
+    clearAuth, 
+    isSessionValid 
+  } = useAuthStore();
+
+  // Check session validity on mount
+  useEffect(() => {
+    isSessionValid();
+  }, [isSessionValid]);
 
   /**
    * Generates a nonce for authentication
@@ -154,19 +164,16 @@ export function useBaseAuth() {
   };
 
   /**
-   * Updates auth state and stores address
+   * Updates auth state and stores address in Zustand
    */
   const setAuthenticated = (address: string): void => {
+    // Store in Zustand (will auto-persist to localStorage)
+    setAuth(address, 7); // 7 days expiration
+
     setAuthState({
       isLoading: false,
-      isAuthenticated: true,
-      address,
       error: null,
     });
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, address);
-    }
   };
 
   /**
@@ -274,33 +281,28 @@ export function useBaseAuth() {
 
       setAuthState({
         isLoading: false,
-        isAuthenticated: false,
-        address: null,
         error: errorMessage,
       });
 
       return { success: false, error: errorMessage };
     }
-  }, []);
+  }, [setAuth]);
 
-  /**
-   * Signs out the current user
-   */
-  const signOut = useCallback((): void => {
+  const signOut = useCallback(() => {
+    // Clear Zustand store (will auto-clear localStorage)
+    clearAuth();
+
     setAuthState({
       isLoading: false,
-      isAuthenticated: false,
-      address: null,
       error: null,
     });
-
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
+  }, [clearAuth]);
 
   return {
-    ...authState,
+    isLoading: authState.isLoading,
+    error: authState.error,
+    isAuthenticated,
+    address,
     signInWithBase,
     signOut,
   };

@@ -4,6 +4,7 @@ import { useMiniKit, useQuickAuth } from "@coinbase/onchainkit/minikit";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { BaseAuthButton } from "@/components/BaseAuthButton";
+import { useAuthCheck } from "@/lib/store/authStore";
 
 interface AuthResponse {
   success: boolean;
@@ -18,6 +19,7 @@ interface AuthResponse {
 export default function Home() {
   const { isFrameReady, setFrameReady } = useMiniKit();
   const router = useRouter();
+  const { isAuthenticated } = useAuthCheck();
 
   // Initialize the miniapp
   useEffect(() => {
@@ -25,6 +27,13 @@ export default function Home() {
       setFrameReady();
     }
   }, [setFrameReady, isFrameReady]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/home');
+    }
+  }, [isAuthenticated, router]);
 
   const { data: authData, isLoading: isAuthLoading } = useQuickAuth<AuthResponse>(
     "/api/auth",
