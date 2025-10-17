@@ -12,7 +12,7 @@ export function BaseAuthButton() {
   useEffect(() => {
     if (isAuthenticated) {
       // Navigate to success page on successful authentication
-      router.push('/success');
+      router.push('/home');
     }
   }, [isAuthenticated, router]);
 

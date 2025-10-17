@@ -39,7 +39,7 @@ export default function Home() {
 
     if (authData?.success) {
       // User is already authenticated, navigate to next page
-      router.push("/success");
+      router.push("/home");
     } else {
       // Handle sign in logic here
       console.log("Initiating sign in...");
