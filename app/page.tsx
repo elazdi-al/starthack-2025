@@ -1,6 +1,5 @@
 "use client";
 import { BackgroundGradient } from "@/components/BackgroundGradient";
-import { Button } from "@/components/ui/button";
 import { useMiniKit, useQuickAuth } from "@coinbase/onchainkit/minikit";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -32,19 +31,6 @@ export default function Home() {
     { method: "GET" }
   );
 
-  const handleSignIn = () => {
-    if (isAuthLoading) {
-      return;
-    }
-
-    if (authData?.success) {
-      // User is already authenticated, navigate to next page
-      router.push("/home");
-    } else {
-      // Handle sign in logic here
-      console.log("Initiating sign in...");
-    }
-  };
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-between p-6 bg-transparent overflow-hidden">

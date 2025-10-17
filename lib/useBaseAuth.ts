@@ -1,15 +1,98 @@
 "use client";
 
+/**
+ * Base authentication React hook
+ *
+ * @remarks
+ * This hook provides authentication functionality using Base's Account SDK.
+ * It supports both wallet_connect and fallback methods for maximum compatibility.
+ */
+
 import { useState, useCallback } from 'react';
 import { createBaseAccountSDK } from "@base-org/account";
 
+// Constants
+const APP_NAME = 'Stars';
+const BASE_CHAIN_ID = '0x2105'; // Base Mainnet - 8453
+const STORAGE_KEY = 'base_auth_address';
+
+// Types
 interface AuthState {
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  address: string | null;
-  error: string | null;
+  readonly isLoading: boolean;
+  readonly isAuthenticated: boolean;
+  readonly address: string | null;
+  readonly error: string | null;
 }
 
+interface AuthResult {
+  readonly success: boolean;
+  readonly address?: string;
+  readonly error?: string;
+}
+
+interface EthereumProvider {
+  request: (request: {
+    method: string;
+    params?: unknown[];
+  }) => Promise<unknown>;
+}
+
+interface WalletConnectResponse {
+  accounts: Array<{
+    address: string;
+    capabilities: {
+      signInWithEthereum: {
+        message: string;
+        signature: string;
+      };
+    };
+  }>;
+}
+
+interface VerifyResponse {
+  success?: boolean;
+  error?: string;
+}
+
+/**
+ * Type guard to check if an object is an error with a message
+ */
+function isErrorWithMessage(error: unknown): error is { message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message: unknown }).message === 'string'
+  );
+}
+
+/**
+ * Type guard to check if an object is an error with a code
+ */
+function isErrorWithCode(error: unknown): error is { code: number } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof (error as { code: unknown }).code === 'number'
+  );
+}
+
+/**
+ * Extracts error message from unknown error type
+ */
+function getErrorMessage(error: unknown): string {
+  if (isErrorWithMessage(error)) {
+    return error.message;
+  }
+  return 'Unknown error occurred';
+}
+
+/**
+ * React hook for Base wallet authentication
+ *
+ * @returns Auth state and methods for signing in/out
+ */
 export function useBaseAuth() {
   const [authState, setAuthState] = useState<AuthState>({
     isLoading: false,
@@ -18,164 +101,201 @@ export function useBaseAuth() {
     error: null,
   });
 
-  const signInWithBase = useCallback(async () => {
-    setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
+  /**
+   * Generates a nonce for authentication
+   */
+  const generateNonce = async (): Promise<string> => {
+    if (typeof window !== 'undefined' && window.crypto?.randomUUID) {
+      return window.crypto.randomUUID().replace(/-/g, '');
+    }
+
+    // Fallback: fetch from server
+    const response = await fetch('/api/auth/base/nonce');
+    const data = (await response.json()) as { nonce: string };
+    return data.nonce;
+  };
+
+  /**
+   * Switches to Base chain
+   */
+  const switchToBaseChain = async (
+    provider: EthereumProvider
+  ): Promise<void> => {
+    try {
+      await provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: BASE_CHAIN_ID }],
+      });
+    } catch (error: unknown) {
+      // Chain might already be selected or user rejected - not critical
+      console.warn('Chain switch error (may be safe to continue):', error);
+    }
+  };
+
+  /**
+   * Verifies signature with backend
+   */
+  const verifySignature = async (
+    address: string,
+    message: string,
+    signature: string
+  ): Promise<void> => {
+    const response = await fetch('/api/auth/base/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address, message, signature }),
+    });
+
+    const data = (await response.json()) as VerifyResponse;
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Verification failed');
+    }
+  };
+
+  /**
+   * Updates auth state and stores address
+   */
+  const setAuthenticated = (address: string): void => {
+    setAuthState({
+      isLoading: false,
+      isAuthenticated: true,
+      address,
+      error: null,
+    });
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, address);
+    }
+  };
+
+  /**
+   * Attempts wallet_connect method (preferred)
+   */
+  const tryWalletConnect = async (
+    provider: EthereumProvider,
+    nonce: string
+  ): Promise<AuthResult> => {
+    const response = (await provider.request({
+      method: 'wallet_connect',
+      params: [
+        {
+          version: '1',
+          capabilities: {
+            signInWithEthereum: {
+              nonce,
+              chainId: BASE_CHAIN_ID,
+            },
+          },
+        },
+      ],
+    })) as WalletConnectResponse;
+
+    const { address } = response.accounts[0];
+    const { message, signature } =
+      response.accounts[0].capabilities.signInWithEthereum;
+
+    await verifySignature(address, message, signature);
+    setAuthenticated(address);
+
+    return { success: true, address };
+  };
+
+  /**
+   * Fallback method using eth_requestAccounts + personal_sign
+   */
+  const tryFallbackMethod = async (
+    provider: EthereumProvider,
+    nonce: string
+  ): Promise<AuthResult> => {
+    console.warn(
+      'wallet_connect not supported, falling back to eth_requestAccounts'
+    );
+
+    const accounts = (await provider.request({
+      method: 'eth_requestAccounts',
+    })) as string[];
+
+    if (!accounts || accounts.length === 0) {
+      throw new Error('No accounts returned');
+    }
+
+    const address = accounts[0];
+    const message = `Sign in to ${APP_NAME}\n\nNonce: ${nonce}\nChain ID: ${BASE_CHAIN_ID}`;
+
+    const signature = (await provider.request({
+      method: 'personal_sign',
+      params: [message, address],
+    })) as string;
+
+    await verifySignature(address, message, signature);
+    setAuthenticated(address);
+
+    return { success: true, address };
+  };
+
+  /**
+   * Main sign-in method
+   */
+  const signInWithBase = useCallback(async (): Promise<AuthResult> => {
+    setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Initialize the SDK
-      const provider = createBaseAccountSDK({ appName: 'Stars' }).getProvider();
+      const provider = createBaseAccountSDK({
+        appName: APP_NAME,
+      }).getProvider();
 
-      // 1 — Get a fresh nonce (can generate locally or prefetch from backend)
-      let nonce: string;
-      
-      if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
-        // Generate nonce locally
-        nonce = window.crypto.randomUUID().replace(/-/g, '');
-      } else {
-        // Prefetch from server as fallback
-        const response = await fetch('/api/auth/base/nonce');
-        const data = await response.json();
-        nonce = data.nonce;
-      }
+      const nonce = await generateNonce();
+      await switchToBaseChain(provider);
 
-      // 2 — Switch to Base Chain
       try {
-        const switchChainResponse = await provider.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: '0x2105' }], // Base Mainnet - 8453
-        });
-        console.log('Switch chain response:', switchChainResponse);
-      } catch (switchError: any) {
-        // Handle the case where the chain might already be selected
-        // or the user rejected the switch
-        console.warn('Chain switch error (may be safe to continue):', switchError);
-      }
+        return await tryWalletConnect(provider, nonce);
+      } catch (connectError: unknown) {
+        // Check if we should fallback
+        const errorMessage = isErrorWithMessage(connectError)
+          ? connectError.message
+          : '';
+        const errorCode = isErrorWithCode(connectError)
+          ? connectError.code
+          : null;
 
-      // 3 — Connect and authenticate
-      try {
-        const { accounts } = await provider.request({
-          method: 'wallet_connect',
-          params: [{
-            version: '1',
-            capabilities: {
-              signInWithEthereum: { 
-                nonce, 
-                chainId: '0x2105' // Base Mainnet - 8453
-              }
-            }
-          }]
-        });
+        const shouldFallback =
+          errorMessage.includes('method_not_supported') || errorCode === -32601;
 
-        const { address } = accounts[0];
-        const { message, signature } = accounts[0].capabilities.signInWithEthereum;
-
-        // Verify the signature with backend
-        const verifyResponse = await fetch('/api/auth/base/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address, message, signature })
-        });
-
-        const verifyData = await verifyResponse.json();
-
-        if (!verifyResponse.ok) {
-          throw new Error(verifyData.error || 'Verification failed');
-        }
-
-        setAuthState({
-          isLoading: false,
-          isAuthenticated: true,
-          address: address,
-          error: null,
-        });
-
-        // Store address in localStorage for persistence
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('base_auth_address', address);
-        }
-
-        return { success: true, address };
-
-      } catch (connectError: any) {
-        // Fallback for wallets that don't support wallet_connect yet
-        if (connectError?.message?.includes('method_not_supported') || 
-            connectError?.code === -32601) {
-          console.warn('wallet_connect not supported, falling back to eth_requestAccounts');
-          
-          // Fallback: use eth_requestAccounts and personal_sign
-          const accounts = await provider.request({
-            method: 'eth_requestAccounts',
-          }) as string[];
-
-          if (!accounts || accounts.length === 0) {
-            throw new Error('No accounts returned');
-          }
-
-          const address = accounts[0];
-          
-          // Create a SIWE-like message
-          const message = `Sign in to Stars\n\nNonce: ${nonce}\nChain ID: 0x2105`;
-          
-          // Sign the message
-          const signature = await provider.request({
-            method: 'personal_sign',
-            params: [message, address],
-          }) as string;
-
-          // Verify with backend
-          const verifyResponse = await fetch('/api/auth/base/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address, message, signature })
-          });
-
-          const verifyData = await verifyResponse.json();
-
-          if (!verifyResponse.ok) {
-            throw new Error(verifyData.error || 'Verification failed');
-          }
-
-          setAuthState({
-            isLoading: false,
-            isAuthenticated: true,
-            address: address,
-            error: null,
-          });
-
-          // Store address in localStorage for persistence
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('base_auth_address', address);
-          }
-
-          return { success: true, address };
+        if (shouldFallback) {
+          return await tryFallbackMethod(provider, nonce);
         }
 
         throw connectError;
       }
-
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Base auth error:', error);
+      const errorMessage = getErrorMessage(error);
+
       setAuthState({
         isLoading: false,
         isAuthenticated: false,
         address: null,
-        error: error?.message || 'Authentication failed',
+        error: errorMessage,
       });
-      return { success: false, error: error?.message || 'Authentication failed' };
+
+      return { success: false, error: errorMessage };
     }
   }, []);
 
-  const signOut = useCallback(() => {
+  /**
+   * Signs out the current user
+   */
+  const signOut = useCallback((): void => {
     setAuthState({
       isLoading: false,
       isAuthenticated: false,
       address: null,
       error: null,
     });
-    
-    // Clear stored address
+
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('base_auth_address');
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
 

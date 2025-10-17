@@ -1,7 +1,7 @@
 "use client";
 
 import { BackgroundGradient } from "@/components/BackgroundGradient";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CalendarBlank, MapPin, Users, SignOut } from "phosphor-react";
