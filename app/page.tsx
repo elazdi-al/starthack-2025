@@ -49,7 +49,6 @@ export default function Home() {
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-between p-6 bg-transparent overflow-hidden">
       <BackgroundGradient />
-
       {/* Title at the top */}
       <div className="flex-1 flex items-start justify-center pt-20 relative z-10">
         <h1 className="text-8xl  tracking-tighter font-bold text-center text-white/30">
@@ -57,12 +56,26 @@ export default function Home() {
         </h1>
       </div>
 
+<<<<<<< HEAD
       {/* Sign in buttons at the bottom */}
       <div className="w-full max-w-sm pb-8 space-y-4">
         {/* Base Authentication */}
         <BaseAuthButton />
         
        
+=======
+
+      {/* Sign in button at the bottom */}
+      <div className="w-full max-w-sm pb-8 relative z-10">
+        <Button
+          onClick={handleSignIn}
+          disabled={isAuthLoading}
+          className="w-full h-12 text-base font-semibold"
+          size="lg"
+        >
+          {isAuthLoading ? "Loading..." : "Get Started"}
+        </Button>
+>>>>>>> 8231f96 (push)
       </div>
     </div>
   );
