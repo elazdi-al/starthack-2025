@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useMiniKit, useQuickAuth } from "@coinbase/onchainkit/minikit";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { BaseAuthButton } from "@/components/BaseAuthButton";
 
 interface AuthResponse {
   success: boolean;
@@ -56,16 +57,12 @@ export default function Home() {
         </h1>
       </div>
 
-      {/* Sign in button at the bottom */}
-      <div className="w-full max-w-sm pb-8 relative z-10">
-        <Button
-          onClick={handleSignIn}
-          disabled={isAuthLoading}
-          className="w-full h-12 text-base font-semibold"
-          size="lg"
-        >
-          {isAuthLoading ? "Loading..." : "Get Started"}
-        </Button>
+      {/* Sign in buttons at the bottom */}
+      <div className="w-full max-w-sm pb-8 space-y-4">
+        {/* Base Authentication */}
+        <BaseAuthButton />
+        
+       
       </div>
     </div>
   );
