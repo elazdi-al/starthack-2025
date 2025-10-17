@@ -16,8 +16,6 @@ interface AuthActions {
 
 type AuthStore = AuthState & AuthActions;
 
-const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({

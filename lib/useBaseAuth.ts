@@ -286,7 +286,7 @@ export function useBaseAuth() {
 
       return { success: false, error: errorMessage };
     }
-  }, [setAuth]);
+  }, [tryWalletConnect, tryFallbackMethod]);
 
   const signOut = useCallback(() => {
     // Clear Zustand store (will auto-clear localStorage)

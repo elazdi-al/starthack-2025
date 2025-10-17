@@ -35,7 +35,7 @@ export default function Home() {
     }
   }, [isAuthenticated, router]);
 
-  const { data: authData, isLoading: isAuthLoading } = useQuickAuth<AuthResponse>(
+  useQuickAuth<AuthResponse>(
     "/api/auth",
     { method: "GET" }
   );
