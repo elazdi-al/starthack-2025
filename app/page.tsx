@@ -51,7 +51,7 @@ export default function Home() {
 
       {/* Title at the top */}
       <div className="flex-1 flex items-start justify-center pt-20 relative z-10">
-        <h1 className="text-7xl font-bold tracking-tight text-center text-white">
+        <h1 className="text-8xl  tracking-tighter font-bold text-center text-white/30">
           Stars
         </h1>
       </div>
