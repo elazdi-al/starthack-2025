@@ -56,26 +56,12 @@ export default function Home() {
         </h1>
       </div>
 
-<<<<<<< HEAD
       {/* Sign in buttons at the bottom */}
       <div className="w-full max-w-sm pb-8 space-y-4">
         {/* Base Authentication */}
         <BaseAuthButton />
         
        
-=======
-
-      {/* Sign in button at the bottom */}
-      <div className="w-full max-w-sm pb-8 relative z-10">
-        <Button
-          onClick={handleSignIn}
-          disabled={isAuthLoading}
-          className="w-full h-12 text-base font-semibold"
-          size="lg"
-        >
-          {isAuthLoading ? "Loading..." : "Get Started"}
-        </Button>
->>>>>>> 8231f96 (push)
       </div>
     </div>
   );
