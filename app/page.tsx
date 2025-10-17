@@ -1,9 +1,9 @@
 "use client";
-import { useEffect } from "react";
-import { useQuickAuth, useMiniKit } from "@coinbase/onchainkit/minikit";
-import { useRouter } from "next/navigation";
-import { minikitConfig } from "../minikit.config";
+import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { Button } from "@/components/ui/button";
+import { useMiniKit, useQuickAuth } from "@coinbase/onchainkit/minikit";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 interface AuthResponse {
   success: boolean;
@@ -46,23 +46,25 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between p-6 bg-background">
+    <div className="relative min-h-screen flex flex-col items-center justify-between p-6 bg-transparent overflow-hidden">
+      <BackgroundGradient />
+
       {/* Title at the top */}
-      <div className="flex-1 flex items-start justify-center pt-20">
-        <h1 className="text-7xl font-bold tracking-tight text-center">
+      <div className="flex-1 flex items-start justify-center pt-20 relative z-10">
+        <h1 className="text-7xl font-bold tracking-tight text-center text-white">
           Stars
         </h1>
       </div>
 
       {/* Sign in button at the bottom */}
-      <div className="w-full max-w-sm pb-8">
+      <div className="w-full max-w-sm pb-8 relative z-10">
         <Button
           onClick={handleSignIn}
           disabled={isAuthLoading}
           className="w-full h-12 text-base font-semibold"
           size="lg"
         >
-          {isAuthLoading ? "Loading..." : "Sign In"}
+          {isAuthLoading ? "Loading..." : "Get Started"}
         </Button>
       </div>
     </div>
