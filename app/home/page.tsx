@@ -4,8 +4,10 @@ import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CalendarBlank, MapPin, Users, SignOut, Ticket, Wallet, Storefront } from "phosphor-react";
+import { CalendarBlank, MapPin, Users, SignOut, Ticket, Storefront } from "phosphor-react";
 import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
+import { WalletBalance } from "@/components/WalletBalance";
+import { toast } from "sonner";
 interface Event {
   id: number;
   name: string;
@@ -22,39 +24,8 @@ export default function Home() {
   const router = useRouter();
   const { isAuthenticated, address, hasHydrated } = useAuthCheck();
   const { clearAuth } = useAuthStore();
-  const [balance, setBalance] = useState<string | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-
-  // Fetch wallet balance from API
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (!address) return;
-
-      try {
-        setIsLoadingBalance(true);
-        const response = await fetch(`/api/wallet/balance?address=${address}`);
-        const data = await response.json();
-
-        if (data.success) {
-          setBalance(data.balance.eth);
-        } else {
-          console.error('Error fetching balance:', data.error);
-          setBalance('0');
-        }
-      } catch (error) {
-        console.error('Error fetching balance:', error);
-        setBalance('0');
-      } finally {
-        setIsLoadingBalance(false);
-      }
-    };
-
-    if (isAuthenticated && address) {
-      fetchBalance();
-    }
-  }, [address, isAuthenticated]);
 
   // Fetch events from API
   useEffect(() => {
@@ -63,17 +34,20 @@ export default function Home() {
         setIsLoadingEvents(true);
         const response = await fetch('/api/events');
         const data = await response.json();
-        console.log(data);
 
         if (data.success) {
           // Filter out past events and limit to upcoming events
           const upcomingEvents = data.events.filter((e: Event) => !e.isPast);
           setEvents(upcomingEvents);
         } else {
-          console.error('Error fetching events:', data.error);
+          toast.error('Failed to load events', {
+            description: data.error || 'An error occurred while fetching events'
+          });
         }
       } catch (error) {
-        console.error('Error fetching events:', error);
+        toast.error('Failed to load events', {
+          description: error instanceof Error ? error.message : 'An unexpected error occurred'
+        });
       } finally {
         setIsLoadingEvents(false);
       }
@@ -125,6 +99,7 @@ export default function Home() {
 
       {/* Navigation buttons */}
       <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
+        <WalletBalance />
         <button
           className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10"
           type="button"
@@ -164,41 +139,6 @@ export default function Home() {
           </p>
         )}
       </div>
-
-      {/* Wallet Balance Card */}
-      {isAuthenticated && (
-        <div className="relative z-10 mb-6 max-w-6xl">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="bg-white/10 backdrop-blur-sm p-3 rounded-full">
-                  <Wallet size={24} weight="regular" className="text-white/70" />
-                </div>
-                <div>
-                  <p className="text-white/50 text-sm mb-1">Wallet Balance</p>
-                  {isLoadingBalance ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 h-8 bg-white/10 animate-pulse rounded"></div>
-                      <span className="text-white/30 text-sm">Loading...</span>
-                    </div>
-                  ) : (
-                    <p className="text-white text-3xl font-bold">
-                      {balance ? parseFloat(balance).toFixed(4) : '0.0000'} <span className="text-xl text-white/50">ETH</span>
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-white/40 text-xs mb-1">Base Mainnet</p>
-                <div className="flex items-center gap-2 justify-end">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-white/50 text-sm">Connected</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Event cards */}
       <div className="relative z-10 flex-1 pb-8">

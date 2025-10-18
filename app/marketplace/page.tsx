@@ -3,12 +3,12 @@
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CalendarBlank, MapPin, Users, ArrowLeft, Wallet, ShoppingCart } from "phosphor-react";
+import { CalendarBlank, MapPin, Users, ArrowLeft, ShoppingCart } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore } from "@/lib/store/ticketStore";
 import { pay, getPaymentStatus } from '@base-org/account';
-import { createPublicClient, http, formatEther } from 'viem';
-import { base } from 'viem/chains';
+import { WalletBalance } from "@/components/WalletBalance";
+import { toast } from "sonner";
 
 // Mock marketplace tickets - replace with actual data from backend
 const marketplaceTickets = [
@@ -165,47 +165,13 @@ function PurchaseModal({ ticket, onClose, onPurchase, isPurchasing }: PurchaseMo
 
 export default function Marketplace() {
   const router = useRouter();
-  const { isAuthenticated, address, hasHydrated } = useAuthCheck();
+  const { isAuthenticated, hasHydrated } = useAuthCheck();
   const { tickets, cancelListing } = useTicketStore();
-  const [balance, setBalance] = useState<string | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<typeof marketplaceTickets[0] | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
-  const [purchaseSuccess, setPurchaseSuccess] = useState(false);
 
   // Get user's listed tickets
   const userListedTickets = tickets.filter(t => t.status === 'listed');
-
-  // Fetch wallet balance
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (!address) return;
-
-      try {
-        setIsLoadingBalance(true);
-        const client = createPublicClient({
-          chain: base,
-          transport: http(),
-        });
-
-        const balanceInWei = await client.getBalance({
-          address: address as `0x${string}`,
-        });
-
-        const balanceInEth = formatEther(balanceInWei);
-        setBalance(balanceInEth);
-      } catch (error) {
-        console.error('Error fetching balance:', error);
-        setBalance('0');
-      } finally {
-        setIsLoadingBalance(false);
-      }
-    };
-
-    if (isAuthenticated && address) {
-      fetchBalance();
-    }
-  }, [address, isAuthenticated]);
 
   // Redirect to login if not authenticated (only after hydration)
   useEffect(() => {
@@ -259,27 +225,25 @@ export default function Marketplace() {
           });
 
           if (status === 'completed') {
-            console.log('🎉 Payment completed!');
-            setPurchaseSuccess(true);
-            
+            toast.success('Purchase Successful!', {
+              description: 'Ticket sent to your email'
+            });
+            setSelectedTicket(null);
+
             // TODO: Send ticket to user's email
             // TODO: Add ticket to user's account via backend API
-            
-            setTimeout(() => {
-              setSelectedTicket(null);
-              setPurchaseSuccess(false);
-              // Optionally redirect to tickets page
-              // router.push('/tickets');
-            }, 3000);
           } else if (status === 'pending') {
             // Keep polling
             setTimeout(checkStatus, 2000);
           } else {
-            console.error('Payment failed or cancelled');
-            alert('Payment failed or was cancelled');
+            toast.error('Payment failed', {
+              description: 'Payment was cancelled or failed to complete'
+            });
           }
         } catch (error) {
-          console.error('Error checking payment status:', error);
+          toast.error('Payment status error', {
+            description: error instanceof Error ? error.message : 'Failed to check payment status'
+          });
         } finally {
           setIsPurchasing(false);
         }
@@ -289,8 +253,9 @@ export default function Marketplace() {
       setTimeout(checkStatus, 2000);
 
     } catch (error: any) {
-      console.error(`Payment failed: ${error.message}`);
-      alert(`Payment failed: ${error.message}`);
+      toast.error('Payment failed', {
+        description: error.message || 'An error occurred during payment'
+      });
       setIsPurchasing(false);
     }
   };
@@ -327,16 +292,7 @@ export default function Marketplace() {
 
       {/* Wallet Balance - Top Right */}
       <div className="absolute top-6 right-6 z-20">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 flex items-center gap-2">
-          <Wallet size={18} weight="regular" className="text-white/70" />
-          {isLoadingBalance ? (
-            <div className="w-16 h-4 bg-white/10 animate-pulse rounded"></div>
-          ) : (
-            <span className="text-white/90 text-sm font-medium">
-              {balance ? parseFloat(balance).toFixed(4) : '0.0000'} <span className="text-white/50">ETH</span>
-            </span>
-          )}
-        </div>
+        <WalletBalance />
       </div>
 
       {/* Header */}
@@ -478,19 +434,6 @@ export default function Marketplace() {
           onPurchase={handlePurchase}
           isPurchasing={isPurchasing}
         />
-      )}
-
-      {/* Success notification */}
-      {purchaseSuccess && (
-        <div className="fixed bottom-6 right-6 z-50 bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom">
-          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-            ✓
-          </div>
-          <div>
-            <p className="font-semibold">Purchase Successful!</p>
-            <p className="text-sm text-white/80">Ticket sent to your email</p>
-          </div>
-        </div>
       )}
     </div>
   );

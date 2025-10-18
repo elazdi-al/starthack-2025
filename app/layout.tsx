@@ -5,6 +5,7 @@ import { minikitConfig } from "../minikit.config";
 import { RootProvider } from "./rootProvider";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -52,6 +53,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <SafeArea>{children}</SafeArea>
+            <Toaster />
           </ThemeProvider>
         </body>
       </html>

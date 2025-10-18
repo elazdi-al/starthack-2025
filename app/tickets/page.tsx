@@ -3,12 +3,12 @@
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CalendarBlank, MapPin, Clock, Ticket as TicketIcon, ArrowLeft, Wallet, CurrencyDollar, Tag } from "phosphor-react";
+import { CalendarBlank, MapPin, Clock, Ticket as TicketIcon, ArrowLeft, Tag } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore, type Ticket } from "@/lib/store/ticketStore";
 import { QRCodeSVG } from "qrcode.react";
-import { createPublicClient, http, formatEther } from 'viem';
-import { base } from 'viem/chains';
+import { WalletBalance } from "@/components/WalletBalance";
+import { toast } from "sonner";
 
 // Initialize mock tickets if store is empty
 const initializeMockTickets = (addTicket: any) => {
@@ -66,17 +66,15 @@ export default function MyTickets() {
   const { tickets, addTicket, listTicket, cancelListing, getOwnedTickets, clearDuplicates } = useTicketStore();
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
   const [qrSize, setQrSize] = useState(200);
-  const [balance, setBalance] = useState<string | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [listingTicket, setListingTicket] = useState<Ticket | null>(null);
   const [listingPrice, setListingPrice] = useState("");
   const [initialized, setInitialized] = useState(false);
-  
+
   // Clear duplicates on mount
   useEffect(() => {
     clearDuplicates();
   }, [clearDuplicates]);
-  
+
   // Initialize mock tickets on first load only
   useEffect(() => {
     if (!initialized && tickets.length === 0) {
@@ -98,37 +96,6 @@ export default function MyTickets() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Fetch wallet balance
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (!address) return;
-
-      try {
-        setIsLoadingBalance(true);
-        const client = createPublicClient({
-          chain: base,
-          transport: http(),
-        });
-
-        const balanceInWei = await client.getBalance({
-          address: address as `0x${string}`,
-        });
-
-        const balanceInEth = formatEther(balanceInWei);
-        setBalance(balanceInEth);
-      } catch (error) {
-        console.error('Error fetching balance:', error);
-        setBalance('0');
-      } finally {
-        setIsLoadingBalance(false);
-      }
-    };
-
-    if (isAuthenticated && address) {
-      fetchBalance();
-    }
-  }, [address, isAuthenticated]);
 
   // Redirect to login if not authenticated (only after hydration)
   useEffect(() => {
@@ -180,7 +147,9 @@ export default function MyTickets() {
 
   const handleListForSale = (ticket: Ticket) => {
     if (!canListTicket(ticket)) {
-      alert('Cannot list this ticket: Event date has passed or ticket is invalid');
+      toast.warning('Cannot list ticket', {
+        description: 'Event date has passed or ticket is invalid'
+      });
       return;
     }
     setListingTicket(ticket);
@@ -245,16 +214,7 @@ export default function MyTickets() {
 
       {/* Wallet Balance - Top Right */}
       <div className="absolute top-6 right-6 z-20">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 flex items-center gap-2">
-          <Wallet size={18} weight="regular" className="text-white/70" />
-          {isLoadingBalance ? (
-            <div className="w-16 h-4 bg-white/10 animate-pulse rounded"></div>
-          ) : (
-            <span className="text-white/90 text-sm font-medium">
-              {balance ? parseFloat(balance).toFixed(4) : '0.0000'} <span className="text-white/50">ETH</span>
-            </span>
-          )}
-        </div>
+        <WalletBalance />
       </div>
 
       {/* Header */}
