@@ -23,20 +23,20 @@ export function SafeAreaWrapper({ children }: { children: React.ReactNode }) {
     const loadSafeAreaInsets = async () => {
       try {
         const miniAppStatus = await sdk.isInMiniApp();
-        setIsInMiniApp(miniAppStatus);
+        if (!miniAppStatus) {
+          return;
+        }
 
-        if (miniAppStatus) {
-          const context = await sdk.context;
-          if (context.client.safeAreaInsets) {
-            setInsets(context.client.safeAreaInsets);
-          }
+        const context = await sdk.context;
+        if (context.client.safeAreaInsets) {
+          setInsets(context.client.safeAreaInsets);
         }
       } catch (error) {
         console.error("Error loading safe area insets:", error);
       }
     };
 
-    loadSafeAreaInsets();
+    void loadSafeAreaInsets();
   }, []);
 
   return (

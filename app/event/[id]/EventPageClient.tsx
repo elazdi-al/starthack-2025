@@ -20,6 +20,7 @@ import {
   useWalletClient,
 } from "wagmi";
 import { useEvent, useInvalidateEvents } from "@/lib/hooks/useEvents";
+import Image from "next/image";
 
 interface EventDetails {
   id: number;
@@ -39,6 +40,7 @@ interface EventDetails {
   priceEth: string;
   isPast: boolean;
   isFull: boolean;
+  imageUri: string | null;
 }
 
 type PurchaseStage =
@@ -85,6 +87,7 @@ const transformEvent = (raw: {
   maxCapacity: number;
   isPast: boolean;
   isFull: boolean;
+  imageURI?: string | null;
 }): EventDetails => {
   const eventDate = new Date(raw.date * 1000);
   const time = eventDate.toLocaleTimeString("en-US", {
@@ -112,6 +115,7 @@ const transformEvent = (raw: {
     priceEth: formatEther(BigInt(raw.price)),
     isPast: raw.isPast,
     isFull: raw.isFull,
+    imageUri: raw.imageURI && raw.imageURI.trim().length > 0 ? raw.imageURI : null,
   };
 };
 
@@ -234,16 +238,10 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
       }
 
       // Invalidate cache to refetch latest data
-      const tasks: Promise<unknown>[] = [];
-      if (eventId !== null) {
-        tasks.push(invalidateDetail(eventId));
-      }
-      if (accountAddress) {
-        tasks.push(invalidateTickets(accountAddress));
-      }
-      if (tasks.length > 0) {
-        await Promise.all(tasks);
-      }
+      await Promise.all([
+        eventId !== null ? invalidateDetail(eventId) : Promise.resolve(),
+        accountAddress ? invalidateTickets(accountAddress) : Promise.resolve(),
+      ]);
       clearDuplicates();
 
       toast.success("Ticket purchased!", {
@@ -352,60 +350,104 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
           {event.title}
         </h1>
 
-        <div className="space-y-4 sm:space-y-5 mb-8 sm:mb-12">
-          <div className="flex items-start gap-3 sm:gap-4">
-            <CalendarBlank
-              size={20}
-              weight="regular"
-              className="text-white/40 mt-0.5 shrink-0"
-            />
-            <div>
-              <p className="text-white text-base sm:text-lg">
-                {new Date(event.date).toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-              <p className="text-white/50 text-sm sm:text-base mt-0.5">
-                {event.time}
-              </p>
-            </div>
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 mb-8 sm:mb-12">
+          <div className="relative w-full lg:w-[45%] aspect-[4/3] rounded-3xl border border-white/10 bg-white/5 overflow-hidden">
+            {event.imageUri ? (
+              <Image
+                src={event.imageUri}
+                alt={`${event.title} cover art`}
+                fill
+                unoptimized
+                sizes="(min-width: 1024px) 45vw, 100vw"
+                className="object-cover"
+                priority
+              />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-white/10 via-white/5 to-transparent">
+                <span className="text-white/50 text-sm">No cover image</span>
+                <span className="text-white/30 text-xs">Add one during event creation</span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-start gap-3 sm:gap-4">
-            <MapPin
-              size={20}
-              weight="regular"
-              className="text-white/40 mt-0.5 shrink-0"
-            />
-            <div>
-              <p className="text-white text-base sm:text-lg">{event.venue}</p>
-              <p className="text-white/50 text-sm sm:text-base mt-0.5">
-                {event.location}
-              </p>
-            </div>
-          </div>
+          <div className="flex-1 space-y-6">
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-5 sm:p-6 space-y-4 sm:space-y-5">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <CalendarBlank
+                  size={20}
+                  weight="regular"
+                  className="text-white/40 mt-0.5 shrink-0"
+                />
+                <div>
+                  <p className="text-white text-base sm:text-lg">
+                    {new Date(event.date).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                  <p className="text-white/50 text-sm sm:text-base mt-0.5">
+                    {event.time}
+                  </p>
+                </div>
+              </div>
 
-          <div className="flex items-start gap-3 sm:gap-4">
-            <Users
-              size={20}
-              weight="regular"
-              className="text-white/40 mt-0.5 shrink-0"
-            />
-            <div>
-              <p className="text-white text-base sm:text-lg">
-                {event.attendees} attending
-              </p>
-              <p className="text-white/50 text-sm sm:text-base mt-0.5">
-                Hosted by {event.host}
-              </p>
+              <div className="flex items-start gap-3 sm:gap-4">
+                <MapPin
+                  size={20}
+                  weight="regular"
+                  className="text-white/40 mt-0.5 shrink-0"
+                />
+                <div>
+                  <p className="text-white text-base sm:text-lg">{event.venue}</p>
+                  <p className="text-white/50 text-sm sm:text-base mt-0.5">
+                    {event.location}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 sm:gap-4">
+                <Users
+                  size={20}
+                  weight="regular"
+                  className="text-white/40 mt-0.5 shrink-0"
+                />
+                <div>
+                  <p className="text-white text-base sm:text-lg">
+                    {event.attendees} attending
+                  </p>
+                  <p className="text-white/50 text-sm sm:text-base mt-0.5">
+                    Hosted by {event.host}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-5">
+                <p className="text-white/40 text-xs uppercase tracking-[0.2em] mb-1">
+                  Price
+                </p>
+                <p className="text-white text-2xl font-semibold">
+                  {Number(event.priceEth) > 0
+                    ? `${Number(event.priceEth).toFixed(4)} ETH`
+                    : "Free"}
+                </p>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-5">
+                <p className="text-white/40 text-xs uppercase tracking-[0.2em] mb-1">
+                  Capacity
+                </p>
+                <p className="text-white text-2xl font-semibold">
+                  {event.maxAttendees > 0
+                    ? `${event.attendees}/${event.maxAttendees}`
+                    : `${event.attendees} attending`}
+                </p>
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="w-full h-px bg-white/10 mb-8 sm:mb-12" />
 
         <div className="mb-8 sm:mb-12">
           <h2 className="text-xl sm:text-2xl font-semibold text-white/90 mb-4 sm:mb-5">

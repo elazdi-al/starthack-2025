@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Plus, CalendarBlank } from "phosphor-react";
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnect, useConnectors, useChainId, useSwitchChain } from "wagmi";
+import Image from "next/image";
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnect, useConnectors, useChainId, useSwitchChain, usePublicClient } from "wagmi";
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from "@/lib/contracts/eventBook";
 import { parseEther } from "viem";
 import { toast } from "sonner";
@@ -22,20 +23,36 @@ interface CreateEventDialogProps {
   onEventCreated?: () => void;
 }
 
+const INITIAL_FORM_STATE = {
+  name: "",
+  description: "",
+  location: "",
+  time: "",
+  price: "",
+  maxCapacity: "",
+} as const;
+
 export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
   const [date, setDate] = useState<Date>();
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    location: "",
-    time: "",
-    price: "",
-    maxCapacity: "",
-  });
-  
+  const [formData, setFormData] = useState(() => ({ ...INITIAL_FORM_STATE }));
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [imageUploadData, setImageUploadData] = useState<{ cid: string; url: string } | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [pendingEventImage, setPendingEventImage] = useState<{ cid: string; url: string } | null>(null);
   const MAX_DESCRIPTION_LENGTH = 250;
+
+  const resetFormState = useCallback(() => {
+    setFormData({ ...INITIAL_FORM_STATE });
+    setDate(undefined);
+    setIsPrivate(false);
+    setImageFile(null);
+    setImagePreviewUrl(null);
+    setImageUploadData(null);
+    setPendingEventImage(null);
+  }, []);
 
   // Use Base auth store for authentication check
   const { isAuthenticated, isSessionValid } = useAuthStore();
@@ -46,8 +63,9 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
-  const {switchChainAsync} = useSwitchChain()
-  const chainId = useChainId()
+  const { switchChainAsync } = useSwitchChain();
+  const publicClient = usePublicClient();
+  const chainId = useChainId();
   const { invalidateAll } = useInvalidateEvents();
   useEffect(() => {
     const switchToBase = async () => {
@@ -61,6 +79,16 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     };
     switchToBase();
   }, [chainId, switchChainAsync]);
+
+  useEffect(() => {
+    if (!imagePreviewUrl) {
+      return;
+    }
+
+    return () => {
+      URL.revokeObjectURL(imagePreviewUrl);
+    };
+  }, [imagePreviewUrl]);
 
   // Auto-connect wallet if authenticated but wagmi not connected
   useEffect(() => {
@@ -76,6 +104,69 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      setImageFile(null);
+      setImagePreviewUrl(null);
+      setImageUploadData(null);
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Invalid file", {
+        description: "Please select a valid image file (PNG, JPG, GIF).",
+      });
+      return;
+    }
+
+    setImageFile(file);
+    setImageUploadData(null);
+
+    const objectUrl = URL.createObjectURL(file);
+    setImagePreviewUrl(objectUrl);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreviewUrl(null);
+    setImageUploadData(null);
+  };
+
+  const uploadImageIfNeeded = useCallback(async () => {
+    if (imageUploadData) {
+      return imageUploadData;
+    }
+
+    if (!imageFile) {
+      throw new Error("Please select an event cover image before creating the event.");
+    }
+
+    setIsUploadingImage(true);
+
+    try {
+      const body = new FormData();
+      body.append("file", imageFile);
+
+      const response = await fetch("/api/uploads/pinata", {
+        method: "POST",
+        body,
+      });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error ?? "Failed to upload the image to Pinata.");
+      }
+
+      const uploaded = result.data as { cid: string; url: string };
+      setImageUploadData(uploaded);
+      return uploaded;
+    } finally {
+      setIsUploadingImage(false);
+    }
+  }, [imageFile, imageUploadData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +188,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     }
 
     try {
+      setPendingEventImage(null);
       // Validate required fields
       if (!formData.name || !formData.location || !date || !formData.time || !formData.price) {
         toast.error("Please fill in all required fields");
@@ -118,6 +210,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       // Convert price to wei
       const priceInWei = parseEther(formData.price);
 
+      const uploadedImage = await uploadImageIfNeeded();
+
       // Parse max capacity (0 means unlimited)
       const maxCapacity = formData.maxCapacity ? BigInt(formData.maxCapacity) : BigInt(0);
 
@@ -128,7 +222,11 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         price: priceInWei.toString(),
         maxCapacity: maxCapacity.toString(),
         address: EVENT_BOOK_ADDRESS,
+        imageCid: uploadedImage.cid,
+        imageUrl: uploadedImage.url,
       });
+
+      setPendingEventImage(uploadedImage);
 
       // Call smart contract
       writeContract({
@@ -149,10 +247,32 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       });
     } catch (error) {
       console.error("Error creating event:", error);
+      setPendingEventImage(null);
       toast.error("Failed to create event", {
         description: error instanceof Error ? error.message : "An unexpected error occurred",
       });
     }
+  };
+
+  const handleCancel = () => {
+    if (isPending || isConfirming) {
+      return;
+    }
+    resetFormState();
+    setOpen(false);
+  };
+
+  const handleDialogChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      if (isPending || isConfirming || isUploadingImage) {
+        toast.info("Just a moment", {
+          description: "Please wait for the current action to finish.",
+        });
+        return;
+      }
+      resetFormState();
+    }
+    setOpen(nextOpen);
   };
 
   // Handle transaction errors
@@ -167,36 +287,97 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
   // Handle successful transaction
   useEffect(() => {
-    if (isConfirmed && hash) {
-      toast.success("Event created successfully!", {
-        description: "Your event is now live on the blockchain.",
-      });
+    if (!isConfirmed || !hash) {
+      return;
+    }
 
-      // Invalidate all event queries to refetch fresh data
+    toast.success("Event created successfully!", {
+      description: "Your event is now live on the blockchain.",
+    });
+
+    const finalizeCreation = async () => {
+      let resolvedEventId: number | null = null;
+
+      if (pendingEventImage && publicClient) {
+        try {
+          const totalEvents = await publicClient.readContract({
+            address: EVENT_BOOK_ADDRESS,
+            abi: EVENT_BOOK_ABI,
+            functionName: "getNumberOfEvents",
+          }) as bigint;
+
+          const numericTotal = Number(totalEvents);
+          if (!Number.isNaN(numericTotal) && numericTotal > 0) {
+            resolvedEventId = numericTotal - 1;
+          }
+        } catch (error) {
+          console.error("Failed to resolve new event ID via public client:", error);
+        }
+      }
+
+      if (pendingEventImage && (resolvedEventId === null || resolvedEventId < 0)) {
+        try {
+          const response = await fetch("/api/events");
+          const data = await response.json().catch(() => null);
+          if (response.ok && Array.isArray(data?.events) && data.events.length > 0) {
+            const lastEvent = data.events[data.events.length - 1];
+            if (typeof lastEvent?.id === "number") {
+              resolvedEventId = lastEvent.id;
+            }
+          }
+        } catch (error) {
+          console.error("Fallback fetch failed while resolving event ID:", error);
+        }
+      }
+
+      if (pendingEventImage && resolvedEventId !== null && resolvedEventId >= 0) {
+        try {
+          const response = await fetch("/api/events/metadata", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              eventId: resolvedEventId,
+              imageCid: pendingEventImage.cid,
+              imageUrl: pendingEventImage.url,
+            }),
+          });
+
+          if (!response.ok) {
+            const data = await response.json().catch(() => null);
+            console.error("Failed to persist event image metadata:", data);
+            toast.warning("Event image not saved", {
+              description: "The cover image could not be stored. You can retry later from the dashboard.",
+            });
+          }
+        } catch (error) {
+          console.error("Error saving event image metadata:", error);
+          toast.warning("Event image not saved", {
+            description: "The cover image could not be stored. You can retry later from the dashboard.",
+          });
+        }
+      } else if (pendingEventImage) {
+        toast.warning("Event image not saved", {
+          description: "Could not determine the new event ID to attach the image.",
+        });
+      }
+
       invalidateAll();
 
-      // Reset form and close dialog
-      setFormData({
-        name: "",
-        description: "",
-        location: "",
-        time: "",
-        price: "",
-        maxCapacity: "",
-      });
-      setDate(undefined);
-      setIsPrivate(false);
+      resetFormState();
       setOpen(false);
 
-      // Callback to refresh events list
       if (onEventCreated) {
         onEventCreated();
       }
-    }
-  }, [isConfirmed, hash, onEventCreated, invalidateAll]);
+    };
+
+    void finalizeCreation();
+  }, [hash, isConfirmed, invalidateAll, onEventCreated, pendingEventImage, publicClient, resetFormState]);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
         {/* Desktop button */}
         <button
@@ -282,6 +463,68 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
               maxLength={MAX_DESCRIPTION_LENGTH}
               className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 h-[90px] focus:border-white/20 focus:bg-white/10 resize-none text-base"
             />
+          </div>
+
+          {/* Cover Image */}
+          <div className="space-y-2">
+            <Label htmlFor="event-image" className="text-white/90 text-base">
+              Event Cover Image <span className="text-red-400/80">*</span>
+            </Label>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative w-full sm:w-48 min-h-[160px] rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                {imagePreviewUrl ? (
+                  <Image
+                    src={imagePreviewUrl}
+                    alt="Event cover preview"
+                    fill
+                    unoptimized
+                    sizes="(min-width: 640px) 12rem, 100vw"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-xs text-white/40">
+                    No image selected
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 space-y-3">
+                <Input
+                  id="event-image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  disabled={isUploadingImage}
+                  className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 text-sm h-11 file:bg-white/10 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-2 file:mr-4"
+                />
+                <p className="text-xs text-white/40 break-all">
+                  {isUploadingImage
+                    ? "Uploading image to IPFS via Pinata..."
+                    : imageUploadData
+                    ? `Pinned to IPFS • CID: ${imageUploadData.cid}`
+                    : "Recommended 1280×720 JPG or PNG. The file will be pinned to IPFS via Pinata."}
+                </p>
+                {imageUploadData ? (
+                  <a
+                    href={imageUploadData.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-300 hover:text-blue-200 underline underline-offset-4"
+                  >
+                    View uploaded image
+                  </a>
+                ) : null}
+                {imageFile ? (
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    disabled={isUploadingImage}
+                    className="text-xs text-red-300 hover:text-red-200 underline-offset-4 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Remove image
+                  </button>
+                ) : null}
+              </div>
+            </div>
           </div>
 
           {/* Location */}
@@ -383,18 +626,22 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           <div className="flex gap-3 pt-4 flex-shrink-0 border-t border-white/10 mt-4">
             <button
               type="button"
-              onClick={() => setOpen(false)}
-              className="flex-1 px-6 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-white/70 hover:text-white/90 border border-white/10 transition-all active:scale-[0.98] backdrop-blur-sm font-semibold text-base"
-              disabled={isPending || isConfirming}
+              onClick={handleCancel}
+              className="flex-1 px-6 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-white/70 hover:text-white/90 border border-white/10 transition-all active:scale-[0.98] backdrop-blur-sm font-semibold text-base disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isPending || isConfirming || isUploadingImage}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="flex-1 px-6 py-3.5 rounded-xl bg-white/90 hover:bg-white active:bg-white/80 text-black font-bold text-base transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-              disabled={isPending || isConfirming}
+              disabled={isPending || isConfirming || isUploadingImage}
             >
-              {isPending || isConfirming ? "Creating..." : "Create Event"}
+              {isUploadingImage
+                ? "Uploading image..."
+                : isPending || isConfirming
+                ? "Creating..."
+                : "Create Event"}
             </button>
           </div>
         </form>

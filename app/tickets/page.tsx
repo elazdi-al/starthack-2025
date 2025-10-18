@@ -3,7 +3,7 @@
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CalendarBlank, MapPin, Clock, Ticket as TicketIcon, Tag } from "phosphor-react";
+import { CalendarBlank, MapPin, Clock, Ticket as TicketIcon, Tag, ShareNetwork } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore, type Ticket } from "@/lib/store/ticketStore";
 import { QRCodeSVG } from "qrcode.react";
@@ -12,9 +12,9 @@ import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
 import { useTickets } from "@/lib/hooks/useEvents";
 import { useAccount } from 'wagmi';
+import { sdk } from "@farcaster/miniapp-sdk";
 
 
-// Removed mock tickets - now fetching from blockchain
 
 export default function MyTickets() {
   const router = useRouter();
@@ -24,6 +24,7 @@ export default function MyTickets() {
   const [qrSize, setQrSize] = useState(200);
   const [listingTicket, setListingTicket] = useState<Ticket | null>(null);
   const [listingPrice, setListingPrice] = useState("");
+  const [sharingTicketId, setSharingTicketId] = useState<string | null>(null);
   const { address: walletAddress, isConnected} = useAccount();
 
   const activeAddress = isAuthenticated && hasHydrated ? walletAddress ?? null : null;
@@ -130,6 +131,70 @@ export default function MyTickets() {
 
   const handleCancelListing = (ticketId: string) => {
     cancelListing(ticketId);
+  };
+
+  const handleShareTicket = async (ticket: Ticket) => {
+    if (ticket.eventId == undefined) {
+      toast.error('Cannot share event', {
+        description: 'Missing event identifier for this ticket.',
+      });
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const configuredBase = process.env.NEXT_PUBLIC_URL;
+    const runtimeOrigin = window.location.origin;
+    const baseUrl =
+      (configuredBase && configuredBase.length > 0 ? configuredBase : runtimeOrigin).replace(/\/$/, '');
+    const eventUrl = `${baseUrl}/event/${ticket.eventId}`;
+    const castText = `I just grabbed a ticket to ${ticket.eventTitle} on Base! Join me here: ${eventUrl}`;
+
+    setSharingTicketId(ticket.id);
+
+    try {
+      const inMiniApp = await sdk.isInMiniApp();
+
+      if (!inMiniApp) {
+        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(eventUrl);
+          } catch {
+            // clipboard might be unavailable; fail silently
+          }
+        }
+        toast.info('Open in Farcaster to share', {
+          description: 'Share composer is only available inside the Farcaster app. The event link is copied.',
+        });
+        return;
+      }
+
+      const result = await sdk.actions.composeCast({
+        text: castText,
+        embeds: [eventUrl],
+        channelKey: 'base',
+      });
+
+      if (result?.cast) {
+        toast.success('Composer ready', {
+          description: 'Finish the Base post to invite friends.',
+        });
+      } else {
+        toast.info('Share canceled', {
+          description: 'Cast composer was closed without posting.',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to open Farcaster composer', error);
+      toast.error('Share failed', {
+        description:
+          error instanceof Error ? error.message : 'Unexpected error while preparing the share.',
+      });
+    } finally {
+      setSharingTicketId(null);
+    }
   };
 
   // Sort tickets: owned first, then listed, date-valid before expired
@@ -303,6 +368,31 @@ export default function MyTickets() {
 
                         {/* Footer / Actions */}
                         <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+                          {ticket.eventId != undefined ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (sharingTicketId !== ticket.id) {
+                                  void handleShareTicket(ticket);
+                                }
+                              }}
+                              disabled={sharingTicketId === ticket.id}
+                              className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {sharingTicketId === ticket.id ? (
+                                <>
+                                  <span className="w-3.5 h-3.5 border border-blue-200/30 border-t-transparent rounded-full animate-spin" />
+                                  <span>Opening composer...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ShareNetwork size={14} weight="regular" />
+                                  <span>Share on Base</span>
+                                </>
+                              )}
+                            </button>
+                          ) : null}
                           {ticket.status === 'listed' ? (
                             <>
                               <div className="flex items-center justify-between mb-2">
@@ -426,8 +516,8 @@ export default function MyTickets() {
                     type="number"
                     value={listingPrice}
                     onChange={(e) => setListingPrice(e.target.value)}
-                    placeholder="0.000001"
-                    step="0.000001"
+                    placeholder="0.0000001"
+                    step="0.0000001"
                     min="0"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 pl-8 py-3 text-white text-lg focus:outline-none focus:border-green-500/50 transition-colors"
                   />
@@ -465,4 +555,3 @@ export default function MyTickets() {
     </div>
   );
 }
-

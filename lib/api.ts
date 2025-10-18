@@ -62,6 +62,7 @@ export const eventsAPI = {
       isPast: boolean;
       isFull: boolean;
       imageURI: string;
+      imageCid?: string | null;
       isPrivate: boolean;
       whitelistIsLocked: boolean;
     }>;
@@ -82,6 +83,7 @@ export const eventsAPI = {
       isPast: boolean;
       isFull: boolean;
       imageURI: string;
+      imageCid?: string | null;
       isPrivate: boolean;
       whitelistIsLocked: boolean;
     };

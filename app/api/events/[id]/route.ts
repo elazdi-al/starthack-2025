@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { publicClient } from '@/lib/contracts/client';
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from '@/lib/contracts/eventBook';
+import { getEventImage } from '@/lib/eventMetadata';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,10 +64,14 @@ export async function GET(
       creator,
       ticketsSold,
       maxCapacity,
-      imageURI,
+      contractImageURI,
       isPrivate,
       whitelistIsLocked,
     ] = eventData;
+
+    const storedImage = getEventImage(eventId);
+    const imageURI = storedImage?.imageUrl || contractImageURI;
+    const imageCid = storedImage?.imageCid ?? null;
 
     const event = {
       id: eventId,
@@ -78,6 +83,7 @@ export async function GET(
       ticketsSold: Number(ticketsSold),
       maxCapacity: Number(maxCapacity),
       imageURI,
+      imageCid,
       isPrivate,
       whitelistIsLocked,
       isPast: Number(date) < Math.floor(Date.now() / 1000),
