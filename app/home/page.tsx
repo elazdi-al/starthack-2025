@@ -8,6 +8,7 @@ import { CalendarBlank, MapPin, Users, SignOut, Ticket, Storefront } from "phosp
 import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
 import { WalletBalance } from "@/components/WalletBalance";
 import { toast } from "sonner";
+import { CreateEventDialog } from "@/components/CreateEventDialog";
 interface Event {
   id: number;
   name: string;
@@ -28,31 +29,31 @@ export default function Home() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
 
   // Fetch events from API
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setIsLoadingEvents(true);
-        const response = await fetch('/api/events');
-        const data = await response.json();
+  const fetchEvents = async () => {
+    try {
+      setIsLoadingEvents(true);
+      const response = await fetch('/api/events');
+      const data = await response.json();
 
-        if (data.success) {
-          // Filter out past events and limit to upcoming events
-          const upcomingEvents = data.events.filter((e: Event) => !e.isPast);
-          setEvents(upcomingEvents);
-        } else {
-          toast.error('Failed to load events', {
-            description: data.error || 'An error occurred while fetching events'
-          });
-        }
-      } catch (error) {
+      if (data.success) {
+        // Filter out past events and limit to upcoming events
+        const upcomingEvents = data.events.filter((e: Event) => !e.isPast);
+        setEvents(upcomingEvents);
+      } else {
         toast.error('Failed to load events', {
-          description: error instanceof Error ? error.message : 'An unexpected error occurred'
+          description: data.error || 'An error occurred while fetching events'
         });
-      } finally {
-        setIsLoadingEvents(false);
       }
-    };
+    } catch (error) {
+      toast.error('Failed to load events', {
+        description: error instanceof Error ? error.message : 'An unexpected error occurred'
+      });
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
 
+  useEffect(() => {
     if (isAuthenticated) {
       fetchEvents();
     }
@@ -100,6 +101,7 @@ export default function Home() {
       {/* Navigation buttons */}
       <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
         <WalletBalance />
+        <CreateEventDialog onEventCreated={fetchEvents} />
         <button
           className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10"
           type="button"
