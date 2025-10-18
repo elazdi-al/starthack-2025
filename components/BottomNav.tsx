@@ -5,11 +5,7 @@ import { House, ShoppingCart, Ticket, SignOut } from "phosphor-react";
 import { useAuthStore } from "@/lib/store/authStore";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 
-interface BottomNavProps {
-  onEventCreated?: () => void;
-}
-
-export function BottomNav({ onEventCreated }: BottomNavProps) {
+export function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const { clearAuth } = useAuthStore();
@@ -68,7 +64,7 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
           </button>
 
           {/* Create Event */}
-          <CreateEventDialog onEventCreated={onEventCreated} />
+          <CreateEventDialog />
 
           {/* Tickets */}
           <button

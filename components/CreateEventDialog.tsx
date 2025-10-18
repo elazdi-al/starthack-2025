@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { useAuthStore } from "@/lib/store/authStore";
 import { switchChain } from "viem/actions";
 import { base } from "viem/chains";
+import { useInvalidateEvents } from "@/lib/hooks/useEvents";
 
 interface CreateEventDialogProps {
   onEventCreated?: () => void;
@@ -48,6 +49,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   });
   const {switchChainAsync} = useSwitchChain()
   const chainId = useChainId()
+  const { invalidateAll } = useInvalidateEvents();
   useEffect(() => {
     const switchTobase = async () => {
       if (chainId !== base.id){
@@ -172,6 +174,9 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         description: "Your event is now live on the blockchain.",
       });
 
+      // Invalidate all event queries to refetch fresh data
+      invalidateAll();
+
       // Reset form and close dialog
       setFormData({
         name: "",
@@ -190,7 +195,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         onEventCreated();
       }
     }
-  }, [isConfirmed, hash, onEventCreated]);
+  }, [isConfirmed, hash, onEventCreated, invalidateAll]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

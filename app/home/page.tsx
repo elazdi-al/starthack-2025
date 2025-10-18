@@ -3,13 +3,13 @@
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo } from "react";
 import { CalendarBlank, MapPin, Users, SignOut, Ticket, Storefront } from "phosphor-react";
 import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
-import { toast } from "sonner";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
+import { useEvents } from "@/lib/hooks/useEvents";
 interface Event {
   id: number;
   name: string;
@@ -26,39 +26,15 @@ export default function Home() {
   const router = useRouter();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
   const { clearAuth } = useAuthStore();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
 
-  // Fetch events from API
-  const fetchEvents = useCallback(async () => {
-    try {
-      setIsLoadingEvents(true);
-      const response = await fetch('/api/events');
-      const data = await response.json();
+  // Use TanStack Query to fetch events with caching
+  const { data: eventsData, isLoading: isLoadingEvents } = useEvents();
 
-      if (data.success) {
-        // Filter out past events and limit to upcoming events
-        const upcomingEvents = data.events.filter((e: Event) => !e.isPast);
-        setEvents(upcomingEvents);
-      } else {
-        toast.error('Failed to load events', {
-          description: data.error || 'An error occurred while fetching events'
-        });
-      }
-    } catch (error) {
-      toast.error('Failed to load events', {
-        description: error instanceof Error ? error.message : 'An unexpected error occurred'
-      });
-    } finally {
-      setIsLoadingEvents(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchEvents();
-    }
-  }, [isAuthenticated, fetchEvents]);
+  // Filter out past events and memoize the result
+  const events = useMemo(() => {
+    if (!eventsData?.events) return [];
+    return eventsData.events.filter((e: Event) => !e.isPast);
+  }, [eventsData]);
 
   // Redirect to login if not authenticated (only after hydration)
   useEffect(() => {
@@ -104,7 +80,7 @@ export default function Home() {
 
       {/* Additional Desktop Navigation */}
       <div className="hidden md:flex absolute top-6 right-6 z-20 items-center gap-3">
-        <CreateEventDialog onEventCreated={fetchEvents} />
+        <CreateEventDialog />
         <button
           className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10"
           type="button"
@@ -134,7 +110,7 @@ export default function Home() {
       </div>
 
       {/* Bottom Navigation Bar - Mobile only */}
-      <BottomNav onEventCreated={fetchEvents} />
+      <BottomNav />
 
       {/* Event cards */}
       <div className="relative z-10 flex-1 px-6">

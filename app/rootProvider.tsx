@@ -14,8 +14,13 @@ export function RootProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 minute
-            refetchOnWindowFocus: false,
+            staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
+            gcTime: 10 * 60 * 1000, // 10 minutes - keep unused data in cache
+            refetchOnWindowFocus: false, // Prevent refetch on window focus
+            refetchOnMount: false, // Only fetch if data is stale
+            refetchOnReconnect: false, // Don't refetch on reconnect
+            retry: 1, // Only retry failed requests once
+            retryDelay: 1000, // Wait 1s before retry
           },
         },
       })

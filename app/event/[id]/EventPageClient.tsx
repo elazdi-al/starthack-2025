@@ -7,13 +7,14 @@ import { CalendarBlank, MapPin, Users } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
-import { eventsAPI, ticketsAPI } from "@/lib/api";
+import { ticketsAPI } from "@/lib/api";
 import { EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
 import { formatEther } from "viem";
 import { toast } from "sonner";
 import { pay, getPaymentStatus } from "@base-org/account";
 import { useTicketStore } from "@/lib/store/ticketStore";
 import { useAccount, useConnect, useConnectors } from "wagmi";
+import { useEvent, useInvalidateEvents } from "@/lib/hooks/useEvents";
 
 interface EventDetails {
   id: number;
@@ -123,13 +124,20 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
   const { address: walletAddress, isConnected } = useAccount();
   const { connect } = useConnect();
   const connectors = useConnectors();
+  const { invalidateDetail, invalidateTickets } = useInvalidateEvents();
 
-  const [event, setEvent] = useState<EventDetails | null>(null);
-  const [isLoadingEvent, setIsLoadingEvent] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  // Use TanStack Query for event data
+  const { data: eventData, isLoading: isLoadingEvent, error: fetchError } = useEvent(eventId);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseStage, setPurchaseStage] = useState<PurchaseStage>("idle");
+
+  // Transform the event data from the query
+  const event = useMemo(() => {
+    if (!eventData?.event) return null;
+    return transformEvent(eventData.event);
+  }, [eventData]);
 
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) {
@@ -149,50 +157,6 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
       });
     }
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadEvent = async () => {
-      if (eventId === null || Number.isNaN(eventId) || eventId < 0) {
-        setFetchError("Invalid event");
-        setEvent(null);
-        setIsLoadingEvent(false);
-        return;
-      }
-
-      try {
-        setIsLoadingEvent(true);
-        setFetchError(null);
-        const data = await eventsAPI.getById(eventId);
-
-        if (!data.success || !data.event) {
-          throw new Error("Event not found");
-        }
-
-        if (!cancelled) {
-          setEvent(transformEvent(data.event));
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setEvent(null);
-          setFetchError(
-            error instanceof Error ? error.message : "Failed to load event"
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingEvent(false);
-        }
-      }
-    };
-
-    loadEvent();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [eventId]);
 
   const isRegisterDisabled = useMemo(() => {
     if (!event) return true;
@@ -290,6 +254,14 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
 
       addTicket(result.ticket);
 
+      // Invalidate cache to refetch latest data
+      if (eventId !== null) {
+        invalidateDetail(eventId);
+      }
+      if (accountAddress) {
+        invalidateTickets(accountAddress);
+      }
+
       toast.success("Ticket purchased!", {
         description: "You can view this ticket in the My Tickets tab.",
       });
@@ -330,7 +302,9 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
             Event Not Found
           </h1>
           {fetchError && (
-            <p className="text-white/40 text-sm mb-4">{fetchError}</p>
+            <p className="text-white/40 text-sm mb-4">
+              {fetchError instanceof Error ? fetchError.message : "Failed to load event"}
+            </p>
           )}
           <button
             type="button"
