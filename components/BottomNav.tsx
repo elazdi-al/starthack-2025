@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { Storefront, ShoppingCart, Plus, Ticket, SignOut } from "phosphor-react";
+import { House, ShoppingCart, Plus, Ticket, SignOut } from "phosphor-react";
 import { useAuthStore } from "@/lib/store/authStore";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 
@@ -48,7 +48,7 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
             onClick={handleHome}
             title="Home"
           >
-            <Storefront size={24} weight={isActive('/home') ? 'fill' : 'regular'} />
+            <House size={24} weight={isActive('/home') ? 'fill' : 'regular'} />
             <span className="text-[11px] font-semibold whitespace-nowrap">Home</span>
           </button>
 

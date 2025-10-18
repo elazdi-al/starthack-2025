@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Plus } from "phosphor-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, CalendarBlank } from "phosphor-react";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from "@/lib/contracts/eventBook";
 import { parseEther } from "viem";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface CreateEventDialogProps {
   onEventCreated?: () => void;
@@ -20,11 +23,11 @@ interface CreateEventDialogProps {
 export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [date, setDate] = useState<Date>();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     location: "",
-    date: "",
     time: "",
     price: "",
     maxCapacity: "",
@@ -44,14 +47,16 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
     try {
       // Validate required fields
-      if (!formData.name || !formData.location || !formData.date || !formData.time || !formData.price) {
+      if (!formData.name || !formData.location || !date || !formData.time || !formData.price) {
         toast.error("Please fill in all required fields");
         return;
       }
 
       // Combine date and time into Unix timestamp
-      const dateTimeString = `${formData.date}T${formData.time}`;
-      const dateTimestamp = Math.floor(new Date(dateTimeString).getTime() / 1000);
+      const [hours, minutes] = formData.time.split(':');
+      const eventDateTime = new Date(date);
+      eventDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      const dateTimestamp = Math.floor(eventDateTime.getTime() / 1000);
 
       // Validate future date
       if (dateTimestamp <= Math.floor(Date.now() / 1000)) {
@@ -101,11 +106,11 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       name: "",
       description: "",
       location: "",
-      date: "",
       time: "",
       price: "",
       maxCapacity: "",
     });
+    setDate(undefined);
     setIsPrivate(false);
     setOpen(false);
 
@@ -138,9 +143,9 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white/5 border-white/10 text-white backdrop-blur-xl">
-        <DialogHeader>
-          <DialogTitle className="text-xl md:text-2xl font-bold text-white/90">Create New Event</DialogTitle>
-          <DialogDescription className="text-sm text-white/50">
+        <DialogHeader className="text-left space-y-3">
+          <DialogTitle className="text-3xl md:text-4xl font-bold text-white">Create New Event</DialogTitle>
+          <DialogDescription className="text-base text-white/60">
             Fill in the details below to create a new event on the blockchain.
           </DialogDescription>
         </DialogHeader>
@@ -208,19 +213,34 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           </div>
 
           {/* Date and Time */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="date" className="text-white/90">
+              <Label className="text-white/90">
                 Date <span className="text-red-400/80">*</span>
               </Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => handleInputChange("date", e.target.value)}
-                className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10"
-                required
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full bg-white/5 backdrop-blur-sm border border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 rounded-md px-3 py-2 text-left flex items-center justify-between hover:bg-white/10 transition-colors"
+                  >
+                    <span className={date ? "text-white" : "text-white/40"}>
+                      {date ? format(date, "PPP") : "Pick a date"}
+                    </span>
+                    <CalendarBlank size={16} className="text-white/60" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-white/5 backdrop-blur-xl border-white/10" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    initialFocus
+                    className="bg-transparent text-white"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label htmlFor="time" className="text-white/90">
@@ -238,7 +258,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           </div>
 
           {/* Price and Capacity */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="price" className="text-white/90">
                 Ticket Price (ETH) <span className="text-red-400/80">*</span>
@@ -272,23 +292,23 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
             </div>
           </div>
 
-          <DialogFooter>
+          <div className="flex gap-3 pt-4">
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white/90 border border-white/10 transition-colors backdrop-blur-sm"
+              className="flex-1 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white/90 border border-white/10 transition-colors backdrop-blur-sm font-semibold text-base"
               disabled={isPending || isConfirming}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-white/90 hover:bg-white text-black font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 rounded-xl bg-white/90 hover:bg-white text-black font-semibold text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isPending || isConfirming}
             >
               {isPending || isConfirming ? "Creating..." : "Create Event"}
             </button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
