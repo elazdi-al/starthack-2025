@@ -95,7 +95,7 @@ fi
 
 # Verify the contract was actually deployed
 echo -e "${MAGENTA}[DEPLOY]${NC} Verifying contract deployment..."
-CONTRACT_CODE=$(/Users/admin/.foundry/bin/cast code $EVENTBOOK_ADDRESS --rpc-url http://127.0.0.1:8545)
+CONTRACT_CODE=$(cast code $EVENTBOOK_ADDRESS --rpc-url http://127.0.0.1:8545)
 
 if [ "$CONTRACT_CODE" = "0x" ]; then
   echo -e "${YELLOW}Error: No contract code found at $EVENTBOOK_ADDRESS${NC}"
