@@ -15,6 +15,7 @@ interface IEventTicket {
     function ownerOf(uint256 tokenId) external view returns (address);
     function transferFrom(address from, address to, uint256 tokenId) external;
     function ticketToEvent(uint256 tokenId) external view returns (uint256);
+    function checkIn(uint256 tokenId) external;
 }
 
 contract EventBook {
@@ -27,6 +28,7 @@ contract EventBook {
         address creator;
         uint256 ticketsSold;
         uint256 maxCapacity; // 0 means no limit
+        string imageURI;
     }
 
     struct Listing {
@@ -72,7 +74,8 @@ contract EventBook {
             revenueOwed: 0,
             creator: msg.sender,
             ticketsSold: 0,
-            maxCapacity: maxCapacity
+            maxCapacity: maxCapacity,
+            imageURI: ""
         }));
     }
 
@@ -98,6 +101,22 @@ contract EventBook {
 
         string memory tempTokenURI = ""; // TODO: Replace with real metadata URI
         ticketContract.mintTicket(msg.sender, eventId, tempTokenURI);
+    }
+
+    function checkInTicket(uint256 tokenId) public {
+        // 1. Get the eventId this ticket belongs to
+        uint256 eventId = ticketContract.ticketToEvent(tokenId);
+        Event storage ev = events[eventId];
+
+        // 2. Only the event creator can check-in tickets for their event
+        require(msg.sender == ev.creator, "Not creator");
+
+        // 3. Ensure the event is happening now (optional but good)
+        require(block.timestamp >= ev.date, "Event has not started");
+
+        // 4. Call the Ticket contract to update its state
+        // We need to add 'checkIn(uint256)' to your IEventTicket interface
+        ticketContract.checkIn(tokenId);
     }
 
     // withdraw sales (only the event creator)
