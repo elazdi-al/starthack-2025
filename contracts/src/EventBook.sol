@@ -98,7 +98,7 @@ contract EventBook {
             maxCapacity: maxCapacity,
             imageURI: "",
             isPrivate: isPrivate,
-            whitelistIsLocked: false
+            whitelistIsLocked: !isPrivate // unlock if it is private
         }));
     }
 

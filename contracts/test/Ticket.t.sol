@@ -37,7 +37,7 @@ contract EventBookTest is Test {
         uint256 date = block.timestamp + 1 days;
 
         vm.prank(creator);
-        book.createEvent("Concert", "NYC", date, 0.1 ether, 2, false);
+        book.createEvent("Concert", "NYC", date, 0.1 ether, 2, false); // public event
 
         assertEq(book.getNumberOfEvents(), 1);
 
@@ -64,7 +64,7 @@ contract EventBookTest is Test {
         assertEq(sold, 0);
         assertEq(cap, 2);
         assertEq(isPrivate, false);
-        assertEq(locked, false);
+        assertEq(locked, true); // ✅ public events start locked
         assertEq(bytes(imageURI).length, 0);
     }
 
@@ -97,35 +97,27 @@ contract EventBookTest is Test {
     // HELPERS
     // ----------------------------
 
-    function _createUnlockedPublicEvent(uint256 price, uint256 cap)
+    // public event => locked by default
+    function _createLockedPublicEvent(uint256 price, uint256 cap)
         internal
         returns (uint256 eventId, uint256 date)
     {
         date = block.timestamp + 1 days;
         vm.prank(creator);
-        book.createEvent("Show", "LA", date, price, cap, false); // public
+        book.createEvent("PublicShow", "Berlin", date, price, cap, false);
         eventId = book.getNumberOfEvents() - 1;
     }
 
-    function _createAndLockPublicEvent(uint256 price, uint256 cap)
-        internal
-        returns (uint256 eventId, uint256 date)
-    {
-        (eventId, date) = _createUnlockedPublicEvent(price, cap);
-        vm.prank(creator);
-        book.lockWhitelist(eventId);
-    }
-
-    function _createAndLockPrivateEvent(uint256 price, uint256 cap)
+    // private event => unlocked initially, must manually whitelist + lock
+    function _createLockedPrivateEvent(uint256 price, uint256 cap)
         internal
         returns (uint256 eventId, uint256 date)
     {
         date = block.timestamp + 1 days;
         vm.prank(creator);
-        book.createEvent("Private", "Paris", date, price, cap, true); // private
+        book.createEvent("Private", "Paris", date, price, cap, true);
         eventId = book.getNumberOfEvents() - 1;
 
-        // whitelist + lock
         vm.prank(creator);
         book.addToWhitelist(eventId, buyer1);
 
@@ -133,12 +125,23 @@ contract EventBookTest is Test {
         book.lockWhitelist(eventId);
     }
 
+    // unlocked private event (to test whitelist lock errors)
+    function _createUnlockedPrivateEvent(uint256 price, uint256 cap)
+        internal
+        returns (uint256 eventId, uint256 date)
+    {
+        date = block.timestamp + 1 days;
+        vm.prank(creator);
+        book.createEvent("PrivateUnlocked", "Lisbon", date, price, cap, true);
+        eventId = book.getNumberOfEvents() - 1;
+    }
+
     // ----------------------------
     // WHITELIST
     // ----------------------------
 
     function testWhitelist_AddRemoveLock() public {
-        (uint256 eventId, ) = _createUnlockedPublicEvent(0.1 ether, 3);
+        (uint256 eventId, ) = _createUnlockedPrivateEvent(0.1 ether, 3);
 
         // Add user
         vm.prank(creator);
@@ -175,7 +178,7 @@ contract EventBookTest is Test {
     // ----------------------------
 
     function testBuyTicket_SetsCounts_AndETH_InPublicEvent() public {
-        (uint256 eventId, ) = _createAndLockPublicEvent(0.1 ether, 3);
+        (uint256 eventId, ) = _createLockedPublicEvent(0.1 ether, 3);
 
         vm.deal(buyer1, 1 ether);
         vm.prank(buyer1);
@@ -186,13 +189,12 @@ contract EventBookTest is Test {
         assertEq(revenue, 0.1 ether);
         assertEq(address(book).balance, 0.1 ether);
 
-        // NFT minted & linked
         assertEq(ticket.ownerOf(1), buyer1);
         assertEq(ticket.ticketToEvent(1), eventId);
     }
 
     function test_Revert_When_BuyingWithoutLockedWhitelist() public {
-        (uint256 eventId, ) = _createUnlockedPublicEvent(0.1 ether, 3);
+        (uint256 eventId, ) = _createUnlockedPrivateEvent(0.1 ether, 3);
 
         vm.deal(buyer1, 1 ether);
         vm.prank(buyer1);
@@ -201,7 +203,7 @@ contract EventBookTest is Test {
     }
 
     function test_Revert_When_BuyingWithWrongPrice() public {
-        (uint256 eventId, ) = _createAndLockPublicEvent(0.2 ether, 10);
+        (uint256 eventId, ) = _createLockedPublicEvent(0.2 ether, 10);
 
         vm.deal(buyer1, 1 ether);
         vm.prank(buyer1);
@@ -210,7 +212,7 @@ contract EventBookTest is Test {
     }
 
     function test_Revert_When_EventFull() public {
-        (uint256 eventId, ) = _createAndLockPublicEvent(0.1 ether, 2);
+        (uint256 eventId, ) = _createLockedPublicEvent(0.1 ether, 2);
 
         vm.deal(buyer1, 1 ether);
         vm.prank(buyer1);
@@ -227,7 +229,7 @@ contract EventBookTest is Test {
     }
 
     function testBuy_FreeEvent_Public_ZeroPrice() public {
-        (uint256 eventId, ) = _createAndLockPublicEvent(0, 0);
+        (uint256 eventId, ) = _createLockedPublicEvent(0, 0);
 
         vm.prank(buyer1);
         book.buyTicket{value: 0}(eventId);
@@ -241,7 +243,7 @@ contract EventBookTest is Test {
     }
 
     function test_Revert_When_BuyingAfterDate() public {
-        (uint256 eventId, uint256 date) = _createAndLockPublicEvent(0.1 ether, 0);
+        (uint256 eventId, uint256 date) = _createLockedPublicEvent(0.1 ether, 0);
 
         vm.warp(date + 1);
         vm.deal(buyer1, 1 ether);
@@ -251,7 +253,6 @@ contract EventBookTest is Test {
     }
 
     function test_Revert_When_InvalidEventId() public {
-        // Calling with 0 when there are no events causes an index OOB (panic 0x32)
         vm.expectRevert(stdError.indexOOBError);
         book.buyTicket{value: 0}(0);
     }
@@ -261,15 +262,13 @@ contract EventBookTest is Test {
     // ----------------------------
 
     function testPrivateEvent_WhitelistRequired() public {
-        (uint256 eventId, ) = _createAndLockPrivateEvent(0.25 ether, 10);
+        (uint256 eventId, ) = _createLockedPrivateEvent(0.25 ether, 10);
 
-        // buyer2 not whitelisted
         vm.deal(buyer2, 1 ether);
         vm.prank(buyer2);
         vm.expectRevert("Not whitelisted for this event");
         book.buyTicket{value: 0.25 ether}(eventId);
 
-        // buyer1 whitelisted
         vm.deal(buyer1, 1 ether);
         vm.prank(buyer1);
         book.buyTicket{value: 0.25 ether}(eventId);
@@ -282,24 +281,21 @@ contract EventBookTest is Test {
     // ----------------------------
 
     function testCheckInTicket() public {
-        (uint256 eventId, uint256 date) = _createAndLockPublicEvent(0.1 ether, 1);
+        (uint256 eventId, uint256 date) = _createLockedPublicEvent(0.1 ether, 1);
 
         vm.deal(buyer1, 1 ether);
         vm.prank(buyer1);
         book.buyTicket{value: 0.1 ether}(eventId);
         uint256 tokenId = 1;
 
-        // Cannot check in before start
         vm.expectRevert("Event has not started");
         vm.prank(creator);
         book.checkInTicket(tokenId);
 
-        // At start, creator can check-in
         vm.warp(date);
         vm.prank(creator);
         book.checkInTicket(tokenId);
 
-        // Ticket contract should reflect check-in
         assertTrue(ticket.isCheckedIn(tokenId));
     }
 
@@ -308,18 +304,16 @@ contract EventBookTest is Test {
     // ----------------------------
 
     function testWithdraw_OnlyCreator_AndResetsRevenueOwed() public {
-        (uint256 eventId, ) = _createAndLockPublicEvent(0.1 ether, 2);
+        (uint256 eventId, ) = _createLockedPublicEvent(0.1 ether, 2);
 
         vm.deal(buyer1, 1 ether);
         vm.prank(buyer1);
         book.buyTicket{value: 0.1 ether}(eventId);
 
-        // Non-creator cannot withdraw
         vm.prank(buyer1);
         vm.expectRevert("Not creator");
         book.withdraw(eventId);
 
-        // Creator withdraws
         uint256 beforeBalance = creator.balance;
         vm.prank(creator);
         book.withdraw(eventId);
@@ -328,12 +322,11 @@ contract EventBookTest is Test {
         assertGt(afterBalance, beforeBalance);
 
         (, , , , uint256 revenueAfter, , , , , , ) = book.events(eventId);
-        assertEq(revenueAfter, 0); // reset revenue owed
+        assertEq(revenueAfter, 0);
     }
 
     function testWithdraw_When_NoSales() public {
-        (uint256 eventId, ) = _createAndLockPublicEvent(0.1 ether, 5);
-
+        (uint256 eventId, ) = _createLockedPublicEvent(0.1 ether, 5);
         vm.prank(creator);
         book.withdraw(eventId);
 
@@ -347,33 +340,27 @@ contract EventBookTest is Test {
     // ----------------------------
 
     function testMarketplace_ListBuy_Cancels() public {
-        (uint256 eventId, ) = _createAndLockPublicEvent(0.1 ether, 2);
+        (uint256 eventId, ) = _createLockedPublicEvent(0.1 ether, 2);
 
-        // Buyer1 buys a primary ticket
         vm.deal(buyer1, 1 ether);
         vm.prank(buyer1);
         book.buyTicket{value: 0.1 ether}(eventId);
         uint256 tokenId = 1;
 
-        // Approve EventBook to transfer this ticket
         vm.prank(buyer1);
         ticket.approve(address(book), tokenId);
 
-        // List ticket for sale at 0.15 ETH (<= 2x price)
         vm.prank(buyer1);
         book.listTicketForSale(tokenId, 0.15 ether);
         assertTrue(book.isListedForSale(tokenId));
 
-        // Buyer2 purchases the ticket
         vm.deal(buyer2, 1 ether);
         vm.prank(buyer2);
         book.buyResaleTicket{value: 0.15 ether}(tokenId);
 
-        // Ownership transferred to buyer2
         assertEq(ticket.ownerOf(tokenId), buyer2);
-        assertFalse(book.isListedForSale(tokenId)); // listing inactive
+        assertFalse(book.isListedForSale(tokenId));
 
-        // Buyer2 can list then cancel
         vm.prank(buyer2);
         ticket.approve(address(book), tokenId);
 
