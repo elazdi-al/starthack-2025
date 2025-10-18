@@ -207,19 +207,14 @@ export default function MyTickets() {
             {sortedTickets.map((ticket) => {
               const isFlipped = flippedCards.has(ticket.id);
               return (
-                    <div
+                    <button
+                      type="button"
                       key={ticket.id}
                       className={`relative h-[420px] perspective-1000 ${
                         ticket.status === 'listed' ? 'cursor-not-allowed' : 'cursor-pointer'
                       }`}
                       onClick={() => handleFlip(ticket.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          handleFlip(ticket.id);
-                        }
-                      }}
-                      role="button"
-                      tabIndex={0}
+                      disabled={ticket.status === 'listed'}
                     >
                   {/* Flip container */}
                   <div
@@ -383,7 +378,7 @@ export default function MyTickets() {
                       </div>
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>

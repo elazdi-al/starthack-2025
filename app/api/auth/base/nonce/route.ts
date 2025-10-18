@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-import crypto from 'crypto';
 import { createNonce } from '@/lib/nonceStore';
+import { NextResponse } from "next/server";
 
 export async function GET() {
   // Generate a fresh nonce

@@ -119,7 +119,7 @@ interface EventPageClientProps {
 
 export default function EventPageClient({ eventId }: EventPageClientProps) {
   const router = useRouter();
-  const { isAuthenticated, hasHydrated, address } = useAuthCheck();
+  const { isAuthenticated, hasHydrated } = useAuthCheck();
   const { addTicket } = useTicketStore();
   const { address: walletAddress, isConnected } = useAccount();
   const { connect } = useConnect();
@@ -152,9 +152,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
 
     const injected = connectors.find((connector) => connector.type === "injected");
     if (injected) {
-      connect({ connector: injected }).catch((error) => {
-        console.warn("Auto-connect failed:", error);
-      });
+      connect({ connector: injected });
     }
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 
@@ -172,7 +170,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
       return;
     }
 
-    const accountAddress = walletAddress ?? address ?? null;
+    const accountAddress = walletAddress ?? null;
 
     if (!accountAddress) {
       toast.error("Wallet required", {
@@ -276,7 +274,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
       setIsPurchasing(false);
       setPurchaseStage("idle");
     }
-  }, [event, walletAddress, address, addTicket]);
+  }, [event, walletAddress, addTicket, eventId, invalidateDetail, invalidateTickets]);
 
   const renderLoader = () => (
     <div className="relative min-h-screen flex items-center justify-center bg-transparent">
@@ -427,10 +425,12 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <div
+          <button
+            type="button"
             className="absolute inset-0 bg-black/80 backdrop-blur-md"
-            aria-hidden="true"
+            aria-label="Close modal"
             onClick={() => !isPurchasing && setIsModalOpen(false)}
+            disabled={isPurchasing}
           />
           <div className="relative w-full max-w-[95vw] sm:max-w-lg md:max-w-xl bg-white/10 border border-white/20 rounded-3xl p-5 sm:p-6 md:p-8 backdrop-blur-2xl shadow-2xl max-h-[85vh] overflow-y-auto">
             <button

@@ -1,6 +1,6 @@
 import { publicClient } from '@/lib/contracts/client';
 import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from '@/lib/contracts/eventBook';
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { formatUnits } from 'viem';
 
 export const dynamic = 'force-dynamic';
@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const offset = parseInt(searchParams.get('offset') || '0');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const offset = Number.parseInt(searchParams.get('offset') || '0');
+    const limit = Number.parseInt(searchParams.get('limit') || '10');
     const eventId = searchParams.get('eventId');
 
     // Validate limit (max 50)
@@ -21,11 +21,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let result;
-
     // If eventId is provided, get listings for that specific event
     if (eventId !== null) {
-      result = await publicClient.readContract({
+      const result = await publicClient.readContract({
         address: EVENT_BOOK_ADDRESS,
         abi: EVENT_BOOK_ABI,
         functionName: 'getListingsByEvent',
@@ -71,39 +69,39 @@ export async function GET(request: NextRequest) {
           hasMore: offset + limit < Number(total),
         },
       });
-    } else {
-      // Get all active listings
-      result = await publicClient.readContract({
-        address: EVENT_BOOK_ADDRESS,
-        abi: EVENT_BOOK_ABI,
-        functionName: 'getActiveListings',
-        args: [BigInt(offset), BigInt(limit)],
-      }) as [bigint[], `0x${string}`[], bigint[], bigint[], string[], bigint[], bigint];
-
-      const [tokenIds, sellers, prices, eventIds, eventNames, eventDates, total] = result;
-
-      // Map the data to a more friendly format
-      const listings = tokenIds.map((tokenId, index) => ({
-        tokenId: tokenId.toString(),
-        seller: sellers[index],
-        price: formatUnits(prices[index], 18),
-        priceWei: prices[index].toString(),
-        eventId: eventIds[index].toString(),
-        eventName: eventNames[index],
-        eventDate: Number(eventDates[index]),
-      }));
-
-      return NextResponse.json({
-        success: true,
-        listings,
-        pagination: {
-          offset,
-          limit,
-          total: Number(total),
-          hasMore: offset + limit < Number(total),
-        },
-      });
     }
+
+    // Get all active listings
+    const result = await publicClient.readContract({
+      address: EVENT_BOOK_ADDRESS,
+      abi: EVENT_BOOK_ABI,
+      functionName: 'getActiveListings',
+      args: [BigInt(offset), BigInt(limit)],
+    }) as [bigint[], `0x${string}`[], bigint[], bigint[], string[], bigint[], bigint];
+
+    const [tokenIds, sellers, prices, eventIds, eventNames, eventDates, total] = result;
+
+    // Map the data to a more friendly format
+    const listings = tokenIds.map((tokenId, index) => ({
+      tokenId: tokenId.toString(),
+      seller: sellers[index],
+      price: formatUnits(prices[index], 18),
+      priceWei: prices[index].toString(),
+      eventId: eventIds[index].toString(),
+      eventName: eventNames[index],
+      eventDate: Number(eventDates[index]),
+    }));
+
+    return NextResponse.json({
+      success: true,
+      listings,
+      pagination: {
+        offset,
+        limit,
+        total: Number(total),
+        hasMore: offset + limit < Number(total),
+      },
+    });
 
   } catch (error) {
     console.error('Error fetching listings:', error);
