@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 import { validateAndConsumeNonce } from '@/lib/nonceStore';

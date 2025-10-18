@@ -15,7 +15,7 @@ interface TopBarProps {
 
 export function TopBar({ showBackButton = false, backPath = "/home", backTitle = "Back", title, showTitle = false }: TopBarProps) {
   const router = useRouter();
-  const { isAuthenticated, address } = useAuthCheck();
+  const { isAuthenticated, fid } = useAuthCheck();
 
   const handleBack = () => {
     router.push(backPath);
@@ -53,10 +53,10 @@ export function TopBar({ showBackButton = false, backPath = "/home", backTitle =
                 {title}
               </h1>
             </div>
-            {/* Connected address */}
-            {isAuthenticated && address && (
+            {/* Connected FID */}
+            {isAuthenticated && fid && (
               <p className="text-xs md:text-sm text-white/50">
-                Connected: {address.slice(0, 6)}...{address.slice(-4)}
+                FID: {fid}
               </p>
             )}
           </div>

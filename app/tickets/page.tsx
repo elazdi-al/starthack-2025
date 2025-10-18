@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 export default function MyTickets() {
   const router = useRouter();
-  const { isAuthenticated, address, hasHydrated } = useAuthCheck();
+  const { isAuthenticated, fid, hasHydrated } = useAuthCheck();
   const { tickets, setTickets, listTicket, cancelListing, clearDuplicates } = useTicketStore();
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
   const [qrSize, setQrSize] = useState(200);
@@ -31,35 +31,22 @@ export default function MyTickets() {
   // Fetch tickets from blockchain
   useEffect(() => {
     const fetchTickets = async () => {
-      if (!address && process.env.NODE_ENV === 'production') {
-        console.error('No wallet address available');
+      if (!fid) {
+        console.error('No FID available');
         return;
       }
 
-      // In development mode, use hardcoded test address
-      // In production, use the connected wallet address
-      const isDev = process.env.NODE_ENV === 'development';
-      const testAddress = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'; // Test wallet from Anvil
-      const targetAddress = isDev ? testAddress : address;
+      // Use FID to fetch tickets
+      console.log(`🎫 Fetching tickets for FID:`, fid);
 
-      if (!targetAddress) {
-        console.error('No address available to fetch tickets');
-        return;
-      }
-
-      console.log(`🎫 Fetching tickets in ${isDev ? 'DEV' : 'PROD'} mode for:`, targetAddress);
-      
       try {
         setIsLoadingTickets(true);
-        const response = await fetch(`/api/tickets?address=${targetAddress}`);
+        const response = await fetch(`/api/tickets?fid=${fid}`);
         const data = await response.json();
 
         if (data.success && data.tickets) {
           setTickets(data.tickets);
           console.log('✅ Fetched', data.tickets.length, 'ticket(s)');
-          if (isDev) {
-            console.log('💡 DEV MODE: Using test address:', testAddress);
-          }
         } else {
           console.error('❌ Error fetching tickets:', data.error);
           toast.error('Failed to load tickets');
@@ -72,10 +59,10 @@ export default function MyTickets() {
       }
     };
 
-    if (isAuthenticated && hasHydrated) {
+    if (isAuthenticated && hasHydrated && fid) {
       fetchTickets();
     }
-  }, [isAuthenticated, hasHydrated, address, setTickets]);
+  }, [isAuthenticated, hasHydrated, fid, setTickets]);
 
   // Handle responsive QR code size
   useEffect(() => {
@@ -200,7 +187,7 @@ export default function MyTickets() {
       {/* Subtitle */}
       <div className="relative z-10 px-6 pb-4 md:pb-6">
         <p className="text-xs md:text-sm text-white/50">
-          {tickets.length} {tickets.length === 1 ? 'ticket' : 'tickets'} • Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+          {tickets.length} {tickets.length === 1 ? 'ticket' : 'tickets'} • FID: {fid}
         </p>
       </div>
 

@@ -1,58 +1,49 @@
 "use client";
 
-import { useBaseAuth } from "@/lib/useBaseAuth";
-import { Button } from "@/components/ui/button";
+import { useFarcasterAuth } from "@/lib/useFarcasterAuth";
+import { SignInWithBaseButton } from '@base-org/account-ui/react';
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+/**
+ * Farcaster authentication button component
+ * 
+ * Provides a native mini app authentication experience using Farcaster Quick Auth.
+ * Automatically redirects to home page upon successful authentication.
+ */
 export function BaseAuthButton() {
-  const { isLoading, isAuthenticated, address, error, signInWithBase, signOut } = useBaseAuth();
+  const { isAuthenticated, fid, signIn, isLoading, error } = useFarcasterAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (isAuthenticated) {
-      // Navigate to success page on successful authentication
-      router.push('/home');
+      router.push("/home");
     }
   }, [isAuthenticated, router]);
 
-  const handleClick = async () => {
-    if (isAuthenticated) {
-      signOut();
-    } else {
-      await signInWithBase();
-    }
-  };
+  if (isAuthenticated) {
+    return (
+      <div className="w-full max-w-sm space-y-4">
+        <div className="text-center text-white/80">
+          <p className="text-sm text-white/60 mb-2">Authenticated as</p>
+          <p className="text-lg font-semibold">FID: {fid}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-sm space-y-4">
-      <Button
-        onClick={handleClick}
-        disabled={isLoading}
-        className="w-full h-12 text-base font-semibold"
-        size="lg"
-        variant="default"
-      >
-        {isLoading 
-          ? "Connecting..." 
-          : isAuthenticated 
-            ? `Connected: ${address?.slice(0, 6)}...${address?.slice(-4)}`
-            : "Sign In with Base"
-        }
-      </Button>
-      
-      {error && (
-        <div className="text-sm text-red-500 text-center">
-          {error}
-        </div>
+      <SignInWithBaseButton 
+        onClick={() => signIn()} 
+        colorScheme="dark"
+      />
+      {isLoading && (
+        <p className="text-sm text-white/60 text-center">Authenticating...</p>
       )}
-      
-      {isAuthenticated && address && (
-        <div className="text-sm text-muted-foreground text-center">
-          Authenticated with {address}
-        </div>
+      {error && (
+        <p className="text-sm text-red-400 text-center">{error}</p>
       )}
     </div>
   );
 }
-

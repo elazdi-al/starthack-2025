@@ -1,16 +1,24 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
+/**
+ * Farcaster Mini App Authentication Store
+ * 
+ * Manages authentication state for Farcaster mini apps using Quick Auth.
+ * Automatically persists to localStorage and validates session expiry.
+ */
+
 interface AuthState {
   isAuthenticated: boolean;
-  address: string | null;
+  fid: number | null;
+  token: string | null;
   authenticatedAt: number | null;
   expiresAt: number | null;
   _hasHydrated: boolean;
 }
 
 interface AuthActions {
-  setAuth: (address: string, expiresInDays?: number) => void;
+  setAuth: (fid: number, token: string, expiresInDays?: number) => void;
   clearAuth: () => void;
   isSessionValid: () => boolean;
   setHasHydrated: (state: boolean) => void;
@@ -18,24 +26,28 @@ interface AuthActions {
 
 type AuthStore = AuthState & AuthActions;
 
+const DEFAULT_EXPIRY_DAYS = 7;
+
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       // Initial state
       isAuthenticated: false,
-      address: null,
+      fid: null,
+      token: null,
       authenticatedAt: null,
       expiresAt: null,
       _hasHydrated: false,
 
-      // Set authentication
-      setAuth: (address: string, expiresInDays = 7) => {
+      // Set Farcaster authentication
+      setAuth: (fid: number, token: string, expiresInDays = DEFAULT_EXPIRY_DAYS) => {
         const now = Date.now();
         const expiresAt = now + (expiresInDays * 24 * 60 * 60 * 1000);
-        
+
         set({
           isAuthenticated: true,
-          address,
+          fid,
+          token,
           authenticatedAt: now,
           expiresAt,
         });
@@ -45,7 +57,8 @@ export const useAuthStore = create<AuthStore>()(
       clearAuth: () => {
         set({
           isAuthenticated: false,
-          address: null,
+          fid: null,
+          token: null,
           authenticatedAt: null,
           expiresAt: null,
         });
@@ -77,7 +90,7 @@ export const useAuthStore = create<AuthStore>()(
       },
     }),
     {
-      name: 'base-auth-storage', // localStorage key
+      name: 'farcaster-auth-storage',
       storage: createJSONStorage(() => localStorage),
       
       // Hydration: Check session validity when loading from storage
@@ -95,16 +108,21 @@ export const useAuthStore = create<AuthStore>()(
   )
 );
 
-// Helper hook to check auth status on mount
+/**
+ * Helper hook to check authentication status with hydration
+ * 
+ * Ensures authentication state is loaded from localStorage before checking.
+ * Use this in protected routes to avoid flash of unauthenticated content.
+ */
 export const useAuthCheck = () => {
-  const { isSessionValid, isAuthenticated, address, _hasHydrated } = useAuthStore();
-  
+  const { isSessionValid, isAuthenticated, fid, _hasHydrated } = useAuthStore();
+
   // Check validity on every use
   const isValid = isSessionValid();
-  
+
   return {
     isAuthenticated: isValid && isAuthenticated,
-    address: isValid ? address : null,
+    fid: isValid ? fid : null,
     hasHydrated: _hasHydrated,
   };
 };
