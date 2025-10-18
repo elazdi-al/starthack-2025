@@ -3,10 +3,9 @@
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { CalendarBlank, MapPin, Users, SignOut, Ticket, Storefront } from "phosphor-react";
 import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
-import { WalletBalance } from "@/components/WalletBalance";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
@@ -25,13 +24,13 @@ interface Event {
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated, address, hasHydrated } = useAuthCheck();
+  const { isAuthenticated, hasHydrated } = useAuthCheck();
   const { clearAuth } = useAuthStore();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
 
   // Fetch events from API
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       setIsLoadingEvents(true);
       const response = await fetch('/api/events');
@@ -53,13 +52,13 @@ export default function Home() {
     } finally {
       setIsLoadingEvents(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchEvents();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchEvents]);
 
   // Redirect to login if not authenticated (only after hydration)
   useEffect(() => {
@@ -100,14 +99,11 @@ export default function Home() {
     <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
 
-      {/* Top bar - Desktop only - Using unified TopBar component */}
-      <div className="hidden md:block">
-        <TopBar />
-      </div>
+      {/* Top bar with Title - Using unified TopBar component */}
+      <TopBar title="Events" showTitle={true} />
 
       {/* Additional Desktop Navigation */}
       <div className="hidden md:flex absolute top-6 right-6 z-20 items-center gap-3">
-        <WalletBalance />
         <CreateEventDialog onEventCreated={fetchEvents} />
         <button
           className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10"
@@ -139,24 +135,6 @@ export default function Home() {
 
       {/* Bottom Navigation Bar - Mobile only */}
       <BottomNav onEventCreated={fetchEvents} />
-
-      {/* Header */}
-      <div className="relative z-10 pt-6 md:pt-8 px-6 pb-4 md:pb-6">
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <h1 className="text-6xl sm:text-7xl md:text-8xl tracking-tighter font-bold text-white/30 flex-shrink min-w-0">
-            Events
-          </h1>
-          {/* Wallet balance on mobile - top right */}
-          <div className="md:hidden flex-shrink-0">
-            <WalletBalance />
-          </div>
-        </div>
-        {isAuthenticated && address && (
-          <p className="text-xs md:text-sm text-white/50">
-            Connected: {address.slice(0, 6)}...{address.slice(-4)}
-          </p>
-        )}
-      </div>
 
       {/* Event cards */}
       <div className="relative z-10 flex-1 px-6">

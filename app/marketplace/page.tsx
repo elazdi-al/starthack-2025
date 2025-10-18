@@ -8,7 +8,6 @@ import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore } from "@/lib/store/ticketStore";
 import { pay, getPaymentStatus } from '@base-org/account';
 import { TopBar } from "@/components/TopBar";
-import { WalletBalance } from "@/components/WalletBalance";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
 
@@ -87,6 +86,7 @@ function PurchaseModal({ ticket, onClose, onPurchase, isPurchasing }: PurchaseMo
       <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 max-w-md w-full shadow-2xl">
         {/* Close button */}
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-4 right-4 text-white/40 hover:text-white/80 transition-colors"
           disabled={isPurchasing}
@@ -135,6 +135,7 @@ function PurchaseModal({ ticket, onClose, onPurchase, isPurchasing }: PurchaseMo
 
           <div className="flex gap-3">
             <button
+              type="button"
               onClick={onClose}
               className="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors"
               disabled={isPurchasing}
@@ -142,6 +143,7 @@ function PurchaseModal({ ticket, onClose, onPurchase, isPurchasing }: PurchaseMo
               Cancel
             </button>
             <button
+              type="button"
               onClick={handlePurchase}
               disabled={isPurchasing}
               className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -277,29 +279,13 @@ export default function Marketplace() {
     <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
 
-      {/* Top Bar - Desktop only with wallet balance */}
-      <div className="hidden md:block">
-        <TopBar showBackButton={false} />
-      </div>
+      {/* Top Bar with Title */}
+      <TopBar title="Marketplace" showTitle={true} />
 
       {/* Bottom Navigation Bar - Mobile only */}
       <BottomNav />
 
-      {/* Header */}
-      <div className="relative z-10 pt-6 md:pt-8 px-6 pb-4 md:pb-6">
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <h1 className="text-6xl sm:text-7xl md:text-8xl tracking-tighter font-bold text-white/30 flex-shrink min-w-0">
-            Marketplace
-          </h1>
-          {/* Wallet balance on mobile - top right */}
-          <div className="md:hidden flex-shrink-0">
-            <WalletBalance />
-          </div>
-        </div>
-        <p className="text-xs md:text-sm text-white/50">
-          Buy tickets from other users • Pay with Base Pay
-        </p>
-      </div>
+
 
       {/* User's Listed Tickets Section */}
       {userListedTickets.length > 0 && (
@@ -310,9 +296,10 @@ export default function Marketplace() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {userListedTickets.map((ticket) => (
-              <div
+              <button
                 key={ticket.id}
-                className="bg-blue-500/10 backdrop-blur-xl border border-blue-500/30 rounded-2xl p-6 shadow-xl cursor-pointer hover:bg-blue-500/20 transition-all"
+                type="button"
+                className="bg-blue-500/10 backdrop-blur-xl border border-blue-500/30 rounded-2xl p-6 shadow-xl cursor-pointer hover:bg-blue-500/20 transition-all text-left"
                 onClick={() => ticket.eventId && router.push(`/event/${ticket.eventId}`)}
               >
                 <div className="flex justify-between items-start mb-3">
@@ -331,6 +318,7 @@ export default function Marketplace() {
                 <p className="text-white/70 text-sm mb-4">{ticket.ticketType}</p>
                 
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation(); // Prevent card click from firing
                     cancelListing(ticket.id);
@@ -339,7 +327,7 @@ export default function Marketplace() {
                 >
                   Cancel Listing
                 </button>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -347,12 +335,12 @@ export default function Marketplace() {
 
       {/* Marketplace Cards */}
       <div className="relative z-10 flex-1 px-6">
-        <h2 className="text-2xl font-bold text-white/70 mb-4">Available Tickets</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
           {marketplaceTickets.map((ticket) => (
-            <div
+            <button
               key={ticket.id}
-              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all shadow-xl flex flex-col cursor-pointer"
+              type="button"
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all shadow-xl flex flex-col cursor-pointer text-left"
               onClick={() => router.push(`/event/${ticket.eventId}`)}
             >
               {/* Price Badge */}
@@ -408,6 +396,7 @@ export default function Marketplace() {
 
               {/* Buy button */}
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent card click from firing
                   setSelectedTicket(ticket);
@@ -417,7 +406,7 @@ export default function Marketplace() {
                 <ShoppingCart size={20} weight="regular" />
                 Buy Ticket
               </button>
-            </div>
+            </button>
           ))}
         </div>
       </div>

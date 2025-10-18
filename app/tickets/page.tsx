@@ -8,7 +8,6 @@ import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore, type Ticket } from "@/lib/store/ticketStore";
 import { QRCodeSVG } from "qrcode.react";
 import { TopBar } from "@/components/TopBar";
-import { WalletBalance } from "@/components/WalletBalance";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
 
@@ -59,7 +58,9 @@ const initializeMockTickets = (addTicket: (ticket: Ticket) => void) => {
     }
   ];
   
-  mockTickets.forEach(ticket => addTicket(ticket));
+  for (const ticket of mockTickets) {
+    addTicket(ticket);
+  }
 };
 
 export default function MyTickets() {
@@ -155,7 +156,7 @@ export default function MyTickets() {
   };
 
   const confirmListing = () => {
-    if (listingTicket && listingPrice && parseFloat(listingPrice) > 0) {
+    if (listingTicket && listingPrice && Number.parseFloat(listingPrice) > 0) {
       listTicket(listingTicket.id, listingPrice);
       setListingTicket(null);
       setListingPrice("");
@@ -199,25 +200,14 @@ export default function MyTickets() {
     <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
 
-      {/* Top Bar - Desktop only */}
-      <div className="hidden md:block">
-        <TopBar showBackButton={true} backPath="/home" backTitle="Back" />
-      </div>
+      {/* Top Bar with Title */}
+      <TopBar title="My Tickets" showTitle={true}/>
 
       {/* Bottom Navigation Bar - Mobile only */}
       <BottomNav />
 
-      {/* Header */}
-      <div className="relative z-10 pt-6 md:pt-8 px-6 pb-4 md:pb-6">
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <h1 className="text-6xl sm:text-7xl md:text-8xl tracking-tighter font-bold text-white/30 flex-shrink min-w-0">
-            My Tickets
-          </h1>
-          {/* Wallet balance on mobile - top right */}
-          <div className="md:hidden flex-shrink-0">
-            <WalletBalance />
-          </div>
-        </div>
+      {/* Subtitle */}
+      <div className="relative z-10 px-6 pb-4 md:pb-6">
         <p className="text-xs md:text-sm text-white/50">
           {tickets.length} {tickets.length === 1 ? 'ticket' : 'tickets'} • Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
         </p>
@@ -242,6 +232,13 @@ export default function MyTickets() {
                         ticket.status === 'listed' ? 'cursor-not-allowed' : 'cursor-pointer'
                       }`}
                       onClick={() => handleFlip(ticket.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          handleFlip(ticket.id);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
                     >
                   {/* Flip container */}
                   <div
@@ -330,6 +327,7 @@ export default function MyTickets() {
                                 <p className="text-green-400 font-bold">${ticket.listingPrice}</p>
                               </div>
                               <button
+                                type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleCancelListing(ticket.id);
@@ -341,6 +339,7 @@ export default function MyTickets() {
                             </>
                           ) : canListTicket(ticket) ? (
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleListForSale(ticket);
@@ -416,6 +415,7 @@ export default function MyTickets() {
           <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 max-w-md w-full shadow-2xl">
             {/* Close button */}
             <button
+              type="button"
               onClick={() => setListingTicket(null)}
               className="absolute top-4 right-4 text-white/40 hover:text-white/80 transition-colors"
             >
@@ -435,10 +435,11 @@ export default function MyTickets() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-white/70 text-sm">Set your price (USD)</label>
+                <label htmlFor="listing-price-input" className="text-white/70 text-sm">Set your price (USD)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 text-lg">$</span>
                   <input
+                    id="listing-price-input"
                     type="number"
                     value={listingPrice}
                     onChange={(e) => setListingPrice(e.target.value)}
@@ -459,14 +460,16 @@ export default function MyTickets() {
 
               <div className="flex gap-3">
                 <button
+                  type="button"
                   onClick={() => setListingTicket(null)}
                   className="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={confirmListing}
-                  disabled={!listingPrice || parseFloat(listingPrice) <= 0}
+                  disabled={!listingPrice || Number.parseFloat(listingPrice) <= 0}
                   className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   List Ticket
