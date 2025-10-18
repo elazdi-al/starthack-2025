@@ -71,6 +71,7 @@ contract Ticket is ERC721, ERC721URIStorage, Ownable {
     }
 
 
+
     function supportsInterface(bytes4 interfaceId)
     public
     view

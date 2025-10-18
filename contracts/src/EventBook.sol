@@ -50,6 +50,8 @@ contract EventBook {
 
     mapping(uint256 => Listing) public listings;
 
+    mapping(address => uint256[]) public userTickets;
+
     // Array to track all listed ticket IDs for pagination
     uint256[] private listedTicketIds;
 
@@ -173,7 +175,8 @@ contract EventBook {
         ev.revenueOwed += ev.price;
 
         string memory tempTokenURI = ""; // TODO: Replace with real metadata URI
-        ticketContract.mintTicket(msg.sender, eventId, tempTokenURI);
+        uint256 newTicketId = ticketContract.mintTicket(msg.sender, eventId, tempTokenURI);
+        userTickets[msg.sender].push(newTicketId);
     }
 
     function checkInTicket(uint256 tokenId) public {
@@ -293,6 +296,9 @@ contract EventBook {
         emit ListingCancelled(tokenId, msg.sender);
     }
 
+    function getUserTickets(address user) public view returns (uint256[] memory) {
+        return userTickets[user];
+    }
     /**
      * @dev Get listing details
      * @param tokenId The NFT token ID
