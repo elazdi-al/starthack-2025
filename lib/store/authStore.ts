@@ -6,12 +6,14 @@ interface AuthState {
   address: string | null;
   authenticatedAt: number | null;
   expiresAt: number | null;
+  _hasHydrated: boolean;
 }
 
 interface AuthActions {
   setAuth: (address: string, expiresInDays?: number) => void;
   clearAuth: () => void;
   isSessionValid: () => boolean;
+  setHasHydrated: (state: boolean) => void;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -24,6 +26,7 @@ export const useAuthStore = create<AuthStore>()(
       address: null,
       authenticatedAt: null,
       expiresAt: null,
+      _hasHydrated: false,
 
       // Set authentication
       setAuth: (address: string, expiresInDays = 7) => {
@@ -67,6 +70,11 @@ export const useAuthStore = create<AuthStore>()(
 
         return true;
       },
+
+      // Set hydration state
+      setHasHydrated: (state: boolean) => {
+        set({ _hasHydrated: state });
+      },
     }),
     {
       name: 'base-auth-storage', // localStorage key
@@ -74,8 +82,13 @@ export const useAuthStore = create<AuthStore>()(
       
       // Hydration: Check session validity when loading from storage
       onRehydrateStorage: () => (state) => {
-        if (state && !state.isSessionValid()) {
-          state.clearAuth();
+        if (state) {
+          // Check validity first
+          if (!state.isSessionValid()) {
+            state.clearAuth();
+          }
+          // Mark as hydrated
+          state.setHasHydrated(true);
         }
       },
     }
@@ -84,7 +97,7 @@ export const useAuthStore = create<AuthStore>()(
 
 // Helper hook to check auth status on mount
 export const useAuthCheck = () => {
-  const { isSessionValid, isAuthenticated, address } = useAuthStore();
+  const { isSessionValid, isAuthenticated, address, _hasHydrated } = useAuthStore();
   
   // Check validity on every use
   const isValid = isSessionValid();
@@ -92,6 +105,7 @@ export const useAuthCheck = () => {
   return {
     isAuthenticated: isValid && isAuthenticated,
     address: isValid ? address : null,
+    hasHydrated: _hasHydrated,
   };
 };
 
