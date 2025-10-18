@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+
+// 1. Define an interface for the NFT contract
+interface IEventTicket {
+    function mintTicket(
+        address _to,
+        uint256 _eventId,
+        string memory _tokenURI
+    ) external returns (uint256);
+}
+
 contract EventBook {
     struct Event {
         string name;
@@ -15,6 +25,12 @@ contract EventBook {
 
     // list of all events
     Event[] public events;
+
+    IEventTicket public ticketContract;
+
+    constructor(address _ticketContractAddress) {
+        ticketContract = IEventTicket(_ticketContractAddress);
+    }
 
     // mapping to track who bought tickets
     // maps eventId (index in events) to a map mapping each user to boolean
@@ -63,6 +79,9 @@ contract EventBook {
         hasTicket[eventId][msg.sender] = true;
         ev.ticketsSold += 1;
         ev.revenueOwed += ev.price;
+
+        string memory tempTokenURI = ""; // TODO: Replace with real metadata URI
+        ticketContract.mintTicket(msg.sender, eventId, tempTokenURI);
     }
 
     // withdraw sales (only the event creator)
