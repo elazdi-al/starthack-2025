@@ -11,80 +11,71 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
 
-// Initialize mock tickets if store is empty
-const initializeMockTickets = (addTicket: (ticket: Ticket) => void) => {
-  const mockTickets: Ticket[] = [
-    {
-      id: "TKT-001",
-      eventId: 1,
-      eventTitle: "Web3 Developer Meetup",
-      date: "2025-10-25",
-      time: "18:00 - 21:00",
-      location: "San Francisco, CA",
-      venue: "TechHub SF, 505 Howard St",
-      ticketType: "General Admission",
-      purchaseDate: "2025-10-15",
-      qrData: "TKT-001-WEB3-DEV-MEETUP-2025",
-      isValid: true,
-      status: 'owned'
-    },
-    {
-      id: "TKT-002",
-      eventId: 2,
-      eventTitle: "Blockchain Workshop",
-      date: "2025-11-02",
-      time: "14:00 - 17:00",
-      location: "New York, NY",
-      venue: "Innovation Lab, 123 Broadway",
-      ticketType: "VIP Access",
-      purchaseDate: "2025-10-18",
-      qrData: "TKT-002-BLOCKCHAIN-WORKSHOP-2025",
-      isValid: true,
-      status: 'owned'
-    },
-    {
-      id: "TKT-003",
-      eventId: 3,
-      eventTitle: "NFT Art Exhibition",
-      date: "2025-09-10",
-      time: "10:00 - 18:00",
-      location: "Los Angeles, CA",
-      venue: "Digital Gallery, 456 Arts District",
-      ticketType: "General Admission",
-      purchaseDate: "2025-08-20",
-      qrData: "TKT-003-NFT-ART-EXHIBITION-2025",
-      isValid: false,
-      status: 'owned'
-    }
-  ];
-  
-  for (const ticket of mockTickets) {
-    addTicket(ticket);
-  }
-};
+// Removed mock tickets - now fetching from blockchain
 
 export default function MyTickets() {
   const router = useRouter();
   const { isAuthenticated, address, hasHydrated } = useAuthCheck();
-  const { tickets, addTicket, listTicket, cancelListing, clearDuplicates } = useTicketStore();
+  const { tickets, setTickets, listTicket, cancelListing, clearDuplicates } = useTicketStore();
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
   const [qrSize, setQrSize] = useState(200);
   const [listingTicket, setListingTicket] = useState<Ticket | null>(null);
   const [listingPrice, setListingPrice] = useState("");
-  const [initialized, setInitialized] = useState(false);
+  const [isLoadingTickets, setIsLoadingTickets] = useState(true);
 
   // Clear duplicates on mount
   useEffect(() => {
     clearDuplicates();
   }, [clearDuplicates]);
 
-  // Initialize mock tickets on first load only
+  // Fetch tickets from blockchain
   useEffect(() => {
-    if (!initialized && tickets.length === 0) {
-      initializeMockTickets(addTicket);
-      setInitialized(true);
+    const fetchTickets = async () => {
+      if (!address && process.env.NODE_ENV === 'production') {
+        console.error('No wallet address available');
+        return;
+      }
+
+      // In development mode, use hardcoded test address
+      // In production, use the connected wallet address
+      const isDev = process.env.NODE_ENV === 'development';
+      const testAddress = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'; // Test wallet from Anvil
+      const targetAddress = isDev ? testAddress : address;
+
+      if (!targetAddress) {
+        console.error('No address available to fetch tickets');
+        return;
+      }
+
+      console.log(`🎫 Fetching tickets in ${isDev ? 'DEV' : 'PROD'} mode for:`, targetAddress);
+      
+      try {
+        setIsLoadingTickets(true);
+        const response = await fetch(`/api/tickets?address=${targetAddress}`);
+        const data = await response.json();
+
+        if (data.success && data.tickets) {
+          setTickets(data.tickets);
+          console.log('✅ Fetched', data.tickets.length, 'ticket(s)');
+          if (isDev) {
+            console.log('💡 DEV MODE: Using test address:', testAddress);
+          }
+        } else {
+          console.error('❌ Error fetching tickets:', data.error);
+          toast.error('Failed to load tickets');
+        }
+      } catch (error) {
+        console.error('❌ Fetch error:', error);
+        toast.error('Failed to load tickets');
+      } finally {
+        setIsLoadingTickets(false);
+      }
+    };
+
+    if (isAuthenticated && hasHydrated) {
+      fetchTickets();
     }
-  }, [initialized, tickets.length, addTicket]);
+  }, [isAuthenticated, hasHydrated, address, setTickets]);
 
   // Handle responsive QR code size
   useEffect(() => {
@@ -215,7 +206,12 @@ export default function MyTickets() {
 
       {/* Tickets grid */}
       <div className="relative z-10 flex-1 px-6">
-        {tickets.length === 0 ? (
+        {isLoadingTickets ? (
+          <div className="flex flex-col items-center justify-center h-64 text-white/40">
+            <div className="w-12 h-12 border-4 border-white/20 border-t-white/60 rounded-full animate-spin" />
+            <p className="mt-4 text-lg">Loading tickets...</p>
+          </div>
+        ) : tickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-white/40">
             <TicketIcon size={64} weight="thin" />
             <p className="mt-4 text-lg">No tickets yet</p>

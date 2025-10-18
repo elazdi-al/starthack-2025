@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { publicClient } from '@/lib/contracts/client';
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from '@/lib/contracts/eventBook';
+import { TICKET_CONTRACT_ADDRESS, TICKET_ABI } from '@/lib/contracts/ticket';
+import { getTicketMetadata } from '@/lib/ticketMetadata';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/tickets?address=0x... - Get all tickets for a user
+// GET /api/tickets?address=0x... - Get all tickets (NFTs) for a user
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -17,66 +19,117 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get total number of events
-    const numberOfEvents = await publicClient.readContract({
-      address: EVENT_BOOK_ADDRESS,
-      abi: EVENT_BOOK_ABI,
-      functionName: 'getNumberOfEvents',
-    }) as bigint;
+    // Get the latest block to query events from
+    const latestBlock = await publicClient.getBlockNumber();
+    const fromBlock = latestBlock > 100000 ? BigInt(latestBlock) - BigInt(100000) : BigInt(0);
 
-    const eventCount = Number(numberOfEvents);
-    
-    // Check ticket ownership for all events
-    const tickets = await Promise.all(
-      Array.from({ length: eventCount }, async (_, index) => {
-        // Check if user has a ticket for this event
-        const hasTicket = await publicClient.readContract({
-          address: EVENT_BOOK_ADDRESS,
-          abi: EVENT_BOOK_ABI,
-          functionName: 'hasTicket',
-          args: [BigInt(index), address as `0x${string}`],
-        }) as boolean;
+    // Get all Transfer events to this address (minted or transferred tickets)
+    const transferLogs = await publicClient.getLogs({
+      address: TICKET_CONTRACT_ADDRESS,
+      event: {
+        type: 'event',
+        name: 'Transfer',
+        inputs: [
+          { type: 'address', indexed: true, name: 'from' },
+          { type: 'address', indexed: true, name: 'to' },
+          { type: 'uint256', indexed: true, name: 'tokenId' },
+        ],
+      },
+      args: {
+        to: address as `0x${string}`,
+      },
+      fromBlock,
+      toBlock: 'latest',
+    });
 
-        if (!hasTicket) return null;
+    // Get unique token IDs
+    const tokenIds = [...new Set(transferLogs.map(log => log.args.tokenId))].filter(Boolean);
 
-        // If user has a ticket, fetch event details
-        const eventData = await publicClient.readContract({
-          address: EVENT_BOOK_ADDRESS,
-          abi: EVENT_BOOK_ABI,
-          functionName: 'events',
-          args: [BigInt(index)],
-        }) as [string, string, bigint, bigint, bigint, string, bigint, bigint];
+    if (tokenIds.length === 0) {
+      return NextResponse.json({ 
+        success: true, 
+        tickets: [],
+        count: 0
+      });
+    }
 
-        const [name, location, date, _price, _revenueOwed, _creator, _ticketsSold, _maxCapacity] = eventData;
+    // For each token, verify current ownership and get details
+    const userTickets = await Promise.all(
+      tokenIds.map(async (tokenId) => {
+        if (!tokenId) return null;
 
-        return {
-          id: `TKT-${index}-${address.slice(2, 8)}`,
-          eventId: index,
-          eventTitle: name,
-          date: new Date(Number(date) * 1000).toISOString().split('T')[0], // YYYY-MM-DD
-          time: new Date(Number(date) * 1000).toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: false 
-          }),
-          location: location,
-          venue: location,
-          ticketType: 'General Admission',
-          purchaseDate: new Date().toISOString().split('T')[0], // Mock purchase date
-          qrData: `${index}-${address}-${name}`,
-          isValid: Number(date) > Math.floor(Date.now() / 1000), // Event hasn't passed
-          status: 'owned' as const,
-        };
+        try {
+          // Verify current owner (ticket might have been transferred)
+          const owner = await publicClient.readContract({
+            address: TICKET_CONTRACT_ADDRESS,
+            abi: TICKET_ABI,
+            functionName: 'ownerOf',
+            args: [tokenId],
+          }) as string;
+
+          if (owner.toLowerCase() !== address.toLowerCase()) {
+            return null; // Token was transferred away
+          }
+
+          // Get the event ID for this ticket
+          const eventId = await publicClient.readContract({
+            address: TICKET_CONTRACT_ADDRESS,
+            abi: TICKET_ABI,
+            functionName: 'ticketToEvent',
+            args: [tokenId],
+          }) as bigint;
+
+          // Get event details
+          const eventData = await publicClient.readContract({
+            address: EVENT_BOOK_ADDRESS,
+            abi: EVENT_BOOK_ABI,
+            functionName: 'events',
+            args: [eventId],
+          }) as [string, string, bigint, bigint, bigint, string, bigint, bigint];
+
+          const [name, location, date] = eventData;
+
+          // Get metadata if it exists
+          const metadata = getTicketMetadata(tokenId.toString());
+          
+          const eventDate = Number(date);
+          const now = Math.floor(Date.now() / 1000);
+
+          return {
+            id: `TKT-${tokenId}`,
+            tokenId: tokenId.toString(),
+            eventId: Number(eventId),
+            eventTitle: name,
+            date: new Date(eventDate * 1000).toISOString().split('T')[0],
+            time: new Date(eventDate * 1000).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false 
+            }),
+            location: location,
+            venue: location,
+            ticketType: metadata?.ticketType || 'General Admission',
+            purchaseDate: metadata?.purchaseDate 
+              ? new Date(metadata.purchaseDate * 1000).toISOString().split('T')[0]
+              : new Date().toISOString().split('T')[0],
+            qrData: metadata?.qrData || `${tokenId}-${eventId}-${name}`,
+            isValid: eventDate > now,
+            status: 'owned' as const,
+          };
+        } catch (err) {
+          console.error(`Error processing token ${tokenId}:`, err);
+          return null;
+        }
       })
     );
 
-    // Filter out null values (events where user doesn't have tickets)
-    const userTickets = tickets.filter(ticket => ticket !== null);
+    // Filter out null values
+    const validTickets = userTickets.filter(ticket => ticket !== null);
 
     return NextResponse.json({ 
       success: true, 
-      tickets: userTickets,
-      count: userTickets.length
+      tickets: validTickets,
+      count: validTickets.length
     });
 
   } catch (error) {
@@ -91,4 +144,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

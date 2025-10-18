@@ -25,6 +25,7 @@ interface TicketState {
 
 interface TicketActions {
   addTicket: (ticket: Ticket) => void;
+  setTickets: (tickets: Ticket[]) => void;
   listTicket: (ticketId: string, price: string) => void;
   cancelListing: (ticketId: string) => void;
   markAsSold: (ticketId: string) => void;
@@ -56,6 +57,11 @@ export const useTicketStore = create<TicketStore>()(
             tickets: [...state.tickets, { ...ticket, status: 'owned' }]
           };
         });
+      },
+
+      // Set all tickets (replaces existing tickets)
+      setTickets: (tickets: Ticket[]) => {
+        set({ tickets });
       },
 
       // List a ticket for sale
