@@ -2,18 +2,31 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
-import "forge-std/StdError.sol"; // for stdError.indexOOBError
+import "forge-std/StdError.sol";
 import "../src/EventBook.sol";
+import "../src/Ticket.sol";
 
 contract EventBookTest is Test {
     EventBook book;
-    address creator = address(0xCAFE);
-    address buyer1  = address(0xBEEF);
-    address buyer2  = address(0xFEED);
-    address buyer3  = address(0xBADD);
+    Ticket ticket;
+
+    address creator = makeAddr("creator");
+    address buyer1  = makeAddr("buyer1");
+    address buyer2  = makeAddr("buyer2");
+    address buyer3  = makeAddr("buyer3");
 
     function setUp() public {
-        book = new EventBook();
+        // Deploy Ticket first
+        vm.prank(creator);
+        ticket = new Ticket();
+
+        // Deploy EventBook and link it
+        vm.prank(creator);
+        book = new EventBook(address(ticket));
+
+        // Link Ticket to EventBook (so only EventBook can mint)
+        vm.prank(creator);
+        ticket.setEventBook(address(book));
     }
 
     // ----------------------------
@@ -98,6 +111,10 @@ contract EventBookTest is Test {
         assertEq(sold, 1);
         assertEq(revenue, 0.1 ether);
         assertEq(address(book).balance, 0.1 ether);
+
+        // ✅ Verify NFT minted
+        assertEq(ticket.ownerOf(1), buyer1);
+        assertEq(ticket.ticketToEvent(1), eventId);
     }
 
     function test_Revert_When_BuyingWithWrongPrice() public {
@@ -149,6 +166,9 @@ contract EventBookTest is Test {
         assertEq(cap, 0);
         assertEq(revenue, 0);
         assertEq(address(book).balance, 0);
+
+        // ✅ NFT still minted for free event
+        assertEq(ticket.ownerOf(1), buyer1);
     }
 
     function test_Revert_When_BuyingAfterDate() public {
