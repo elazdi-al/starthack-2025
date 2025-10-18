@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
         { 
           success: false, 
           error: 'Invalid QR code format',
-          valid: false 
+          valid: false,
+          message: 'QR code is not a valid ticket format'
         },
         { status: 400 }
       );
@@ -35,13 +36,13 @@ export async function POST(request: NextRequest) {
     const ticketEventId = parts[1];
     const originalHolder = parts[2];
 
-    // Verify this is the correct event
+    // STEP 1: Verify ticket is for the correct event (QR data check)
     if (ticketEventId !== eventId.toString()) {
       return NextResponse.json({
         success: true,
         valid: false,
         error: 'Wrong event',
-        message: 'This ticket is for a different event',
+        message: `This ticket is for Event #${ticketEventId}, not Event #${eventId}`,
         details: {
           tokenId,
           expectedEventId: eventId,
@@ -50,48 +51,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check if token exists and get current owner
-    let currentOwner: string;
-    try {
-      currentOwner = await publicClient.readContract({
-        address: TICKET_CONTRACT_ADDRESS,
-        abi: TICKET_ABI,
-        functionName: 'ownerOf',
-        args: [BigInt(tokenId)],
-      }) as string;
-    } catch (error) {
-      return NextResponse.json({
-        success: true,
-        valid: false,
-        error: 'Ticket not found',
-        message: 'This ticket does not exist on the blockchain',
-        details: { tokenId }
-      });
-    }
-
-    // Verify ticket is for this event
-    const ticketEventIdOnChain = await publicClient.readContract({
-      address: TICKET_CONTRACT_ADDRESS,
-      abi: TICKET_ABI,
-      functionName: 'ticketToEvent',
-      args: [BigInt(tokenId)],
-    }) as bigint;
-
-    if (ticketEventIdOnChain.toString() !== eventId.toString()) {
-      return NextResponse.json({
-        success: true,
-        valid: false,
-        error: 'Event mismatch',
-        message: 'Ticket does not belong to this event',
-        details: {
-          tokenId,
-          expectedEventId: eventId,
-          actualEventId: ticketEventIdOnChain.toString(),
-        }
-      });
-    }
-
-    // Get event details to verify ownership
+    // STEP 2: Get event details FIRST to verify scanner is the event owner
     const eventData = await publicClient.readContract({
       address: EVENT_BOOK_ADDRESS,
       abi: EVENT_BOOK_ABI,
@@ -112,33 +72,112 @@ export async function POST(request: NextRequest) {
     ];
 
     const eventCreator = eventData[5];
+    const eventName = eventData[0];
+    const eventDate = Number(eventData[2]);
 
-    // Verify the scanner is the event owner
+    // STEP 3: Verify the scanner is the event owner 
     if (eventCreator.toLowerCase() !== eventOwner.toLowerCase()) {
       return NextResponse.json({
         success: true,
         valid: false,
-        error: 'Unauthorized',
-        message: 'You are not the owner of this event',
+        error: 'Unauthorized scanner',
+        message: 'Only the event owner can scan tickets for this event',
         details: {
-          eventCreator,
-          providedOwner: eventOwner,
+          eventId,
+          eventName,
+          eventCreator: `${eventCreator.slice(0, 6)}...${eventCreator.slice(-4)}`,
+          providedOwner: `${eventOwner.slice(0, 6)}...${eventOwner.slice(-4)}`,
         }
       });
     }
 
-    // All checks passed - ticket is valid
+    // STEP 4: Check if ticket exists on blockchain and get current owner
+    let currentOwner: string;
+    try {
+      currentOwner = await publicClient.readContract({
+        address: TICKET_CONTRACT_ADDRESS,
+        abi: TICKET_ABI,
+        functionName: 'ownerOf',
+        args: [BigInt(tokenId)],
+      }) as string;
+    } catch (error) {
+      return NextResponse.json({
+        success: true,
+        valid: false,
+        error: 'Ticket not found',
+        message: 'This ticket NFT does not exist or has been burned',
+        details: { 
+          tokenId,
+          eventId,
+          eventName 
+        }
+      });
+    }
+
+    // STEP 5: Verify ticket belongs to THIS event on blockchain
+    const ticketEventIdOnChain = await publicClient.readContract({
+      address: TICKET_CONTRACT_ADDRESS,
+      abi: TICKET_ABI,
+      functionName: 'ticketToEvent',
+      args: [BigInt(tokenId)],
+    }) as bigint;
+
+    if (ticketEventIdOnChain.toString() !== eventId.toString()) {
+      return NextResponse.json({
+        success: true,
+        valid: false,
+        error: 'Event mismatch on blockchain',
+        message: `Ticket #${tokenId} is registered for Event #${ticketEventIdOnChain}, not Event #${eventId}`,
+        details: {
+          tokenId,
+          expectedEventId: eventId,
+          actualEventId: ticketEventIdOnChain.toString(),
+          eventName,
+        }
+      });
+    }
+
+    // STEP 6: Check if event has already passed
+    const now = Math.floor(Date.now() / 1000);
+    if (eventDate < now) {
+      return NextResponse.json({
+        success: true,
+        valid: false,
+        error: 'Event has passed',
+        message: 'This event has already ended',
+        details: {
+          tokenId,
+          eventId,
+          eventName,
+          eventDate,
+          currentTime: now,
+        }
+      });
+    }
+
+    // ALL CHECKS PASSED - Ticket is valid for entry
+    const ownerChanged = currentOwner.toLowerCase() !== originalHolder.toLowerCase();
+    
     return NextResponse.json({
       success: true,
       valid: true,
-      message: 'Ticket is valid for entry',
+      message: ownerChanged 
+        ? '✓ Valid ticket (resold)' 
+        : '✓ Valid ticket - Allow entry',
       details: {
         tokenId,
         eventId: ticketEventIdOnChain.toString(),
-        eventName: eventData[0],
+        eventName,
         currentOwner,
         originalHolder,
-        ownerChanged: currentOwner.toLowerCase() !== originalHolder.toLowerCase(),
+        ownerChanged,
+        verifiedChecks: [
+          '✓ Ticket exists on blockchain',
+          '✓ Belongs to this event',
+          '✓ Scanner is event owner',
+          '✓ Event has not passed',
+          ownerChanged ? '⚠ Ticket was resold' : '✓ Original holder'
+        ]
       }
     });
 

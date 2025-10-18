@@ -22,6 +22,7 @@ interface VerificationResult {
     currentOwner?: string;
     originalHolder?: string;
     ownerChanged?: boolean;
+    verifiedChecks?: string[];
   };
 }
 
@@ -333,7 +334,7 @@ export default function ScannerPage() {
                   </p>
 
                   {verificationResult.details && (
-                    <div className="bg-white/5 rounded-xl p-4 mb-6 space-y-2 text-sm">
+                    <div className="bg-white/5 rounded-xl p-4 mb-6 space-y-3 text-sm">
                       {verificationResult.details.eventName && (
                         <div>
                           <span className="text-white/50">Event: </span>
@@ -346,17 +347,31 @@ export default function ScannerPage() {
                       </div>
                       {verificationResult.details.currentOwner && (
                         <div>
-                          <span className="text-white/50">Owner: </span>
+                          <span className="text-white/50">Holder: </span>
                           <span className="text-white font-mono text-xs">
                             {verificationResult.details.currentOwner.slice(0, 6)}...
                             {verificationResult.details.currentOwner.slice(-4)}
                           </span>
                         </div>
                       )}
+                      
+                      {verificationResult.valid && verificationResult.details.verifiedChecks && (
+                        <div className="pt-3 border-t border-white/10">
+                          <p className="text-white/50 text-xs mb-2">Verification Status:</p>
+                          {verificationResult.details.verifiedChecks.map((check) => (
+                            <div key={check} className="flex items-start gap-2 text-xs mb-1">
+                              <span className={check.includes('⚠') ? 'text-yellow-400' : 'text-green-400'}>
+                                {check}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
                       {verificationResult.details.ownerChanged && (
                         <div className="flex items-center gap-2 pt-2 border-t border-white/10">
                           <Warning size={16} className="text-yellow-400" />
-                          <span className="text-yellow-400 text-xs">Ticket was resold</span>
+                          <span className="text-yellow-400 text-xs">Note: Ticket was resold to current holder</span>
                         </div>
                       )}
                     </div>

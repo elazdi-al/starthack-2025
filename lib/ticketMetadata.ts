@@ -1,6 +1,3 @@
-// Ticket Metadata Storage
-// In production, this should be stored in a database or IPFS
-
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
