@@ -76,28 +76,43 @@ fi
 
 # Extract the contract addresses from the deployment
 # The Solidity script returns EventBook at index 0 and Ticket at index 1
-# Use the return values directly from the script output
 EVENTBOOK_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep -o "0: contract EventBook 0x[a-fA-F0-9]*" | grep -o "0x[a-fA-F0-9]*")
 TICKET_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep -o "1: contract Ticket 0x[a-fA-F0-9]*" | grep -o "0x[a-fA-F0-9]*")
 
-CONTRACT_ADDRESS=$EVENTBOOK_ADDRESS
+if [ -z "$EVENTBOOK_ADDRESS" ]; then
+  echo -e "${YELLOW}Error: Could not extract EventBook contract address from deployment${NC}"
+  echo -e "${YELLOW}Deployment output:${NC}"
+  echo "$DEPLOY_OUTPUT"
+  cd ..
+  cleanup
+fi
 
-if [ -z "$CONTRACT_ADDRESS" ] || [ "$CONTRACT_ADDRESS" = "null" ]; then
-  echo -e "${YELLOW}Warning: Could not extract EventBook contract address${NC}"
+echo -e "${MAGENTA}[DEPLOY]${NC} EventBook deployed at: ${GREEN}$EVENTBOOK_ADDRESS${NC}"
+
+if [ -n "$TICKET_ADDRESS" ]; then
+  echo -e "${MAGENTA}[DEPLOY]${NC} Ticket deployed at: ${GREEN}$TICKET_ADDRESS${NC}"
+fi
+
+# Verify the contract was actually deployed
+echo -e "${MAGENTA}[DEPLOY]${NC} Verifying contract deployment..."
+CONTRACT_CODE=$(/Users/admin/.foundry/bin/cast code $EVENTBOOK_ADDRESS --rpc-url http://127.0.0.1:8545)
+
+if [ "$CONTRACT_CODE" = "0x" ]; then
+  echo -e "${YELLOW}Error: No contract code found at $EVENTBOOK_ADDRESS${NC}"
+  cd ..
+  cleanup
+fi
+
+echo -e "${MAGENTA}[DEPLOY]${NC} Contract verified successfully!"
+
+# Update the .env file with the new contract address (go back to project root)
+if [ -f ../.env ]; then
+  sed -i.bak "s/NEXT_PUBLIC_EVENT_BOOK_ADDRESS=.*/NEXT_PUBLIC_EVENT_BOOK_ADDRESS=$EVENTBOOK_ADDRESS/" ../.env
+  echo -e "${MAGENTA}[DEPLOY]${NC} Updated .env file with EventBook address"
 else
-  echo -e "${MAGENTA}[DEPLOY]${NC} EventBook deployed at: ${GREEN}$CONTRACT_ADDRESS${NC}"
-
-  if [ -n "$TICKET_ADDRESS" ] && [ "$TICKET_ADDRESS" != "null" ]; then
-    echo -e "${MAGENTA}[DEPLOY]${NC} Ticket deployed at: ${GREEN}$TICKET_ADDRESS${NC}"
-  fi
-
-  # Update the .env file with the new contract address (go back to project root)
-  if [ -f ../.env ]; then
-    sed -i.bak "s/NEXT_PUBLIC_EVENT_BOOK_ADDRESS=.*/NEXT_PUBLIC_EVENT_BOOK_ADDRESS=$CONTRACT_ADDRESS/" ../.env
-    echo -e "${MAGENTA}[DEPLOY]${NC} Updated .env file with EventBook address"
-  else
-    echo -e "${YELLOW}Warning: .env file not found${NC}"
-  fi
+  echo -e "${YELLOW}Error: .env file not found${NC}"
+  cd ..
+  cleanup
 fi
 
 # Go back to project root

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,12 @@ import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Plus, CalendarBlank } from "phosphor-react";
-import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnect, useConnectors } from "wagmi";
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from "@/lib/contracts/eventBook";
 import { parseEther } from "viem";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useAuthStore } from "@/lib/store/authStore";
 
 interface CreateEventDialogProps {
   onEventCreated?: () => void;
@@ -33,10 +34,26 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     maxCapacity: "",
   });
 
-  const { writeContract, data: hash, isPending } = useWriteContract();
+  // Use Base auth store for authentication check
+  const { isAuthenticated, isSessionValid } = useAuthStore();
+  const { address, isConnected } = useAccount(); // Still need wagmi for transaction signing
+  const { connect } = useConnect();
+  const connectors = useConnectors();
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
+
+  // Auto-connect wallet if authenticated but wagmi not connected
+  useEffect(() => {
+    if (isAuthenticated && !isConnected && connectors.length > 0) {
+      // Try to connect with the first available connector (usually injected wallet)
+      const injectedConnector = connectors.find(c => c.type === 'injected');
+      if (injectedConnector) {
+        connect({ connector: injectedConnector });
+      }
+    }
+  }, [isAuthenticated, isConnected, connectors, connect]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -44,6 +61,22 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check authentication with Base auth system
+    if (!isAuthenticated || !isSessionValid()) {
+      toast.error("Not authenticated", {
+        description: "Please sign in with Base to create an event",
+      });
+      return;
+    }
+
+    // Check if wallet is connected for transaction signing
+    if (!address || !isConnected) {
+      toast.error("Wallet not connected", {
+        description: "Please ensure your wallet extension (MetaMask, Coinbase Wallet, etc.) is installed and connected",
+      });
+      return;
+    }
 
     try {
       // Validate required fields
@@ -55,7 +88,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       // Combine date and time into Unix timestamp
       const [hours, minutes] = formData.time.split(':');
       const eventDateTime = new Date(date);
-      eventDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      eventDateTime.setHours(Number.parseInt(hours), Number.parseInt(minutes), 0, 0);
       const dateTimestamp = Math.floor(eventDateTime.getTime() / 1000);
 
       // Validate future date
@@ -69,6 +102,15 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
       // Parse max capacity (0 means unlimited)
       const maxCapacity = formData.maxCapacity ? BigInt(formData.maxCapacity) : BigInt(0);
+
+      console.log("Creating event with:", {
+        name: formData.name,
+        location: formData.location,
+        date: dateTimestamp,
+        price: priceInWei.toString(),
+        maxCapacity: maxCapacity.toString(),
+        address: EVENT_BOOK_ADDRESS,
+      });
 
       // Call smart contract
       writeContract({
@@ -84,8 +126,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         ],
       });
 
-      toast.success("Creating event...", {
-        description: "Transaction submitted. Please wait for confirmation.",
+      toast.info("Creating event...", {
+        description: "Please confirm the transaction in your wallet",
       });
     } catch (error) {
       console.error("Error creating event:", error);
@@ -95,30 +137,42 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     }
   };
 
-  // Handle successful transaction
-  if (isConfirmed && hash) {
-    toast.success("Event created successfully!", {
-      description: "Your event is now live on the blockchain.",
-    });
-
-    // Reset form and close dialog
-    setFormData({
-      name: "",
-      description: "",
-      location: "",
-      time: "",
-      price: "",
-      maxCapacity: "",
-    });
-    setDate(undefined);
-    setIsPrivate(false);
-    setOpen(false);
-
-    // Callback to refresh events list
-    if (onEventCreated) {
-      onEventCreated();
+  // Handle transaction errors
+  useEffect(() => {
+    if (writeError) {
+      console.error("Transaction error:", writeError);
+      toast.error("Transaction failed", {
+        description: writeError.message || "Failed to submit transaction",
+      });
     }
-  }
+  }, [writeError]);
+
+  // Handle successful transaction
+  useEffect(() => {
+    if (isConfirmed && hash) {
+      toast.success("Event created successfully!", {
+        description: "Your event is now live on the blockchain.",
+      });
+
+      // Reset form and close dialog
+      setFormData({
+        name: "",
+        description: "",
+        location: "",
+        time: "",
+        price: "",
+        maxCapacity: "",
+      });
+      setDate(undefined);
+      setIsPrivate(false);
+      setOpen(false);
+
+      // Callback to refresh events list
+      if (onEventCreated) {
+        onEventCreated();
+      }
+    }
+  }, [isConfirmed, hash, onEventCreated]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
