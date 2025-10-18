@@ -2,7 +2,7 @@
 
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { CalendarBlank, MapPin, Users, ShoppingCart } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore } from "@/lib/store/ticketStore";
@@ -10,75 +10,51 @@ import { pay, getPaymentStatus } from '@base-org/account';
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
-// Mock marketplace tickets - replace with actual data from backend
-const marketplaceTickets = [
-  {
-    id: "MKT-001",
-    eventId: 1, // Links to event ID for detail page
-    eventTitle: "Web3 Developer Meetup",
-    date: "2025-10-25",
-    time: "18:00 - 21:00",
-    location: "San Francisco, CA",
-    venue: "TechHub SF, 505 Howard St",
-    ticketType: "General Admission",
-    price: "25.00", // USD
-    seller: "0x1234...5678",
-    availableQuantity: 3
-  },
-  {
-    id: "MKT-002",
-    eventId: 2,
-    eventTitle: "Blockchain Workshop",
-    date: "2025-11-02",
-    time: "14:00 - 17:00",
-    location: "New York, NY",
-    venue: "Innovation Lab, 123 Broadway",
-    ticketType: "VIP Access",
-    price: "150.00",
-    seller: "0xabcd...efgh",
-    availableQuantity: 1
-  },
-  {
-    id: "MKT-003",
-    eventId: 3,
-    eventTitle: "NFT Art Exhibition",
-    date: "2025-11-10",
-    time: "10:00 - 18:00",
-    location: "Los Angeles, CA",
-    venue: "Digital Gallery, 456 Arts District",
-    ticketType: "General Admission",
-    price: "40.00",
-    seller: "0x9876...4321",
-    availableQuantity: 5
-  },
-  {
-    id: "MKT-004",
-    eventId: 4,
-    eventTitle: "DeFi Summit 2025",
-    date: "2025-11-18",
-    time: "09:00 - 18:00",
-    location: "Austin, TX",
-    venue: "Convention Center",
-    ticketType: "Early Bird",
-    price: "99.00",
-    seller: "0xfedc...ba98",
-    availableQuantity: 10
+// Types for listings
+interface Listing {
+  tokenId: string;
+  seller: string;
+  price: string;
+  priceWei: string;
+  eventId: string;
+  eventName: string;
+  eventDate: number;
+}
+
+interface ListingsResponse {
+  success: boolean;
+  listings: Listing[];
+  pagination: {
+    offset: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
+}
+
+// Fetch listings from API
+async function fetchListings({ pageParam = 0 }): Promise<ListingsResponse> {
+  const response = await fetch(`/api/listings?offset=${pageParam}&limit=10`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch listings');
   }
-];
+  return response.json();
+}
 
 interface PurchaseModalProps {
-  ticket: typeof marketplaceTickets[0] | null;
+  listing: Listing | null;
   onClose: () => void;
-  onPurchase: (ticketId: string) => void;
+  onPurchase: (tokenId: string, price: string, seller: string) => void;
   isPurchasing: boolean;
 }
 
-function PurchaseModal({ ticket, onClose, onPurchase, isPurchasing }: PurchaseModalProps) {
-  if (!ticket) return null;
+function PurchaseModal({ listing, onClose, onPurchase, isPurchasing }: PurchaseModalProps) {
+  if (!listing) return null;
 
   const handlePurchase = () => {
-    onPurchase(ticket.id);
+    onPurchase(listing.tokenId, listing.price, listing.seller);
   };
 
   return (
@@ -97,13 +73,13 @@ function PurchaseModal({ ticket, onClose, onPurchase, isPurchasing }: PurchaseMo
         {/* Content */}
         <div className="space-y-4">
           <h2 className="text-white text-2xl font-bold mb-4">Purchase Ticket</h2>
-          
+
           <div className="bg-white/5 rounded-xl p-4 space-y-3">
-            <h3 className="text-white font-semibold text-lg">{ticket.eventTitle}</h3>
-            
+            <h3 className="text-white font-semibold text-lg">{listing.eventName}</h3>
+
             <div className="flex items-center gap-2 text-white/70 text-sm">
               <CalendarBlank size={16} weight="regular" />
-              <span>{new Date(ticket.date).toLocaleDateString('en-US', {
+              <span>{new Date(listing.eventDate * 1000).toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -111,19 +87,14 @@ function PurchaseModal({ ticket, onClose, onPurchase, isPurchasing }: PurchaseMo
               })}</span>
             </div>
 
-            <div className="flex items-center gap-2 text-white/70 text-sm">
-              <MapPin size={16} weight="regular" />
-              <span>{ticket.venue}</span>
-            </div>
-
             <div className="pt-3 border-t border-white/10">
-              <p className="text-white/50 text-sm">Ticket Type</p>
-              <p className="text-white font-medium">{ticket.ticketType}</p>
+              <p className="text-white/50 text-sm">Seller</p>
+              <p className="text-white font-mono text-sm">{listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}</p>
             </div>
 
             <div className="pt-3 border-t border-white/10">
               <p className="text-white/50 text-sm">Price</p>
-              <p className="text-white text-3xl font-bold">${ticket.price} <span className="text-lg text-white/50">USDC</span></p>
+              <p className="text-white text-3xl font-bold">{listing.price} <span className="text-lg text-white/50">ETH</span></p>
             </div>
           </div>
 
@@ -171,11 +142,59 @@ export default function Marketplace() {
   const router = useRouter();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
   const { tickets, cancelListing } = useTicketStore();
-  const [selectedTicket, setSelectedTicket] = useState<typeof marketplaceTickets[0] | null>(null);
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   // Get user's listed tickets
   const userListedTickets = tickets.filter(t => t.status === 'listed');
+
+  // Infinite query for listings
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+  } = useInfiniteQuery({
+    queryKey: ['listings'],
+    queryFn: fetchListings,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pagination.hasMore) {
+        return lastPage.pagination.offset + lastPage.pagination.limit;
+      }
+      return undefined;
+    },
+    initialPageParam: 0,
+  });
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Flatten all pages into a single array
+  const allListings = data?.pages.flatMap((page) => page.listings) ?? [];
 
   // Redirect to login if not authenticated (only after hydration)
   useEffect(() => {
@@ -184,17 +203,14 @@ export default function Marketplace() {
     }
   }, [hasHydrated, isAuthenticated, router]);
 
-  const handlePurchase = async (ticketId: string) => {
-    const ticket = marketplaceTickets.find(t => t.id === ticketId);
-    if (!ticket) return;
-
+  const handlePurchase = async (tokenId: string, price: string, seller: string) => {
     setIsPurchasing(true);
 
     try {
       // Initiate Base Pay payment
       const payment = await pay({
-        amount: ticket.price,
-        to: ticket.seller as `0x${string}`, // Seller's address
+        amount: price,
+        to: seller as `0x${string}`, // Seller's address
         testnet: true, // Set to false for mainnet
         payerInfo: {
           requests: [
@@ -228,7 +244,7 @@ export default function Marketplace() {
             toast.success('Purchase Successful!', {
               description: 'Ticket sent to your email'
             });
-            setSelectedTicket(null);
+            setSelectedListing(null);
 
             // TODO: Send ticket to user's email
             // TODO: Add ticket to user's account via backend API
@@ -335,27 +351,45 @@ export default function Marketplace() {
 
       {/* Marketplace Cards */}
       <div className="relative z-10 flex-1 px-6">
+        {isLoading && (
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          </div>
+        )}
+
+        {isError && (
+          <div className="text-center py-12">
+            <p className="text-red-400">Error loading listings: {error.message}</p>
+          </div>
+        )}
+
+        {!isLoading && !isError && allListings.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-white/60">No listings available at the moment</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
-          {marketplaceTickets.map((ticket) => (
+          {allListings.map((listing) => (
             <button
-              key={ticket.id}
+              key={listing.tokenId}
               type="button"
               className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all shadow-xl flex flex-col cursor-pointer text-left"
-              onClick={() => router.push(`/event/${ticket.eventId}`)}
+              onClick={() => router.push(`/event/${listing.eventId}`)}
             >
               {/* Price Badge */}
               <div className="flex justify-between items-start mb-4">
                 <div className="bg-green-500/20 backdrop-blur-sm px-3 py-1 rounded-full">
-                  <p className="text-green-400 text-sm font-bold">${ticket.price}</p>
+                  <p className="text-green-400 text-sm font-bold">{listing.price} ETH</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
-                  <p className="text-white/70 text-xs">{ticket.availableQuantity} left</p>
+                  <p className="text-white/70 text-xs">Resale</p>
                 </div>
               </div>
 
               {/* Event title */}
               <h3 className="text-white font-bold text-xl mb-4 line-clamp-2">
-                {ticket.eventTitle}
+                {listing.eventName}
               </h3>
 
               {/* Details */}
@@ -364,7 +398,7 @@ export default function Marketplace() {
                   <CalendarBlank size={20} weight="regular" className="text-white/60 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-white/90 text-sm">
-                      {new Date(ticket.date).toLocaleDateString('en-US', {
+                      {new Date(listing.eventDate * 1000).toLocaleDateString('en-US', {
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -375,23 +409,17 @@ export default function Marketplace() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <MapPin size={20} weight="regular" className="text-white/60 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-white/90 text-sm">{ticket.venue}</p>
-                    <p className="text-white/60 text-xs">{ticket.location}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
                   <Users size={20} weight="regular" className="text-white/60 mt-0.5 flex-shrink-0" />
-                  <p className="text-white/90 text-sm">{ticket.ticketType}</p>
+                  <p className="text-white/90 text-sm">Token ID: {listing.tokenId}</p>
                 </div>
               </div>
 
               {/* Seller info */}
               <div className="mt-4 pt-4 border-t border-white/10">
                 <p className="text-white/40 text-xs mb-2">Seller</p>
-                <p className="text-white/70 text-sm font-mono">{ticket.seller}</p>
+                <p className="text-white/70 text-sm font-mono">
+                  {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
+                </p>
               </div>
 
               {/* Buy button */}
@@ -399,7 +427,7 @@ export default function Marketplace() {
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent card click from firing
-                  setSelectedTicket(ticket);
+                  setSelectedListing(listing);
                 }}
                 className="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
               >
@@ -409,13 +437,22 @@ export default function Marketplace() {
             </button>
           ))}
         </div>
+
+        {/* Infinite scroll trigger */}
+        {hasNextPage && (
+          <div ref={observerTarget} className="flex justify-center py-8">
+            {isFetchingNextPage && (
+              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Purchase Modal */}
-      {selectedTicket && (
+      {selectedListing && (
         <PurchaseModal
-          ticket={selectedTicket}
-          onClose={() => !isPurchasing && setSelectedTicket(null)}
+          listing={selectedListing}
+          onClose={() => !isPurchasing && setSelectedListing(null)}
           onPurchase={handlePurchase}
           isPurchasing={isPurchasing}
         />

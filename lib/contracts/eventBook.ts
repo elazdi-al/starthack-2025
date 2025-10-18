@@ -73,6 +73,71 @@ export const EVENT_BOOK_ABI = [
       { "name": "", "type": "bool" }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getActiveListings",
+    "inputs": [
+      { "name": "offset", "type": "uint256" },
+      { "name": "limit", "type": "uint256" }
+    ],
+    "outputs": [
+      { "name": "tokenIds", "type": "uint256[]" },
+      { "name": "sellers", "type": "address[]" },
+      { "name": "prices", "type": "uint256[]" },
+      { "name": "eventIds", "type": "uint256[]" },
+      { "name": "eventNames", "type": "string[]" },
+      { "name": "eventDates", "type": "uint256[]" },
+      { "name": "total", "type": "uint256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getActiveListingsCount",
+    "inputs": [],
+    "outputs": [
+      { "name": "count", "type": "uint256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getListingsByEvent",
+    "inputs": [
+      { "name": "eventId", "type": "uint256" },
+      { "name": "offset", "type": "uint256" },
+      { "name": "limit", "type": "uint256" }
+    ],
+    "outputs": [
+      { "name": "tokenIds", "type": "uint256[]" },
+      { "name": "sellers", "type": "address[]" },
+      { "name": "prices", "type": "uint256[]" },
+      { "name": "total", "type": "uint256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getListing",
+    "inputs": [
+      { "name": "tokenId", "type": "uint256" }
+    ],
+    "outputs": [
+      { "name": "seller", "type": "address" },
+      { "name": "price", "type": "uint256" },
+      { "name": "active", "type": "bool" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "buyResaleTicket",
+    "inputs": [
+      { "name": "tokenId", "type": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
   }
 ] as const;
 

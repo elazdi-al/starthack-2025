@@ -38,6 +38,7 @@ contract EventBook {
 
     struct Listing {
         address seller;
+        uint256 ticketId;
         uint256 price;
         bool active;
     }
@@ -48,6 +49,9 @@ contract EventBook {
     IEventTicket public ticketContract;
 
     mapping(uint256 => Listing) public listings;
+
+    // Array to track all listed ticket IDs for pagination
+    uint256[] private listedTicketIds;
 
     event TicketListed(uint256 indexed tokenId, address indexed seller, uint256 price);
     event TicketSold(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 price);
@@ -229,8 +233,14 @@ contract EventBook {
         address approved = IERC721(address(ticketContract)).getApproved(tokenId);
         require(approved == address(this), "You must approve this contract to sell");
 
+        // If this is a new listing (not re-listing), add to tracking array
+        if (!listings[tokenId].active && listings[tokenId].seller == address(0)) {
+            listedTicketIds.push(tokenId);
+        }
+
         listings[tokenId] = Listing({
             seller: msg.sender,
+            ticketId: tokenId,
             price: price,
             active: true
         });
@@ -302,6 +312,240 @@ contract EventBook {
      */
     function isListedForSale(uint256 tokenId) public view returns (bool) {
         return listings[tokenId].active;
+    }
+
+    /**
+     * @dev Get paginated active listings with event details
+     * @param offset Starting index
+     * @param limit Number of listings to return (max 50)
+     * @return tokenIds Array of ticket token IDs
+     * @return sellers Array of seller addresses
+     * @return prices Array of listing prices
+     * @return eventIds Array of event IDs for each ticket
+     * @return eventNames Array of event names
+     * @return eventDates Array of event dates
+     * @return total Total number of active listings
+     */
+    function getActiveListings(uint256 offset, uint256 limit)
+        public
+        view
+        returns (
+            uint256[] memory tokenIds,
+            address[] memory sellers,
+            uint256[] memory prices,
+            uint256[] memory eventIds,
+            string[] memory eventNames,
+            uint256[] memory eventDates,
+            uint256 total
+        )
+    {
+        require(limit > 0 && limit <= 50, "Limit must be 1-50");
+
+        // First pass: count active listings
+        total = _countActiveListings();
+
+        // Return empty arrays if offset is beyond available listings
+        if (offset >= total) {
+            return (
+                new uint256[](0),
+                new address[](0),
+                new uint256[](0),
+                new uint256[](0),
+                new string[](0),
+                new uint256[](0),
+                total
+            );
+        }
+
+        // Calculate result count
+        uint256 resultCount = limit;
+        if (offset + limit > total) {
+            resultCount = total - offset;
+        }
+
+        // Initialize result arrays
+        tokenIds = new uint256[](resultCount);
+        sellers = new address[](resultCount);
+        prices = new uint256[](resultCount);
+        eventIds = new uint256[](resultCount);
+        eventNames = new string[](resultCount);
+        eventDates = new uint256[](resultCount);
+
+        // Second pass: collect active listings
+        _collectActiveListings(offset, resultCount, tokenIds, sellers, prices, eventIds, eventNames, eventDates);
+    }
+
+    /**
+     * @dev Internal helper to count active listings
+     */
+    function _countActiveListings() private view returns (uint256 count) {
+        for (uint256 i = 0; i < listedTicketIds.length; i++) {
+            if (listings[listedTicketIds[i]].active) {
+                count++;
+            }
+        }
+    }
+
+    /**
+     * @dev Internal helper to collect active listings
+     */
+    function _collectActiveListings(
+        uint256 offset,
+        uint256 resultCount,
+        uint256[] memory tokenIds,
+        address[] memory sellers,
+        uint256[] memory prices,
+        uint256[] memory eventIds,
+        string[] memory eventNames,
+        uint256[] memory eventDates
+    ) private view {
+        uint256 currentIndex = 0;
+        uint256 resultIndex = 0;
+
+        for (uint256 i = 0; i < listedTicketIds.length && resultIndex < resultCount; i++) {
+            uint256 tokenId = listedTicketIds[i];
+
+            if (listings[tokenId].active) {
+                if (currentIndex >= offset) {
+                    _populateListingData(
+                        tokenId,
+                        resultIndex,
+                        tokenIds,
+                        sellers,
+                        prices,
+                        eventIds,
+                        eventNames,
+                        eventDates
+                    );
+                    resultIndex++;
+                }
+                currentIndex++;
+            }
+        }
+    }
+
+    /**
+     * @dev Internal helper to populate listing data
+     */
+    function _populateListingData(
+        uint256 tokenId,
+        uint256 index,
+        uint256[] memory tokenIds,
+        address[] memory sellers,
+        uint256[] memory prices,
+        uint256[] memory eventIds,
+        string[] memory eventNames,
+        uint256[] memory eventDates
+    ) private view {
+        Listing storage listing = listings[tokenId];
+        uint256 eventId = ticketContract.ticketToEvent(tokenId);
+        Event storage ev = events[eventId];
+
+        tokenIds[index] = tokenId;
+        sellers[index] = listing.seller;
+        prices[index] = listing.price;
+        eventIds[index] = eventId;
+        eventNames[index] = ev.name;
+        eventDates[index] = ev.date;
+    }
+
+    /**
+     * @dev Get total number of active listings
+     * @return count Total active listings
+     */
+    function getActiveListingsCount() public view returns (uint256 count) {
+        for (uint256 i = 0; i < listedTicketIds.length; i++) {
+            if (listings[listedTicketIds[i]].active) {
+                count++;
+            }
+        }
+    }
+
+    /**
+     * @dev Get listings for a specific event with pagination
+     * @param eventId The event ID to filter by
+     * @param offset Starting index
+     * @param limit Number of listings to return (max 50)
+     * @return tokenIds Array of ticket token IDs
+     * @return sellers Array of seller addresses
+     * @return prices Array of listing prices
+     * @return total Total number of active listings for this event
+     */
+    function getListingsByEvent(uint256 eventId, uint256 offset, uint256 limit)
+        public
+        view
+        returns (
+            uint256[] memory tokenIds,
+            address[] memory sellers,
+            uint256[] memory prices,
+            uint256 total
+        )
+    {
+        require(limit > 0 && limit <= 50, "Limit must be 1-50");
+        require(eventId < events.length, "Event does not exist");
+
+        // First pass: count active listings for this event
+        total = _countActiveListingsByEvent(eventId);
+
+        // Return empty arrays if offset is beyond available listings
+        if (offset >= total) {
+            return (new uint256[](0), new address[](0), new uint256[](0), total);
+        }
+
+        // Calculate result count
+        uint256 resultCount = limit;
+        if (offset + limit > total) {
+            resultCount = total - offset;
+        }
+
+        // Initialize result arrays
+        tokenIds = new uint256[](resultCount);
+        sellers = new address[](resultCount);
+        prices = new uint256[](resultCount);
+
+        // Second pass: collect active listings for this event
+        _collectListingsByEvent(eventId, offset, resultCount, tokenIds, sellers, prices);
+    }
+
+    /**
+     * @dev Internal helper to count active listings for an event
+     */
+    function _countActiveListingsByEvent(uint256 eventId) private view returns (uint256 count) {
+        for (uint256 i = 0; i < listedTicketIds.length; i++) {
+            uint256 tokenId = listedTicketIds[i];
+            if (listings[tokenId].active && ticketContract.ticketToEvent(tokenId) == eventId) {
+                count++;
+            }
+        }
+    }
+
+    /**
+     * @dev Internal helper to collect listings by event
+     */
+    function _collectListingsByEvent(
+        uint256 eventId,
+        uint256 offset,
+        uint256 resultCount,
+        uint256[] memory tokenIds,
+        address[] memory sellers,
+        uint256[] memory prices
+    ) private view {
+        uint256 currentIndex = 0;
+        uint256 resultIndex = 0;
+
+        for (uint256 i = 0; i < listedTicketIds.length && resultIndex < resultCount; i++) {
+            uint256 tokenId = listedTicketIds[i];
+
+            if (listings[tokenId].active && ticketContract.ticketToEvent(tokenId) == eventId) {
+                if (currentIndex >= offset) {
+                    tokenIds[resultIndex] = tokenId;
+                    sellers[resultIndex] = listings[tokenId].seller;
+                    prices[resultIndex] = listings[tokenId].price;
+                    resultIndex++;
+                }
+                currentIndex++;
+            }
+        }
     }
 }
 
