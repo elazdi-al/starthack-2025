@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface Ticket {
   id: string;
+  tokenId?: string;
   eventId?: number; // Links to event detail page
   eventTitle: string;
   date: string;
@@ -172,4 +173,3 @@ export const useTicketStore = create<TicketStore>()(
     }
   )
 );
-

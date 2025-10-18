@@ -3,6 +3,7 @@ import { publicClient } from '@/lib/contracts/client';
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from '@/lib/contracts/eventBook';
 import { TICKET_CONTRACT_ADDRESS, TICKET_ABI } from '@/lib/contracts/ticket';
 import { getTicketMetadata } from '@/lib/ticketMetadata';
+import { getPurchasedTicketsForHolder } from '@/lib/purchasedTicketsStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -123,13 +124,57 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // Filter out null values
-    const validTickets = userTickets.filter(ticket => ticket !== null);
+    const validTickets = userTickets.filter(
+      (ticket): ticket is NonNullable<typeof ticket> => ticket !== null
+    );
 
-    return NextResponse.json({ 
-      success: true, 
-      tickets: validTickets,
-      count: validTickets.length
+    const storedPurchases = getPurchasedTicketsForHolder(address);
+    const storedTickets = storedPurchases.map((purchase) => {
+      const metadata = getTicketMetadata(purchase.tokenId);
+      const eventDate = metadata
+        ? new Date(metadata.eventDate * 1000)
+        : null;
+      const purchaseDate = new Date(purchase.createdAt);
+
+      return {
+        id: `TKT-${purchase.tokenId}`,
+        tokenId: purchase.tokenId,
+        eventId: purchase.eventId,
+        eventTitle: metadata?.eventName ?? `Event #${purchase.eventId}`,
+        date: eventDate
+          ? eventDate.toISOString().split('T')[0]
+          : purchaseDate.toISOString().split('T')[0],
+        time: eventDate
+          ? eventDate.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })
+          : '00:00',
+        location: metadata?.eventLocation ?? 'TBA',
+        venue: metadata?.eventVenue ?? metadata?.eventLocation ?? 'TBA',
+        ticketType: metadata?.ticketType ?? 'General Admission',
+        purchaseDate: purchaseDate.toISOString().split('T')[0],
+        qrData:
+          metadata?.qrData ??
+          `${purchase.tokenId}-${purchase.eventId}-${address}`,
+        isValid: metadata
+          ? metadata.eventDate > Math.floor(Date.now() / 1000)
+          : true,
+        status: 'owned' as const,
+      };
+    });
+
+    const combinedTickets = [...validTickets, ...storedTickets];
+    const uniqueTickets = combinedTickets.filter(
+      (ticket, index, arr) =>
+        arr.findIndex((candidate) => candidate?.id === ticket?.id) === index
+    );
+
+    return NextResponse.json({
+      success: true,
+      tickets: uniqueTickets,
+      count: uniqueTickets.length,
     });
 
   } catch (error) {

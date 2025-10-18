@@ -58,12 +58,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already has a ticket
-    const alreadyHasTicket = await publicClient.readContract({
-      address: EVENT_BOOK_ADDRESS,
-      abi: EVENT_BOOK_ABI,
-      functionName: 'hasTicket',
-      args: [BigInt(eventId), address as `0x${string}`],
-    }) as boolean;
+    let alreadyHasTicket = false;
+
+    try {
+      alreadyHasTicket = await publicClient.readContract({
+        address: EVENT_BOOK_ADDRESS,
+        abi: EVENT_BOOK_ABI,
+        functionName: 'hasTicket',
+        args: [BigInt(eventId), address as `0x${string}`],
+      }) as boolean;
+    } catch (readError) {
+      console.warn('hasTicket check unavailable, continuing without duplicate guard:', readError);
+    }
 
     if (alreadyHasTicket) {
       return NextResponse.json(
@@ -96,4 +102,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
