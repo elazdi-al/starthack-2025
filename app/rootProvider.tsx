@@ -5,7 +5,8 @@ import { OnchainKitProvider } from "@coinbase/onchainkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import "@coinbase/onchainkit/styles.css";
-
+import { WagmiProvider } from "wagmi";
+import { config} from "@/config";
 export function RootProvider({ children }: { children: ReactNode }) {
   // Create a new QueryClient instance for each user session
   const [queryClient] = useState(
@@ -22,6 +23,7 @@ export function RootProvider({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <WagmiProvider config={config}> 
       <OnchainKitProvider
         apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
         chain={base}
@@ -42,6 +44,7 @@ export function RootProvider({ children }: { children: ReactNode }) {
       >
         {children}
       </OnchainKitProvider>
+      </WagmiProvider>
     </QueryClientProvider>
   );
 }

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { publicClient } from '@/lib/contracts/client';
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from '@/lib/contracts/eventBook';
 
@@ -11,9 +11,9 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params;
-    const eventId = parseInt(id);
+    const eventId = Number.parseInt(id);
 
-    if (isNaN(eventId) || eventId < 0) {
+    if (Number.isNaN(eventId) || eventId < 0) {
       return NextResponse.json(
         { success: false, error: 'Invalid event ID' },
         { status: 400 }

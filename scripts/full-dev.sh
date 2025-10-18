@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Simple development script without tmux
-# Runs services sequentially with prefixed logs
+# Development script for Base Sepolia
+# Deploys contracts to Base Sepolia and starts Next.js dev server
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -11,15 +11,9 @@ CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
-# Kill any existing Anvil processes
-echo -e "${YELLOW}Cleaning up existing processes...${NC}"
-pkill -9 anvil 2>/dev/null || true
-lsof -ti:8545 | xargs kill -9 2>/dev/null || true
-sleep 1
-
 echo -e "${BLUE}======================================${NC}"
 echo -e "${BLUE}  Starting Development Environment${NC}"
-echo -e "${BLUE}     (Simple Mode - No TUI)${NC}"
+echo -e "${BLUE}    (Base Sepolia Testnet)${NC}"
 echo -e "${BLUE}======================================${NC}"
 echo ""
 
@@ -27,43 +21,33 @@ echo ""
 cleanup() {
   echo ""
   echo -e "${YELLOW}Shutting down...${NC}"
-  kill $ANVIL_PID 2>/dev/null || true
   kill $NEXT_PID 2>/dev/null || true
   exit
 }
 
 trap cleanup SIGINT SIGTERM
 
-# Start Anvil in the background with prefixed output
-echo -e "${CYAN}[BLOCKCHAIN]${NC} Starting Anvil..."
-(anvil 2>&1 | sed "s/^/$(echo -e "${CYAN}[ANVIL]${NC}") /" ) &
-ANVIL_PID=$!
-
-# Wait for Anvil to be ready
-sleep 3
-
-# Check if Anvil is running
-if ! kill -0 $ANVIL_PID 2>/dev/null; then
-  echo -e "${YELLOW}Error: Anvil failed to start${NC}"
-  exit 1
+# Check if PRIVATE_KEY is set
+if [ -z "$PRIVATE_KEY" ]; then
+  echo -e "${YELLOW}Warning: PRIVATE_KEY environment variable not set${NC}"
+  echo -e "${YELLOW}Please set your private key for deployment:${NC}"
+  echo -e "${CYAN}export PRIVATE_KEY=your_private_key_here${NC}"
+  echo ""
+  read -p "Enter your private key (or press Ctrl+C to cancel): " PRIVATE_KEY
+  export PRIVATE_KEY
 fi
 
-echo -e "${CYAN}[BLOCKCHAIN]${NC} Anvil is running on http://127.0.0.1:8545"
-echo ""
-
 # Deploy EventBook contract
-echo -e "${MAGENTA}[DEPLOY]${NC} Deploying EventBook and Ticket contracts..."
+echo -e "${MAGENTA}[DEPLOY]${NC} Deploying EventBook and Ticket contracts to Base Sepolia..."
 
 cd contracts
 
-# Set private key as env variable for the deployment script
-export PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-
-# Deploy the contracts using Foundry
+# Deploy the contracts using Foundry to Base Sepolia
 # Use the actual Foundry forge binary, not Laravel Herd's forge
 DEPLOY_OUTPUT=$(forge script script/Stars.s.sol:StarsDeploy \
-  --rpc-url http://127.0.0.1:8545 \
-  --broadcast 2>&1)
+  --rpc-url https://sepolia.base.org \
+  --broadcast \
+  --verify 2>&1)
 
 DEPLOY_STATUS=$?
 
@@ -95,7 +79,7 @@ fi
 
 # Verify the contract was actually deployed
 echo -e "${MAGENTA}[DEPLOY]${NC} Verifying contract deployment..."
-CONTRACT_CODE=$(cast code $EVENTBOOK_ADDRESS --rpc-url http://127.0.0.1:8545)
+CONTRACT_CODE=$(cast code $EVENTBOOK_ADDRESS --rpc-url https://sepolia.base.org)
 
 if [ "$CONTRACT_CODE" = "0x" ]; then
   echo -e "${YELLOW}Error: No contract code found at $EVENTBOOK_ADDRESS${NC}"
@@ -130,24 +114,30 @@ echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}✓ All services running!${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "  ${CYAN}Anvil:${NC}   http://127.0.0.1:8545"
+echo -e "  ${CYAN}Network:${NC}  Base Sepolia (Chain ID: 84532)"
+echo -e "  ${CYAN}RPC URL:${NC}  https://sepolia.base.org"
 echo -e "  ${GREEN}Next.js:${NC} http://localhost:3000"
 echo -e ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW} To test event creation, add this account to your wallet:${NC}"
+echo -e "${YELLOW} Contract Addresses:${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "  ${CYAN}Address:${NC}     0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-echo -e "  ${CYAN}Private Key:${NC} 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-echo -e "  ${CYAN}Balance:${NC}     10000 ETH"
+echo -e "  ${CYAN}EventBook:${NC} ${GREEN}$EVENTBOOK_ADDRESS${NC}"
+if [ -n "$TICKET_ADDRESS" ]; then
+  echo -e "  ${CYAN}Ticket:${NC}    ${GREEN}$TICKET_ADDRESS${NC}"
+fi
 echo -e ""
-echo -e "  ${YELLOW}Steps:${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW} Setup Instructions:${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "  1. Open your wallet (MetaMask/Coinbase Wallet/etc.)"
-echo -e "  2. Add/Import account using the private key above"
-echo -e "  3. Connect to localhost:8545 (Chain ID: 31337)"
-echo -e "  4. You can now create events on http://localhost:3000"
+echo -e "  2. Add Base Sepolia network (if not already added)"
+echo -e "     ${CYAN}RPC URL:${NC} https://sepolia.base.org"
+echo -e "     ${CYAN}Chain ID:${NC} 84532"
+echo -e "  3. Get testnet ETH from Base Sepolia faucet"
+echo -e "  4. Connect your wallet to http://localhost:3000"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e ""
-echo -e "  Press ${YELLOW}Ctrl+C${NC} to stop all services"
+echo -e "  Press ${YELLOW}Ctrl+C${NC} to stop the server"
 echo -e ""
 
 # Wait for both processes

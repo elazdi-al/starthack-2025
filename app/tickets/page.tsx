@@ -36,8 +36,6 @@ export default function MyTickets() {
         return;
       }
 
-      // Use FID to fetch tickets
-      console.log(`🎫 Fetching tickets for FID:`, fid);
 
       try {
         setIsLoadingTickets(true);

@@ -3,9 +3,9 @@ import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 import { validateAndConsumeNonce } from '@/lib/nonceStore';
 
-const client = createPublicClient({ 
-  chain: base, 
-  transport: http() 
+const client = createPublicClient({
+  chain: base,
+  transport: http()
 });
 
 export async function POST(request: NextRequest) {

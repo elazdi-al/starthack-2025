@@ -48,7 +48,7 @@ export async function GET(
       args: [eventId],
     }) as [string, string, bigint, bigint, bigint, string, bigint, bigint];
 
-    const [name, location, date, originalPrice, revenueOwed, creator, ticketsSold, maxCapacity] = eventData;
+    const [name, location, date, originalPrice, _revenueOwed, creator, ticketsSold, maxCapacity] = eventData;
 
     return NextResponse.json({
       success: true,

@@ -2,8 +2,8 @@
 
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef, useCallback } from "react";
-import { CalendarBlank, MapPin, Users, ShoppingCart } from "phosphor-react";
+import { useEffect, useState, useRef } from "react";
+import { CalendarBlank, Users, ShoppingCart } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore } from "@/lib/store/ticketStore";
 import { pay, getPaymentStatus } from '@base-org/account';

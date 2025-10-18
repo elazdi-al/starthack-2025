@@ -1,6 +1,6 @@
 import { publicClient } from '@/lib/contracts/client';
 import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from '@/lib/contracts/eventBook';
-import { NextRequest, NextResponse } from 'next/server';
+import {type  NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 

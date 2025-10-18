@@ -1,5 +1,5 @@
 import { Errors, createClient } from "@farcaster/quick-auth";
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 const client = createClient();
 

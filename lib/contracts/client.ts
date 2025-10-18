@@ -1,36 +1,17 @@
 import { createPublicClient, createWalletClient, http, custom, defineChain } from 'viem';
-import { base } from 'viem/chains';
+import { base} from 'viem/chains';
 
-// Define custom chain if RPC URL is provided, otherwise use Base Mainnet
+// Define custom chain if RPC URL is provided, otherwise use Base Sepolia
 const customRpcUrl = process.env.NEXT_PUBLIC_CUSTOM_RPC_URL;
-const customChainId = process.env.NEXT_PUBLIC_CUSTOM_CHAIN_ID 
-  ? parseInt(process.env.NEXT_PUBLIC_CUSTOM_CHAIN_ID) 
-  : 1337;
+const customChainId = process.env.NEXT_PUBLIC_CUSTOM_CHAIN_ID
+  ? Number.parseInt(process.env.NEXT_PUBLIC_CUSTOM_CHAIN_ID)
+  : 84532;
 
-const customChain = customRpcUrl
-  ? defineChain({
-      id: customChainId,
-      name: 'Custom Blockchain',
-      network: 'custom',
-      nativeCurrency: {
-        decimals: 18,
-        name: 'Ether',
-        symbol: 'ETH',
-      },
-      rpcUrls: {
-        default: {
-          http: [customRpcUrl],
-        },
-        public: {
-          http: [customRpcUrl],
-        },
-      },
-    })
-  : base;
+
 
 // Public client for reading from the blockchain
 export const publicClient = createPublicClient({
-  chain: customChain,
+  chain: base,
   transport: http(customRpcUrl || undefined)
 });
 
@@ -41,8 +22,8 @@ export function getWalletClient() {
   }
 
   return createWalletClient({
-    chain: customChain,
-    transport: custom(window.ethereum)
+    chain: base,
+    transport: http()
   });
 }
 
