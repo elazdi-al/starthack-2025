@@ -55,6 +55,10 @@ contract EventBook {
     // Array to track all listed ticket IDs for pagination
     uint256[] private listedTicketIds;
 
+    // ticket purchased from the event directly
+    event TicketPurchased(address indexed buyer, uint256 indexed eventId, uint256 ticketId, uint256 price);
+
+    // ticket listed/sold on the marketplace (between users)
     event TicketListed(uint256 indexed tokenId, address indexed seller, uint256 price);
     event TicketSold(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 price);
     event ListingCancelled(uint256 indexed tokenId, address indexed seller);
@@ -158,7 +162,6 @@ contract EventBook {
         ev.whitelistIsLocked = true;
     }
 
-    // buy a ticket for an event
     function buyTicket(uint256 eventId)
     public
     payable
@@ -172,11 +175,17 @@ contract EventBook {
         require(msg.value == ev.price, "Incorrect payment");
 
         ev.ticketsSold += 1;
-        ev.revenueOwed += ev.price;
 
+        // pay the event creator
+        (bool sent, ) = ev.creator.call{value: msg.value}("");
+        require(sent, "Payment to creator failed");
+
+        // mint the ticket
         string memory tempTokenURI = ""; // TODO: Replace with real metadata URI
         uint256 newTicketId = ticketContract.mintTicket(msg.sender, eventId, tempTokenURI);
         userTickets[msg.sender].push(newTicketId);
+
+        emit TicketPurchased(msg.sender, eventId, newTicketId, msg.value);
     }
 
     function checkInTicket(uint256 tokenId) public {
@@ -193,18 +202,6 @@ contract EventBook {
         // 4. Call the Ticket contract to update its state
         // We need to add 'checkIn(uint256)' to your IEventTicket interface
         ticketContract.checkIn(tokenId);
-    }
-
-    // withdraw sales (only the event creator)
-    function withdraw(uint256 eventId)
-    public
-    {
-        Event storage ev = events[eventId];
-
-        require(msg.sender == ev.creator, "Not creator");
-
-        payable(msg.sender).transfer(ev.revenueOwed);
-        ev.revenueOwed = 0; // reset revenue owed
     }
 
     // helper function to get total number of evts
