@@ -29,7 +29,12 @@ contract EventBook {
         uint256 ticketsSold;
         uint256 maxCapacity; // 0 means no limit
         string imageURI;
+        bool isPrivate;
+        bool whitelistIsLocked; // whether is the whitelist has been set already or not
     }
+
+    // event => (user => isWhitelisted)
+    mapping(uint256 => mapping(address => bool)) public isWhitelisted;
 
     struct Listing {
         address seller;
@@ -52,9 +57,20 @@ contract EventBook {
         ticketContract = IEventTicket(_ticketContractAddress);
     }
 
-    // mapping to track who bought tickets
-    // maps eventId (index in events) to a map mapping each user to boolean
+    modifier onlyEventCreator(uint256 eventId) {
+        require(events[eventId].creator == msg.sender, "Only creator can call this");
+        _;
+    }
 
+    modifier onlyWhitelistNotLocked(uint256 eventId) {
+        require(!events[eventId].whitelistIsLocked, "Whitelist is locked");
+        _;
+    }
+
+    modifier onlyWhitelistLocked(uint256 eventId) {
+        require(events[eventId].whitelistIsLocked, "Whitelist is not locked");
+        _;
+    }
 
     // anyone can create an event
     function createEvent(
@@ -62,7 +78,8 @@ contract EventBook {
         string memory location,
         uint256 date,
         uint256 price,
-        uint256 maxCapacity
+        uint256 maxCapacity,
+        bool isPrivate
     ) public {
         require(date > block.timestamp, "Date must be in the future");
 
@@ -75,8 +92,20 @@ contract EventBook {
             creator: msg.sender,
             ticketsSold: 0,
             maxCapacity: maxCapacity,
-            imageURI: ""
+            imageURI: "",
+            isPrivate: isPrivate,
+            whitelistIsLocked: false
         }));
+    }
+
+    function createEvent(
+        string memory name,
+        string memory location,
+        uint256 date,
+        uint256 price,
+        uint256 maxCapacity
+    ) public {
+        createEvent(name, location, date, price, maxCapacity, false);
     }
 
     function createEvent(
@@ -88,10 +117,50 @@ contract EventBook {
         createEvent(name, location, date, price, 0);
     }
 
+    function addToWhitelist(uint256 eventId, address user)
+    public
+    onlyEventCreator(eventId)
+    onlyWhitelistNotLocked(eventId)
+    {
+        isWhitelisted[eventId][user] = true;
+    }
+
+    function removeFromWhitelist(uint256 eventId, address user)
+    public
+    onlyEventCreator(eventId)
+    onlyWhitelistNotLocked(eventId)
+    {
+        isWhitelisted[eventId][user] = false;
+    }
+
+    function addBatchToWhitelist(uint256 eventId, address[] calldata users)
+    public
+    onlyEventCreator(eventId)
+    onlyWhitelistNotLocked(eventId)
+    {
+        for (uint256 i = 0; i < users.length; i++) {
+            isWhitelisted[eventId][users[i]] = true;
+        }
+    }
+
+    function lockWhitelist(uint256 eventId)
+    public
+    onlyEventCreator(eventId)
+    onlyWhitelistNotLocked(eventId)
+    {
+        Event storage ev = events[eventId];
+        ev.whitelistIsLocked = true;
+    }
+
     // buy a ticket for an event
-    function buyTicket(uint256 eventId) public payable {
+    function buyTicket(uint256 eventId)
+    public
+    payable
+    onlyWhitelistLocked(eventId)
+    {
         Event storage ev = events[eventId];
 
+        if (ev.isPrivate) require(isWhitelisted[eventId][msg.sender], "Not whitelisted for this event");
         require(block.timestamp < ev.date, "Event has passed");
         if (ev.maxCapacity > 0) require(ev.ticketsSold < ev.maxCapacity, "Event is full");
         require(msg.value == ev.price, "Incorrect payment");
@@ -120,7 +189,9 @@ contract EventBook {
     }
 
     // withdraw sales (only the event creator)
-    function withdraw(uint256 eventId) public {
+    function withdraw(uint256 eventId)
+    public
+    {
         Event storage ev = events[eventId];
 
         require(msg.sender == ev.creator, "Not creator");
@@ -129,13 +200,12 @@ contract EventBook {
         ev.revenueOwed = 0; // reset revenue owed
     }
 
-    // helper function to get total number of events
+    // helper function to get total number of evts
     function getNumberOfEvents() public view returns (uint256) {
         return events.length;
     }
 
     /**
-     *  MARKETPLACE
      *  MARKETPLACE
      */
 
@@ -147,8 +217,6 @@ contract EventBook {
     function listTicketForSale(uint256 tokenId, uint256 price) public {
         require(ticketContract.ownerOf(tokenId) == msg.sender, "Not ticket owner");
         require(price > 0, "Price must be > 0");
-        
-
 
         // Get event details to check if it hasn't passed
         uint256 eventId = ticketContract.ticketToEvent(tokenId);
