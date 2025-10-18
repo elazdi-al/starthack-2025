@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { House, ShoppingCart, Ticket, SignOut } from "phosphor-react";
+import { House, ShoppingCart, Ticket, QrCode } from "phosphor-react";
 import { useAuthStore } from "@/lib/store/authStore";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 
@@ -24,6 +24,10 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
 
   const handleTickets = () => {
     router.push('/tickets');
+  };
+
+  const handleScanner = () => {
+    router.push('/scanner');
   };
 
   const handleSignOut = () => {
@@ -85,15 +89,19 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
             <span className="text-[11px] font-semibold whitespace-nowrap">Tickets</span>
           </button>
 
-          {/* Sign Out */}
+          {/* Scanner */}
           <button
-            className="text-white/40 hover:text-white/80 active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl hover:bg-white/5"
+            className={`${
+              isActive('/scanner')
+                ? 'text-white/80 bg-white/5'
+                : 'text-white/40 hover:text-white/80 hover:bg-white/5'
+            } active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl`}
             type="button"
-            onClick={handleSignOut}
-            title="Sign Out"
+            onClick={handleScanner}
+            title="Scan QR"
           >
-            <SignOut size={24} weight="regular" />
-            <span className="text-[11px] font-semibold whitespace-nowrap">Sign Out</span>
+            <QrCode size={24} weight={isActive('/scanner') ? 'fill' : 'regular'} />
+            <span className="text-[11px] font-semibold whitespace-nowrap">Scan</span>
           </button>
         </div>
       </div>
