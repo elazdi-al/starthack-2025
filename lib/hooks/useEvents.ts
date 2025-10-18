@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { eventsAPI, ticketsAPI, hostEventsAPI } from "@/lib/api";
+import { eventsAPI, ticketsAPI } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Query keys for better cache management
 export const eventKeys = {

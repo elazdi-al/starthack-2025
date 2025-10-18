@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import {type NextRequest, NextResponse } from 'next/server';
 import { publicClient } from '@/lib/contracts/client';
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from '@/lib/contracts/eventBook';
 import { TICKET_CONTRACT_ADDRESS, TICKET_ABI } from '@/lib/contracts/ticket';
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       }) as bigint[];
 
       for (const tokenId of ticketIdsFromContract) {
-        if (typeof tokenId === 'bigint' && tokenId > 0n) {
+        if (typeof tokenId === 'bigint' && tokenId > BigInt(0)) {
           tokenIdSet.add(tokenId);
         }
       }

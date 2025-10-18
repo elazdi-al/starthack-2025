@@ -78,8 +78,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Note: The EventBook contract doesn't enforce one-ticket-per-user
-    // Users can purchase multiple tickets for the same event if desired
+
 
     // Return transaction data for client-side execution
     return NextResponse.json({

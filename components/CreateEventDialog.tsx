@@ -9,13 +9,12 @@ import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Plus, CalendarBlank } from "phosphor-react";
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnect, useConnectors, useChainId, useSwitchAccount, useSwitchChain } from "wagmi";
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnect, useConnectors, useChainId, useSwitchChain } from "wagmi";
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from "@/lib/contracts/eventBook";
 import { parseEther } from "viem";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useAuthStore } from "@/lib/store/authStore";
-import { switchChain } from "viem/actions";
 import { base } from "viem/chains";
 import { useInvalidateEvents } from "@/lib/hooks/useEvents";
 
@@ -51,17 +50,16 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const chainId = useChainId()
   const { invalidateAll } = useInvalidateEvents();
   useEffect(() => {
-    const switchTobase = async () => {
+    const switchToBase = async () => {
       if (chainId !== base.id){
-      try {
-        await switchChainAsync({chainId:base.id})
-      } catch (error) {
-        console.error("..")
+        try {
+          await switchChainAsync({chainId:base.id})
+        } catch {
+          console.error("Failed to switch to Base chain")
+        }
       }
-        
-      };
-      switchTobase();
-    }
+    };
+    switchToBase();
   }, [chainId, switchChainAsync]);
 
   // Auto-connect wallet if authenticated but wagmi not connected

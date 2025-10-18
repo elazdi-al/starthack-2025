@@ -193,6 +193,10 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
         throw new Error("Wallet client unavailable. Please reconnect your wallet.");
       }
 
+      if (!publicClient) {
+        throw new Error("Public client unavailable. Please try again.");
+      }
+
       setPurchaseStage("minting");
 
       const value = BigInt(event.priceWei);

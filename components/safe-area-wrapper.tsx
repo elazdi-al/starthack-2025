@@ -17,7 +17,7 @@ export function SafeAreaWrapper({ children }: { children: React.ReactNode }) {
     left: 0,
     right: 0,
   });
-  const [isInMiniApp, setIsInMiniApp] = useState(false);
+  const [_isInMiniApp, setIsInMiniApp] = useState(false);
 
   useEffect(() => {
     const loadSafeAreaInsets = async () => {

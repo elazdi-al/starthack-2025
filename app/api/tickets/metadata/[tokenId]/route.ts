@@ -1,5 +1,5 @@
+import { generateNFTMetadata, getTicketMetadata } from '@/lib/ticketMetadata';
 import { NextRequest, NextResponse } from 'next/server';
-import { getTicketMetadata, generateNFTMetadata } from '@/lib/ticketMetadata';
 
 export const dynamic = 'force-dynamic';
 
