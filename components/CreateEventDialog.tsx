@@ -118,23 +118,34 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
+        {/* Desktop button */}
         <button
-          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10"
+          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10 md:flex hidden"
           type="button"
         >
           <Plus size={20} weight="regular" />
           <span className="text-sm">Create Event</span>
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] bg-white/5 border-white/10 text-white backdrop-blur-xl">
+      <DialogTrigger asChild>
+        {/* Mobile button */}
+        <button
+          className="md:hidden text-white/40 hover:text-white/80 active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-3 py-2 rounded-xl hover:bg-white/5"
+          type="button"
+        >
+          <Plus size={24} weight="regular" />
+          <span className="text-[11px] font-semibold whitespace-nowrap">Create</span>
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white/5 border-white/10 text-white backdrop-blur-xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-white/90">Create New Event</DialogTitle>
-          <DialogDescription className="text-white/50">
+          <DialogTitle className="text-xl md:text-2xl font-bold text-white/90">Create New Event</DialogTitle>
+          <DialogDescription className="text-sm text-white/50">
             Fill in the details below to create a new event on the blockchain.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 py-4">
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 py-2 md:py-4">
           {/* Event Type Toggle */}
           <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10">
             <div className="space-y-0.5">

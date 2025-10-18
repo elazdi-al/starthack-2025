@@ -3,11 +3,13 @@
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CalendarBlank, MapPin, Users, ArrowLeft, ShoppingCart } from "phosphor-react";
+import { CalendarBlank, MapPin, Users, ShoppingCart } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore } from "@/lib/store/ticketStore";
 import { pay, getPaymentStatus } from '@base-org/account';
+import { TopBar } from "@/components/TopBar";
 import { WalletBalance } from "@/components/WalletBalance";
+import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
 
 // Mock marketplace tickets - replace with actual data from backend
@@ -180,10 +182,6 @@ export default function Marketplace() {
     }
   }, [hasHydrated, isAuthenticated, router]);
 
-  const handleBack = () => {
-    router.push('/home');
-  };
-
   const handlePurchase = async (ticketId: string) => {
     const ticket = marketplaceTickets.find(t => t.id === ticketId);
     if (!ticket) return;
@@ -276,38 +274,36 @@ export default function Marketplace() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col p-6 bg-transparent overflow-hidden">
+    <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
 
-      {/* Back button */}
-      <button
-        className="absolute top-6 left-6 z-20 text-white/40 hover:text-white/80 transition-colors flex items-center gap-2"
-        type="button"
-        onClick={handleBack}
-        title="Back to Home"
-      >
-        <ArrowLeft size={24} weight="regular" />
-        <span className="text-sm">Back</span>
-      </button>
-
-      {/* Wallet Balance - Top Right */}
-      <div className="absolute top-6 right-6 z-20">
-        <WalletBalance />
+      {/* Top Bar - Desktop only with wallet balance */}
+      <div className="hidden md:block">
+        <TopBar showBackButton={false} />
       </div>
 
+      {/* Bottom Navigation Bar - Mobile only */}
+      <BottomNav />
+
       {/* Header */}
-      <div className="relative z-10 pt-8 pb-6">
-        <h1 className="text-6xl tracking-tighter font-bold text-white/30 mb-2">
-          Ticket Marketplace
-        </h1>
-        <p className="text-sm text-white/50">
+      <div className="relative z-10 pt-6 md:pt-8 px-6 pb-4 md:pb-6">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <h1 className="text-6xl sm:text-7xl md:text-8xl tracking-tighter font-bold text-white/30 flex-shrink min-w-0">
+            Marketplace
+          </h1>
+          {/* Wallet balance on mobile - top right */}
+          <div className="md:hidden flex-shrink-0">
+            <WalletBalance />
+          </div>
+        </div>
+        <p className="text-xs md:text-sm text-white/50">
           Buy tickets from other users • Pay with Base Pay
         </p>
       </div>
 
       {/* User's Listed Tickets Section */}
       {userListedTickets.length > 0 && (
-        <div className="relative z-10 mb-8 max-w-7xl">
+        <div className="relative z-10 mb-8 px-6 max-w-7xl">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-white/70">Your Listings</h2>
             <span className="text-white/50 text-sm">{userListedTickets.length} active</span>
@@ -350,7 +346,7 @@ export default function Marketplace() {
       )}
 
       {/* Marketplace Cards */}
-      <div className="relative z-10 flex-1 pb-8">
+      <div className="relative z-10 flex-1 px-6">
         <h2 className="text-2xl font-bold text-white/70 mb-4">Available Tickets</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
           {marketplaceTickets.map((ticket) => (

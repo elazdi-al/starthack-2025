@@ -3,11 +3,13 @@
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CalendarBlank, MapPin, Clock, Ticket as TicketIcon, ArrowLeft, Tag } from "phosphor-react";
+import { CalendarBlank, MapPin, Clock, Ticket as TicketIcon, Tag } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore, type Ticket } from "@/lib/store/ticketStore";
 import { QRCodeSVG } from "qrcode.react";
+import { TopBar } from "@/components/TopBar";
 import { WalletBalance } from "@/components/WalletBalance";
+import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
 
 // Initialize mock tickets if store is empty
@@ -107,12 +109,12 @@ export default function MyTickets() {
   const handleFlip = (ticketId: string) => {
     // Find the ticket
     const ticket = tickets.find(t => t.id === ticketId);
-    
+
     // Prevent flipping if ticket is listed (can't view QR code)
     if (ticket?.status === 'listed') {
       return;
     }
-    
+
     setFlippedCards((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(ticketId)) {
@@ -122,10 +124,6 @@ export default function MyTickets() {
       }
       return newSet;
     });
-  };
-
-  const handleBack = () => {
-    router.push('/home');
   };
 
   // Check if event date has passed
@@ -198,37 +196,35 @@ export default function MyTickets() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col p-6 bg-transparent overflow-hidden">
+    <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
 
-      {/* Back button */}
-      <button
-        className="absolute top-6 left-6 z-20 text-white/40 hover:text-white/80 transition-colors flex items-center gap-2"
-        type="button"
-        onClick={handleBack}
-        title="Back to Events"
-      >
-        <ArrowLeft size={24} weight="regular" />
-        <span className="text-sm">Back</span>
-      </button>
-
-      {/* Wallet Balance - Top Right */}
-      <div className="absolute top-6 right-6 z-20">
-        <WalletBalance />
+      {/* Top Bar - Desktop only */}
+      <div className="hidden md:block">
+        <TopBar showBackButton={true} backPath="/home" backTitle="Back" />
       </div>
 
+      {/* Bottom Navigation Bar - Mobile only */}
+      <BottomNav />
+
       {/* Header */}
-      <div className="relative z-10 pt-8 pb-6">
-        <h1 className="text-6xl tracking-tighter font-bold text-white/30 mb-2">
-          My Tickets
-        </h1>
-        <p className="text-sm text-white/50">
+      <div className="relative z-10 pt-6 md:pt-8 px-6 pb-4 md:pb-6">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <h1 className="text-6xl sm:text-7xl md:text-8xl tracking-tighter font-bold text-white/30 flex-shrink min-w-0">
+            My Tickets
+          </h1>
+          {/* Wallet balance on mobile - top right */}
+          <div className="md:hidden flex-shrink-0">
+            <WalletBalance />
+          </div>
+        </div>
+        <p className="text-xs md:text-sm text-white/50">
           {tickets.length} {tickets.length === 1 ? 'ticket' : 'tickets'} • Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
         </p>
       </div>
 
       {/* Tickets grid */}
-      <div className="relative z-10 flex-1 pb-8">
+      <div className="relative z-10 flex-1 px-6">
         {tickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-white/40">
             <TicketIcon size={64} weight="thin" />

@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { CalendarBlank, MapPin, Users, SignOut, Ticket, Storefront } from "phosphor-react";
 import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
 import { WalletBalance } from "@/components/WalletBalance";
+import { TopBar } from "@/components/TopBar";
+import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 interface Event {
@@ -95,11 +97,16 @@ export default function Home() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col p-6 bg-transparent overflow-hidden">
+    <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
 
-      {/* Navigation buttons */}
-      <div className="absolute top-6 right-6 z-20 flex items-center gap-3">
+      {/* Top bar - Desktop only - Using unified TopBar component */}
+      <div className="hidden md:block">
+        <TopBar />
+      </div>
+
+      {/* Additional Desktop Navigation */}
+      <div className="hidden md:flex absolute top-6 right-6 z-20 items-center gap-3">
         <WalletBalance />
         <CreateEventDialog onEventCreated={fetchEvents} />
         <button
@@ -130,20 +137,29 @@ export default function Home() {
         </button>
       </div>
 
+      {/* Bottom Navigation Bar - Mobile only */}
+      <BottomNav onEventCreated={fetchEvents} />
+
       {/* Header */}
-      <div className="relative z-10 pt-8 pb-6">
-        <h1 className="text-6xl tracking-tighter font-bold text-white/30 mb-2">
-          Events
-        </h1>
+      <div className="relative z-10 pt-6 md:pt-8 px-6 pb-4 md:pb-6">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <h1 className="text-6xl sm:text-7xl md:text-8xl tracking-tighter font-bold text-white/30 flex-shrink min-w-0">
+            Events
+          </h1>
+          {/* Wallet balance on mobile - top right */}
+          <div className="md:hidden flex-shrink-0">
+            <WalletBalance />
+          </div>
+        </div>
         {isAuthenticated && address && (
-          <p className="text-sm text-white/50">
+          <p className="text-xs md:text-sm text-white/50">
             Connected: {address.slice(0, 6)}...{address.slice(-4)}
           </p>
         )}
       </div>
 
       {/* Event cards */}
-      <div className="relative z-10 flex-1 pb-8">
+      <div className="relative z-10 flex-1 px-6">
         {isLoadingEvents ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-6xl">
             {[1, 2, 3, 4].map((i) => (
