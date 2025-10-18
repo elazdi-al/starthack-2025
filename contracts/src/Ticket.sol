@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
-
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 
 contract Ticket is ERC721, ERC721URIStorage, Ownable {
