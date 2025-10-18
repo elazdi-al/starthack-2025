@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { generateTicketMetadata } from '@/lib/ticketMetadata';
 import { publicClient } from '@/lib/contracts/client';
-import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from '@/lib/contracts/eventBook';
+import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from '@/lib/contracts/eventBook';
+import { generateTicketMetadata } from '@/lib/ticketMetadata';
+import { type NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 

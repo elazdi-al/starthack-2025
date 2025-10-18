@@ -4,20 +4,43 @@ import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuthCheck } from "@/lib/store/authStore";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle, XCircle, Scan } from "phosphor-react";
+import { CheckCircle, XCircle, Scan, Warning } from "phosphor-react";
 import { toast } from "sonner";
+import { useAccount } from "wagmi";
+
+interface VerificationResult {
+  success: boolean;
+  valid: boolean;
+  error?: string;
+  message: string;
+  details?: {
+    tokenId: string;
+    eventId: string;
+    eventName?: string;
+    currentOwner?: string;
+    originalHolder?: string;
+    ownerChanged?: boolean;
+  };
+}
 
 export default function ScannerPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
+  const { address: walletAddress } = useAccount();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Get eventId from URL params if present
+  const eventId = searchParams.get('eventId');
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -111,9 +134,14 @@ export default function ScannerPage() {
             navigator.vibrate(200);
           }
           
-          toast.success("QR Code Scanned!", {
-            description: "Code detected successfully"
-          });
+          // Verify ticket if eventId is present
+          if (eventId && walletAddress) {
+            verifyTicket(code.data, eventId, walletAddress);
+          } else {
+            toast.success("QR Code Scanned!", {
+              description: "Code detected successfully"
+            });
+          }
         }
       } catch (err) {
         console.error("QR scan error:", err);
@@ -128,10 +156,60 @@ export default function ScannerPage() {
         clearInterval(scanIntervalRef.current);
       }
     };
-  }, [isScanning]);
+  }, [isScanning, eventId, walletAddress]);
+
+  const verifyTicket = async (qrData: string, eventIdParam: string, owner: string) => {
+    setIsVerifying(true);
+    try {
+      const response = await fetch('/api/tickets/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qrData,
+          eventId: eventIdParam,
+          eventOwner: owner,
+        }),
+      });
+
+      const result: VerificationResult = await response.json();
+      setVerificationResult(result);
+
+      if (result.valid) {
+        // Success - valid ticket
+        if ('vibrate' in navigator) {
+          navigator.vibrate([200, 100, 200]); // Double vibration for success
+        }
+        toast.success("Valid Ticket! ✓", {
+          description: result.message,
+        });
+      } else {
+        // Invalid ticket
+        if ('vibrate' in navigator) {
+          navigator.vibrate([500]); // Long vibration for error
+        }
+        toast.error("Invalid Ticket ✗", {
+          description: result.message || result.error,
+        });
+      }
+    } catch (err) {
+      console.error('Verification error:', err);
+      setVerificationResult({
+        success: false,
+        valid: false,
+        message: 'Failed to verify ticket',
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
+      toast.error("Verification Failed", {
+        description: "Could not verify ticket. Please try again.",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const handleReset = () => {
     setScannedData(null);
+    setVerificationResult(null);
     setIsScanning(true);
     if (!scanIntervalRef.current && videoRef.current) {
       // Restart scanning
@@ -168,7 +246,12 @@ export default function ScannerPage() {
               navigator.vibrate(200);
             }
             
-            toast.success("QR Code Scanned!");
+            // Verify ticket if eventId is present
+            if (eventId && walletAddress) {
+              verifyTicket(code.data, eventId, walletAddress);
+            } else {
+              toast.success("QR Code Scanned!");
+            }
           }
         } catch (err) {
           console.error("QR scan error:", err);
@@ -195,64 +278,142 @@ export default function ScannerPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
+    <div className="relative h-screen flex flex-col bg-black overflow-hidden">
       <BackgroundGradient />
 
       <TopBar title="Scan QR Code" showTitle={true} showBackButton={true} backPath="/tickets" />
-      <BottomNav />
 
-      <div className="relative z-10 flex-1 px-6 flex flex-col items-center justify-center">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center">
         {error ? (
-          <div className="max-w-md w-full text-center space-y-4">
-            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6">
-              <XCircle size={48} weight="regular" className="text-red-400 mx-auto mb-4" />
-              <p className="text-red-400 text-lg font-semibold mb-2">Camera Error</p>
-              <p className="text-white/60 text-sm">{error}</p>
+          <div className="w-full h-full flex items-center justify-center px-6">
+            <div className="max-w-md w-full text-center space-y-4">
+              <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6">
+                <XCircle size={48} weight="regular" className="text-red-400 mx-auto mb-4" />
+                <p className="text-red-400 text-lg font-semibold mb-2">Camera Error</p>
+                <p className="text-white/60 text-sm">{error}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors"
+              >
+                Retry
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors"
-            >
-              Retry
-            </button>
           </div>
         ) : scannedData ? (
-          <div className="max-w-md w-full space-y-4">
-            <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-6">
-              <CheckCircle size={48} weight="fill" className="text-green-400 mx-auto mb-4" />
-              <p className="text-green-400 text-lg font-semibold mb-4 text-center">Scan Successful!</p>
-              
-              <div className="bg-white/5 rounded-xl p-4 mb-4">
-                <p className="text-white/50 text-xs mb-2">Scanned Data:</p>
-                <p className="text-white text-sm font-mono break-all">{scannedData}</p>
-              </div>
+          <div className="w-full h-full flex items-center justify-center px-6">
+            <div className="max-w-md w-full space-y-4">
+              {isVerifying ? (
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+                  <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-white text-lg font-semibold">Verifying Ticket...</p>
+                  <p className="text-white/60 text-sm mt-2">Checking blockchain records</p>
+                </div>
+              ) : verificationResult ? (
+                <div className={`${
+                  verificationResult.valid 
+                    ? 'bg-green-500/10 border-green-500/30' 
+                    : 'bg-red-500/10 border-red-500/30'
+                } border rounded-2xl p-6`}>
+                  {verificationResult.valid ? (
+                    <CheckCircle size={64} weight="fill" className="text-green-400 mx-auto mb-4" />
+                  ) : (
+                    <XCircle size={64} weight="fill" className="text-red-400 mx-auto mb-4" />
+                  )}
+                  
+                  <p className={`${
+                    verificationResult.valid ? 'text-green-400' : 'text-red-400'
+                  } text-2xl font-bold mb-2 text-center`}>
+                    {verificationResult.valid ? 'VALID TICKET ✓' : 'INVALID TICKET ✗'}
+                  </p>
+                  
+                  <p className="text-white/80 text-center mb-6">
+                    {verificationResult.message}
+                  </p>
 
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors"
-                >
-                  Scan Again
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(scannedData);
-                    toast.success("Copied to clipboard!");
-                  }}
-                  className="flex-1 bg-white text-gray-950 hover:bg-white/90 font-semibold py-3 rounded-xl transition-colors"
-                >
-                  Copy
-                </button>
-              </div>
+                  {verificationResult.details && (
+                    <div className="bg-white/5 rounded-xl p-4 mb-6 space-y-2 text-sm">
+                      {verificationResult.details.eventName && (
+                        <div>
+                          <span className="text-white/50">Event: </span>
+                          <span className="text-white font-semibold">{verificationResult.details.eventName}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-white/50">Token ID: </span>
+                        <span className="text-white font-mono">{verificationResult.details.tokenId}</span>
+                      </div>
+                      {verificationResult.details.currentOwner && (
+                        <div>
+                          <span className="text-white/50">Owner: </span>
+                          <span className="text-white font-mono text-xs">
+                            {verificationResult.details.currentOwner.slice(0, 6)}...
+                            {verificationResult.details.currentOwner.slice(-4)}
+                          </span>
+                        </div>
+                      )}
+                      {verificationResult.details.ownerChanged && (
+                        <div className="flex items-center gap-2 pt-2 border-t border-white/10">
+                          <Warning size={16} className="text-yellow-400" />
+                          <span className="text-yellow-400 text-xs">Ticket was resold</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!verificationResult.valid && verificationResult.error && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-6">
+                      <p className="text-red-300 text-xs font-semibold mb-1">Error:</p>
+                      <p className="text-red-200 text-xs">{verificationResult.error}</p>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors"
+                  >
+                    Scan Next Ticket
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                  <CheckCircle size={48} weight="fill" className="text-green-400 mx-auto mb-4" />
+                  <p className="text-green-400 text-lg font-semibold mb-4 text-center">Scan Successful!</p>
+                  
+                  <div className="bg-white/5 rounded-xl p-4 mb-4">
+                    <p className="text-white/50 text-xs mb-2">Scanned Data:</p>
+                    <p className="text-white text-sm font-mono break-all">{scannedData}</p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors"
+                    >
+                      Scan Again
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(scannedData);
+                        toast.success("Copied to clipboard!");
+                      }}
+                      className="flex-1 bg-white text-gray-950 hover:bg-white/90 font-semibold py-3 rounded-xl transition-colors"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
-          <div className="max-w-md w-full space-y-4">
-            {/* Camera viewfinder */}
-            <div className="relative bg-black rounded-2xl overflow-hidden aspect-square">
+          <div className="w-full h-full flex flex-col">
+            {/* Camera viewfinder - full screen */}
+            <div className="relative flex-1 bg-black">
               <video
                 ref={videoRef}
                 className="w-full h-full object-cover"
@@ -262,12 +423,12 @@ export default function ScannerPage() {
               
               {/* Scanning overlay */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="relative w-64 h-64">
+                <div className="relative w-72 h-72">
                   {/* Corner borders */}
-                  <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-white rounded-tl-2xl" />
-                  <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-white rounded-tr-2xl" />
-                  <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-white rounded-bl-2xl" />
-                  <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-white rounded-br-2xl" />
+                  <div className="absolute top-0 left-0 w-16 h-16 border-t-4 border-l-4 border-white rounded-tl-2xl" />
+                  <div className="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4 border-white rounded-tr-2xl" />
+                  <div className="absolute bottom-0 left-0 w-16 h-16 border-b-4 border-l-4 border-white rounded-bl-2xl" />
+                  <div className="absolute bottom-0 right-0 w-16 h-16 border-b-4 border-r-4 border-white rounded-br-2xl" />
                   
                   {/* Scanning line animation */}
                   <div className="absolute inset-0 overflow-hidden">
@@ -279,19 +440,6 @@ export default function ScannerPage() {
 
             {/* Hidden canvas for processing */}
             <canvas ref={canvasRef} className="hidden" />
-
-            {/* Instructions */}
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-              <div className="flex items-start gap-3">
-                <Scan size={24} weight="regular" className="text-white/60 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-white text-sm font-semibold mb-1">Position QR Code</p>
-                  <p className="text-white/60 text-xs">
-                    Hold your device steady and center the QR code within the frame.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>

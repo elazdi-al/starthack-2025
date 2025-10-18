@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
-import { CalendarBlank, MapPin, Users } from "phosphor-react";
+import { CalendarBlank, MapPin, Users, QrCode } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -166,6 +166,20 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     return false;
   }, [event]);
 
+  // Check if current user is the event owner
+  const isEventOwner = useMemo(() => {
+    if (!event || !walletAddress) return false;
+    return event.hostAddress.toLowerCase() === walletAddress.toLowerCase();
+  }, [event, walletAddress]);
+
+  const handleScannerClick = useCallback(() => {
+    if (event) {
+      router.push(`/scanner?eventId=${event.id}`);
+    } else {
+      router.push('/scanner');
+    }
+  }, [router, event]);
+
   const handlePurchase = useCallback(async () => {
     if (!event) {
       toast.error("Event unavailable", {
@@ -312,6 +326,18 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
         backPath="/home"
         backTitle="Back to Events"
       />
+
+      {/* Scanner button - only for event owners */}
+      {isEventOwner && (
+        <button
+          type="button"
+          onClick={handleScannerClick}
+          className="fixed top-4 right-4 z-20 bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-3 transition-all active:scale-95"
+          title="Scan QR Code"
+        >
+          <QrCode size={24} weight="regular" className="text-white/80" />
+        </button>
+      )}
 
       <BottomNav />
 
