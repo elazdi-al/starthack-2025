@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       args: [BigInt(eventId)],
     }) as [string, string, bigint, bigint, bigint, string, bigint, bigint];
 
-    const [name, location, date, price, revenueOwed, creator, ticketsSold, maxCapacity] = eventData;
+    const [name, _location, date, price, _revenueOwed, _creator, ticketsSold, maxCapacity] = eventData;
 
     // Check if event has passed
     if (Number(date) < Math.floor(Date.now() / 1000)) {
@@ -84,13 +84,13 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error validating ticket purchase:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to validate ticket purchase',
-        message: error.message 
+        message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

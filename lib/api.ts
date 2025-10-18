@@ -4,7 +4,7 @@ export class APIError extends Error {
   constructor(
     message: string,
     public status: number,
-    public data?: any
+    public data?: unknown
   ) {
     super(message);
     this.name = 'APIError';
@@ -89,7 +89,13 @@ export const eventsAPI = {
   }) => apiRequest<{
     success: boolean;
     message: string;
-    data: any;
+    data: {
+      name: string;
+      location: string;
+      timestamp: number;
+      price: string;
+      maxCapacity: number;
+    };
   }>('/api/events', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -158,7 +164,12 @@ export const marketplaceAPI = {
   }) => apiRequest<{
     success: boolean;
     message: string;
-    listing: any;
+    listing: {
+      id: string;
+      eventId: number;
+      price: string;
+      listedAt: number;
+    };
   }>('/api/marketplace', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -178,7 +189,11 @@ export const marketplaceAPI = {
   }) => apiRequest<{
     success: boolean;
     message: string;
-    data: any;
+    data: {
+      listingId: string;
+      buyer: string;
+      paymentId?: string;
+    };
   }>('/api/marketplace/buy', {
     method: 'POST',
     body: JSON.stringify(data),

@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
           args: [BigInt(index)],
         }) as [string, string, bigint, bigint, bigint, string, bigint, bigint];
 
-        const [name, location, date, price, revenueOwed, creator, ticketsSold, maxCapacity] = eventData;
+        const [name, location, date, _price, _revenueOwed, _creator, _ticketsSold, _maxCapacity] = eventData;
 
         return {
           id: `TKT-${index}-${address.slice(2, 8)}`,
@@ -79,13 +79,13 @@ export async function GET(request: NextRequest) {
       count: userTickets.length
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching tickets:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to fetch tickets',
-        message: error.message 
+        message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

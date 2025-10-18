@@ -179,7 +179,7 @@ export function useBaseAuth() {
   /**
    * Attempts wallet_connect method (preferred)
    */
-  const tryWalletConnect = async (
+  const tryWalletConnect = useCallback(async (
     provider: EthereumProvider,
     nonce: string
   ): Promise<AuthResult> => {
@@ -206,12 +206,12 @@ export function useBaseAuth() {
     setAuthenticated(address);
 
     return { success: true, address };
-  };
+  }, []);
 
   /**
    * Fallback method using eth_requestAccounts + personal_sign
    */
-  const tryFallbackMethod = async (
+  const tryFallbackMethod = useCallback(async (
     provider: EthereumProvider,
     nonce: string
   ): Promise<AuthResult> => {
@@ -239,7 +239,7 @@ export function useBaseAuth() {
     setAuthenticated(address);
 
     return { success: true, address };
-  };
+  }, []);
 
   /**
    * Main sign-in method

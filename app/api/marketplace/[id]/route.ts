@@ -59,13 +59,13 @@ export async function DELETE(
       message: 'Listing cancelled successfully',
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error cancelling listing:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to cancel listing',
-        message: error.message 
+        message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );
@@ -104,13 +104,13 @@ export async function GET(
       }
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching listing:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to fetch listing',
-        message: error.message 
+        message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

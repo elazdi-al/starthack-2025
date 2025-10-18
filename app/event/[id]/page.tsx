@@ -1,4 +1,3 @@
-import { BackgroundGradient } from "@/components/BackgroundGradient";
 import EventPageClient from "./EventPageClient";
 
 // Mock event data - replace with actual data source

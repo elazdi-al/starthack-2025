@@ -42,7 +42,7 @@ export async function GET(
       args: [BigInt(eventId)],
     }) as [string, string, bigint, bigint, bigint, string, bigint, bigint];
 
-    const [name, location, date, price, revenueOwed, creator, ticketsSold, maxCapacity] = eventData;
+    const [name, location, date, price, _revenueOwed, creator, ticketsSold, maxCapacity] = eventData;
 
     const event = {
       id: eventId,
@@ -62,13 +62,13 @@ export async function GET(
       event 
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching event:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to fetch event',
-        message: error.message 
+        message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

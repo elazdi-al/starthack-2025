@@ -26,7 +26,7 @@ export async function GET() {
           args: [BigInt(index)],
         }) as [string, string, bigint, bigint, bigint, string, bigint, bigint];
 
-        const [name, location, date, price, revenueOwed, creator, ticketsSold, maxCapacity] = eventData;
+        const [name, location, date, price, _revenueOwed, creator, ticketsSold, maxCapacity] = eventData;
 
         return {
           id: index,
@@ -52,13 +52,13 @@ export async function GET() {
       count: eventCount 
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching events:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to fetch events',
-        message: error.message 
+        message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );
@@ -69,7 +69,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, location, date, price, maxCapacity, signature } = body;
+    const { name, location, date, price, maxCapacity } = body;
 
     // Validation
     if (!name || !location || !date || price === undefined) {
@@ -104,13 +104,13 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating event:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to create event',
-        message: error.message 
+        message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

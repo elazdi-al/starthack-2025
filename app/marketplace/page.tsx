@@ -69,7 +69,7 @@ const marketplaceTickets = [
 interface PurchaseModalProps {
   ticket: typeof marketplaceTickets[0] | null;
   onClose: () => void;
-  onPurchase: (ticketId: string, userInfo: any) => void;
+  onPurchase: (ticketId: string) => void;
   isPurchasing: boolean;
 }
 
@@ -77,7 +77,7 @@ function PurchaseModal({ ticket, onClose, onPurchase, isPurchasing }: PurchaseMo
   if (!ticket) return null;
 
   const handlePurchase = () => {
-    onPurchase(ticket.id, {});
+    onPurchase(ticket.id);
   };
 
   return (
@@ -127,7 +127,7 @@ function PurchaseModal({ ticket, onClose, onPurchase, isPurchasing }: PurchaseMo
 
           <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3">
             <p className="text-blue-200 text-xs">
-              You'll be prompted to provide your email address and optionally your phone number for ticket delivery.
+              You&apos;ll be prompted to provide your email address and optionally your phone number for ticket delivery.
             </p>
           </div>
 
@@ -184,7 +184,7 @@ export default function Marketplace() {
     router.push('/home');
   };
 
-  const handlePurchase = async (ticketId: string, userInfo: any) => {
+  const handlePurchase = async (ticketId: string) => {
     const ticket = marketplaceTickets.find(t => t.id === ticketId);
     if (!ticket) return;
 
@@ -252,9 +252,9 @@ export default function Marketplace() {
       // Start polling
       setTimeout(checkStatus, 2000);
 
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Payment failed', {
-        description: error.message || 'An error occurred during payment'
+        description: error instanceof Error ? error.message : 'An error occurred during payment'
       });
       setIsPurchasing(false);
     }

@@ -11,7 +11,7 @@ import { WalletBalance } from "@/components/WalletBalance";
 import { toast } from "sonner";
 
 // Initialize mock tickets if store is empty
-const initializeMockTickets = (addTicket: any) => {
+const initializeMockTickets = (addTicket: (ticket: Ticket) => void) => {
   const mockTickets: Ticket[] = [
     {
       id: "TKT-001",
@@ -63,7 +63,7 @@ const initializeMockTickets = (addTicket: any) => {
 export default function MyTickets() {
   const router = useRouter();
   const { isAuthenticated, address, hasHydrated } = useAuthCheck();
-  const { tickets, addTicket, listTicket, cancelListing, getOwnedTickets, clearDuplicates } = useTicketStore();
+  const { tickets, addTicket, listTicket, cancelListing, clearDuplicates } = useTicketStore();
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
   const [qrSize, setQrSize] = useState(200);
   const [listingTicket, setListingTicket] = useState<Ticket | null>(null);
@@ -457,7 +457,7 @@ export default function MyTickets() {
 
               <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3">
                 <p className="text-blue-200 text-xs">
-                  Your ticket will be temporarily unavailable while listed. You can cancel anytime before it's sold.
+                  Your ticket will be temporarily unavailable while listed. You can cancel anytime before it&apos;s sold.
                 </p>
               </div>
 
