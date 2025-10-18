@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { House, ShoppingCart, Plus, Ticket, SignOut } from "phosphor-react";
+import { House, ShoppingCart, Ticket, SignOut } from "phosphor-react";
 import { useAuthStore } from "@/lib/store/authStore";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 

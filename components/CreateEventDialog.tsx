@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +32,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     price: "",
     maxCapacity: "",
   });
+  
+  const MAX_DESCRIPTION_LENGTH = 250;
 
   // Use Base auth store for authentication check
   const { isAuthenticated, isSessionValid } = useAuthStore();
@@ -179,32 +180,33 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       <DialogTrigger asChild>
         {/* Desktop button */}
         <button
-          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10 md:flex hidden"
+          className="hidden md:flex text-white/40 hover:text-white/80 transition-colors items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10"
           type="button"
         >
           <Plus size={20} weight="regular" />
-          <span className="text-sm">Create Event</span>
+          <span className="text-sm tracking-tight">Create Event</span>
         </button>
       </DialogTrigger>
       <DialogTrigger asChild>
         {/* Mobile button */}
         <button
-          className="md:hidden text-white/40 hover:text-white/80 active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-3 py-2 rounded-xl hover:bg-white/5"
+          className="md:hidden text-white/40 hover:text-white/80 active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-3 py-2 rounded-xl hover:bg-white/5 focus:outline-none focus:ring-0 focus:border-none"
           type="button"
         >
           <Plus size={24} weight="regular" />
           <span className="text-[11px] font-semibold whitespace-nowrap">Create</span>
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white/5 border-white/10 text-white backdrop-blur-xl">
-        <DialogHeader className="text-left space-y-3">
-          <DialogTitle className="text-3xl md:text-4xl font-bold text-white">Create New Event</DialogTitle>
-          <DialogDescription className="text-base text-white/60">
+      <DialogContent className="max-w-[95vw] sm:max-w-[600px] max-h-[85vh] bg-white/5 border-white/10 text-white backdrop-blur-xl flex flex-col">
+        <DialogHeader className="text-left space-y-2 flex-shrink-0">
+          <DialogTitle className="text-5xl sm:text-6xl md:text-7xl tracking-tighter font-bold text-white/90">Create Event</DialogTitle>
+          <DialogDescription className="text-sm tracking-tight text-white/50">
             Fill in the details below to create a new event on the blockchain.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 py-2 md:py-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="space-y-4 py-2 overflow-y-auto flex-1">
           {/* Event Type Toggle */}
           <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10">
             <div className="space-y-0.5">
@@ -224,7 +226,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
           {/* Event Name */}
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-white/90">
+            <Label htmlFor="name" className="text-white/90 text-base">
               Event Name <span className="text-red-400/80">*</span>
             </Label>
             <Input
@@ -232,28 +234,38 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
               placeholder="e.g., Web3 Developer Meetup"
               value={formData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
-              className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10"
+              className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 text-base h-11"
               required
             />
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-white/90">
-              Description
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="description" className="text-white/90 text-base">
+                Description
+              </Label>
+              <span className="text-xs text-white/40">
+                {formData.description.length}/{MAX_DESCRIPTION_LENGTH}
+              </span>
+            </div>
             <Textarea
               id="description"
               placeholder="Tell attendees what your event is about..."
               value={formData.description}
-              onChange={(e) => handleInputChange("description", e.target.value)}
-              className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 min-h-[100px] focus:border-white/20 focus:bg-white/10"
+              onChange={(e) => {
+                if (e.target.value.length <= MAX_DESCRIPTION_LENGTH) {
+                  handleInputChange("description", e.target.value);
+                }
+              }}
+              maxLength={MAX_DESCRIPTION_LENGTH}
+              className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 h-[90px] focus:border-white/20 focus:bg-white/10 resize-none text-base"
             />
           </div>
 
           {/* Location */}
           <div className="space-y-2">
-            <Label htmlFor="location" className="text-white/90">
+            <Label htmlFor="location" className="text-white/90 text-base">
               Location <span className="text-red-400/80">*</span>
             </Label>
             <Input
@@ -261,7 +273,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
               placeholder="e.g., San Francisco, CA"
               value={formData.location}
               onChange={(e) => handleInputChange("location", e.target.value)}
-              className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10"
+              className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 text-base h-11"
               required
             />
           </div>
@@ -269,19 +281,19 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           {/* Date and Time */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-white/90">
+              <Label className="text-white/90 text-base">
                 Date <span className="text-red-400/80">*</span>
               </Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="w-full bg-white/5 backdrop-blur-sm border border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 rounded-md px-3 py-2 text-left flex items-center justify-between hover:bg-white/10 transition-colors"
+                    className="w-full bg-white/5 backdrop-blur-sm border border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 rounded-md px-3 h-11 text-left flex items-center justify-between hover:bg-white/10 transition-colors text-base"
                   >
                     <span className={date ? "text-white" : "text-white/40"}>
                       {date ? format(date, "PPP") : "Pick a date"}
                     </span>
-                    <CalendarBlank size={16} className="text-white/60" />
+                    <CalendarBlank size={18} className="text-white/60" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-white/5 backdrop-blur-xl border-white/10" align="start">
@@ -297,7 +309,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="time" className="text-white/90">
+              <Label htmlFor="time" className="text-white/90 text-base">
                 Time <span className="text-red-400/80">*</span>
               </Label>
               <Input
@@ -305,7 +317,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
                 type="time"
                 value={formData.time}
                 onChange={(e) => handleInputChange("time", e.target.value)}
-                className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10"
+                className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 text-base h-11"
                 required
               />
             </div>
@@ -314,7 +326,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           {/* Price and Capacity */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="price" className="text-white/90">
+              <Label htmlFor="price" className="text-white/90 text-base">
                 Ticket Price (ETH) <span className="text-red-400/80">*</span>
               </Label>
               <Input
@@ -325,12 +337,12 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
                 placeholder="0.01"
                 value={formData.price}
                 onChange={(e) => handleInputChange("price", e.target.value)}
-                className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10"
+                className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 text-base h-11"
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="maxCapacity" className="text-white/90">
+              <Label htmlFor="maxCapacity" className="text-white/90 text-base">
                 Max Capacity
               </Label>
               <Input
@@ -340,24 +352,25 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
                 placeholder="0 = unlimited"
                 value={formData.maxCapacity}
                 onChange={(e) => handleInputChange("maxCapacity", e.target.value)}
-                className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10"
+                className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 text-base h-11"
               />
               <p className="text-xs text-white/40">Leave empty or 0 for unlimited</p>
             </div>
           </div>
+          </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 flex-shrink-0 border-t border-white/10 mt-4">
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="flex-1 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white/90 border border-white/10 transition-colors backdrop-blur-sm font-semibold text-base"
+              className="flex-1 px-6 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-white/70 hover:text-white/90 border border-white/10 transition-all active:scale-[0.98] backdrop-blur-sm font-semibold text-base"
               disabled={isPending || isConfirming}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-6 py-3 rounded-xl bg-white/90 hover:bg-white text-black font-semibold text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3.5 rounded-xl bg-white/90 hover:bg-white active:bg-white/80 text-black font-bold text-base transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               disabled={isPending || isConfirming}
             >
               {isPending || isConfirming ? "Creating..." : "Create Event"}

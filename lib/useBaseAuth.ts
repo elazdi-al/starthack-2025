@@ -87,6 +87,56 @@ function getErrorMessage(error: unknown): string {
 }
 
 /**
+ * Generates a nonce for authentication
+ */
+async function generateNonce(): Promise<string> {
+  if (typeof window !== 'undefined' && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID().replace(/-/g, '');
+  }
+
+  // Fallback: fetch from server
+  const response = await fetch('/api/auth/base/nonce');
+  const data = (await response.json()) as { nonce: string };
+  return data.nonce;
+}
+
+/**
+ * Switches to Base chain
+ */
+async function switchToBaseChain(provider: EthereumProvider): Promise<void> {
+  try {
+    await provider.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: BASE_CHAIN_ID }],
+    });
+  } catch (error: unknown) {
+    // Chain might already be selected or user rejected - not critical
+    console.warn('Chain switch error (may be safe to continue):', error);
+  }
+}
+
+/**
+ * Verifies signature with backend
+ */
+async function verifySignature(
+  address: string,
+  message: string,
+  signature: string
+): Promise<void> {
+  const response = await fetch('/api/auth/base/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address, message, signature }),
+  });
+
+  const data = (await response.json()) as VerifyResponse;
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Verification failed');
+  }
+}
+
+/**
  * React hook for Base wallet authentication
  *
  * @returns Auth state and methods for signing in/out
@@ -112,61 +162,9 @@ export function useBaseAuth() {
   }, [isSessionValid]);
 
   /**
-   * Generates a nonce for authentication
-   */
-  const generateNonce = async (): Promise<string> => {
-    if (typeof window !== 'undefined' && window.crypto?.randomUUID) {
-      return window.crypto.randomUUID().replace(/-/g, '');
-    }
-
-    // Fallback: fetch from server
-    const response = await fetch('/api/auth/base/nonce');
-    const data = (await response.json()) as { nonce: string };
-    return data.nonce;
-  };
-
-  /**
-   * Switches to Base chain
-   */
-  const switchToBaseChain = async (
-    provider: EthereumProvider
-  ): Promise<void> => {
-    try {
-      await provider.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: BASE_CHAIN_ID }],
-      });
-    } catch (error: unknown) {
-      // Chain might already be selected or user rejected - not critical
-      console.warn('Chain switch error (may be safe to continue):', error);
-    }
-  };
-
-  /**
-   * Verifies signature with backend
-   */
-  const verifySignature = async (
-    address: string,
-    message: string,
-    signature: string
-  ): Promise<void> => {
-    const response = await fetch('/api/auth/base/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address, message, signature }),
-    });
-
-    const data = (await response.json()) as VerifyResponse;
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Verification failed');
-    }
-  };
-
-  /**
    * Updates auth state and stores address in Zustand
    */
-  const setAuthenticated = (address: string): void => {
+  const setAuthenticated = useCallback((address: string): void => {
     // Store in Zustand (will auto-persist to localStorage)
     setAuth(address, 7); // 7 days expiration
 
@@ -174,7 +172,7 @@ export function useBaseAuth() {
       isLoading: false,
       error: null,
     });
-  };
+  }, [setAuth]);
 
   /**
    * Attempts wallet_connect method (preferred)
@@ -206,7 +204,7 @@ export function useBaseAuth() {
     setAuthenticated(address);
 
     return { success: true, address };
-  }, []);
+  }, [setAuthenticated]);
 
   /**
    * Fallback method using eth_requestAccounts + personal_sign
@@ -239,7 +237,7 @@ export function useBaseAuth() {
     setAuthenticated(address);
 
     return { success: true, address };
-  }, []);
+  }, [setAuthenticated]);
 
   /**
    * Main sign-in method

@@ -3,8 +3,10 @@
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { CalendarBlank, MapPin, Users, ArrowLeft } from "phosphor-react";
+import { CalendarBlank, MapPin, Users } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
+import { TopBar } from "@/components/TopBar";
+import { BottomNav } from "@/components/BottomNav";
 
 interface Event {
   id: number;
@@ -56,6 +58,7 @@ export default function EventPageClient({ event }: { event: Event | undefined })
             Event Not Found
           </h1>
           <button
+            type="button"
             onClick={() => router.push("/home")}
             className="text-white/60 hover:text-white/80 transition-colors"
           >
@@ -67,21 +70,17 @@ export default function EventPageClient({ event }: { event: Event | undefined })
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col p-4 sm:p-6 bg-transparent overflow-hidden">
+    <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
 
-      {/* Back button */}
-      <button
-        className="absolute top-4 sm:top-6 left-6 sm:left-8 z-20 text-white/40 hover:text-white/80 transition-colors flex items-center gap-2"
-        type="button"
-        onClick={() => router.push("/home")}
-      >
-        <ArrowLeft size={24} weight="regular" />
-        <span className="hidden sm:inline text-sm">Back</span>
-      </button>
+      {/* Top Bar with Back Button */}
+      <TopBar showBackButton={true} backPath="/home" backTitle="Back to Events" />
+
+      {/* Bottom Navigation Bar - Mobile only */}
+      <BottomNav />
 
       {/* Main content */}
-      <div className="relative z-10 flex-1 pt-16 sm:pt-24 pb-24 max-w-3xl mx-auto w-full px-2 sm:px-4">
+      <div className="relative z-10 flex-1 pb-6 max-w-3xl mx-auto w-full px-6">
         {/* Category badge */}
         <div className="mb-4">
           <span className="text-xs sm:text-sm px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/50">
@@ -163,7 +162,7 @@ export default function EventPageClient({ event }: { event: Event | undefined })
 
         {/* Action button - Fixed at bottom on mobile */}
         <div className="fixed sm:relative bottom-0 left-0 right-0 px-6 py-4 sm:p-0 bg-gradient-to-t sm:bg-none from-gray-950 via-gray-950/90 to-transparent sm:from-transparent sm:via-transparent z-20">
-          <button className="w-full bg-white text-gray-950 font-semibold py-3.5 sm:py-4 px-6 rounded-xl transition-all hover:bg-white/90 active:scale-[0.98] shadow-lg">
+          <button type="button" className="w-full bg-white text-gray-950 font-semibold py-3.5 sm:py-4 px-6 rounded-xl transition-all hover:bg-white/90 active:scale-[0.98] shadow-lg">
             Register for Event
           </button>
         </div>

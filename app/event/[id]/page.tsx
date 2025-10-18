@@ -73,7 +73,7 @@ export default async function EventPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const event = events.find((e) => e.id === parseInt(id));
+  const event = events.find((e) => e.id === Number.parseInt(id));
 
   return <EventPageClient event={event} />;
 }
