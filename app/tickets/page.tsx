@@ -10,57 +10,46 @@ import { QRCodeSVG } from "qrcode.react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
+import { useTickets } from "@/lib/hooks/useEvents";
+import { useAccount } from 'wagmi';
+
 
 // Removed mock tickets - now fetching from blockchain
 
 export default function MyTickets() {
   const router = useRouter();
-  const { isAuthenticated, fid, hasHydrated } = useAuthCheck();
+  const { isAuthenticated, hasHydrated } = useAuthCheck();
   const { tickets, setTickets, listTicket, cancelListing, clearDuplicates } = useTicketStore();
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
   const [qrSize, setQrSize] = useState(200);
   const [listingTicket, setListingTicket] = useState<Ticket | null>(null);
   const [listingPrice, setListingPrice] = useState("");
-  const [isLoadingTickets, setIsLoadingTickets] = useState(true);
+  const { address: walletAddress, isConnected} = useAccount();
+
+  const activeAddress = isAuthenticated && hasHydrated ? walletAddress ?? null : null;
+  const ticketsQuery = useTickets(activeAddress);
+  const isLoadingTickets = ticketsQuery.isPending || ticketsQuery.isFetching;
 
   // Clear duplicates on mount
   useEffect(() => {
     clearDuplicates();
   }, [clearDuplicates]);
 
-  // Fetch tickets from blockchain
   useEffect(() => {
-    const fetchTickets = async () => {
-      if (!fid) {
-        console.error('No FID available');
-        return;
-      }
-
-
-      try {
-        setIsLoadingTickets(true);
-        const response = await fetch(`/api/tickets?fid=${fid}`);
-        const data = await response.json();
-
-        if (data.success && data.tickets) {
-          setTickets(data.tickets);
-          console.log('✅ Fetched', data.tickets.length, 'ticket(s)');
-        } else {
-          console.error('❌ Error fetching tickets:', data.error);
-          toast.error('Failed to load tickets');
-        }
-      } catch (error) {
-        console.error('❌ Fetch error:', error);
-        toast.error('Failed to load tickets');
-      } finally {
-        setIsLoadingTickets(false);
-      }
-    };
-
-    if (isAuthenticated && hasHydrated && fid) {
-      fetchTickets();
+    if (ticketsQuery.data?.success && ticketsQuery.data.tickets) {
+      setTickets(ticketsQuery.data.tickets);
     }
-  }, [isAuthenticated, hasHydrated, fid, setTickets]);
+  }, [ticketsQuery.data, setTickets]);
+
+  useEffect(() => {
+    if (ticketsQuery.isError) {
+      const message =
+        ticketsQuery.error instanceof Error
+          ? ticketsQuery.error.message
+          : 'Failed to load tickets';
+      toast.error('Failed to load tickets', { description: message });
+    }
+  }, [ticketsQuery.isError, ticketsQuery.error]);
 
   // Handle responsive QR code size
   useEffect(() => {
@@ -172,6 +161,17 @@ export default function MyTickets() {
     return null;
   }
 
+  if (!walletAddress || !isConnected) {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center bg-transparent">
+        <BackgroundGradient />
+        <div className="relative z-10 text-white/40 text-center space-y-2">
+          <p>Connect your wallet to view your tickets.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
@@ -185,8 +185,9 @@ export default function MyTickets() {
       {/* Subtitle */}
       <div className="relative z-10 px-6 pb-4 md:pb-6">
         <p className="text-xs md:text-sm text-white/50">
-          {tickets.length} {tickets.length === 1 ? 'ticket' : 'tickets'} • FID: {fid}
+          {tickets.length} {tickets.length === 1 ? 'ticket' : 'tickets'} • {walletAddress}
         </p>
+        
       </div>
 
       {/* Tickets grid */}
@@ -207,14 +208,20 @@ export default function MyTickets() {
             {sortedTickets.map((ticket) => {
               const isFlipped = flippedCards.has(ticket.id);
               return (
-                    <button
-                      type="button"
+                    <div
                       key={ticket.id}
                       className={`relative h-[420px] perspective-1000 ${
                         ticket.status === 'listed' ? 'cursor-not-allowed' : 'cursor-pointer'
                       }`}
                       onClick={() => handleFlip(ticket.id)}
-                      disabled={ticket.status === 'listed'}
+                      role="button"
+                      tabIndex={ticket.status === 'listed' ? -1 : 0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleFlip(ticket.id);
+                        }
+                      }}
                     >
                   {/* Flip container */}
                   <div
@@ -378,7 +385,7 @@ export default function MyTickets() {
                       </div>
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -419,8 +426,8 @@ export default function MyTickets() {
                     type="number"
                     value={listingPrice}
                     onChange={(e) => setListingPrice(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
+                    placeholder="0.000001"
+                    step="0.000001"
                     min="0"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 pl-8 py-3 text-white text-lg focus:outline-none focus:border-green-500/50 transition-colors"
                   />

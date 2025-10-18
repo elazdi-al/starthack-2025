@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { eventsAPI, ticketsAPI } from "@/lib/api";
+import { eventsAPI, ticketsAPI, hostEventsAPI } from "@/lib/api";
 
 // Query keys for better cache management
 export const eventKeys = {
@@ -18,7 +18,7 @@ export const ticketKeys = {
 /**
  * Fetch all events with caching
  */
-export function useEvents() {
+export function useEvents(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: eventKeys.lists(),
     queryFn: async () => {
@@ -27,6 +27,7 @@ export function useEvents() {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+    enabled: options?.enabled ?? true,
   });
 }
 

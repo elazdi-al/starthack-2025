@@ -37,9 +37,30 @@ export async function POST(request: NextRequest) {
       abi: EVENT_BOOK_ABI,
       functionName: 'events',
       args: [BigInt(eventId)],
-    }) as [string, string, bigint, bigint, bigint, string, bigint, bigint];
+    }) as [
+      string,
+      string,
+      bigint,
+      bigint,
+      bigint,
+      string,
+      bigint,
+      bigint,
+      string,
+      boolean,
+      boolean
+    ];
 
-    const [name, _location, date, price, _revenueOwed, _creator, ticketsSold, maxCapacity] = eventData;
+    const [
+      name,
+      _location,
+      date,
+      price,
+      _revenueOwed,
+      _creator,
+      ticketsSold,
+      maxCapacity,
+    ] = eventData;
 
     // Check if event has passed
     if (Number(date) < Math.floor(Date.now() / 1000)) {
@@ -57,26 +78,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already has a ticket
-    let alreadyHasTicket = false;
-
-    try {
-      alreadyHasTicket = await publicClient.readContract({
-        address: EVENT_BOOK_ADDRESS,
-        abi: EVENT_BOOK_ABI,
-        functionName: 'hasTicket',
-        args: [BigInt(eventId), address as `0x${string}`],
-      }) as boolean;
-    } catch (readError) {
-      console.warn('hasTicket check unavailable, continuing without duplicate guard:', readError);
-    }
-
-    if (alreadyHasTicket) {
-      return NextResponse.json(
-        { success: false, error: 'You already own a ticket for this event' },
-        { status: 400 }
-      );
-    }
+    // Note: The EventBook contract doesn't enforce one-ticket-per-user
+    // Users can purchase multiple tickets for the same event if desired
 
     // Return transaction data for client-side execution
     return NextResponse.json({

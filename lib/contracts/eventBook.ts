@@ -58,19 +58,21 @@ export const EVENT_BOOK_ABI = [
       { "name": "revenueOwed", "type": "uint256" },
       { "name": "creator", "type": "address" },
       { "name": "ticketsSold", "type": "uint256" },
-      { "name": "maxCapacity", "type": "uint256" }
+      { "name": "maxCapacity", "type": "uint256" },
+      { "name": "imageURI", "type": "string" },
+      { "name": "isPrivate", "type": "bool" },
+      { "name": "whitelistIsLocked", "type": "bool" }
     ],
     "stateMutability": "view"
   },
   {
     "type": "function",
-    "name": "hasTicket",
+    "name": "getUserTickets",
     "inputs": [
-      { "name": "", "type": "uint256" },
-      { "name": "", "type": "address" }
+      { "name": "user", "type": "address" }
     ],
     "outputs": [
-      { "name": "", "type": "bool" }
+      { "name": "", "type": "uint256[]" }
     ],
     "stateMutability": "view"
   },
@@ -140,4 +142,3 @@ export const EVENT_BOOK_ABI = [
     "stateMutability": "payable"
   }
 ] as const;
-

@@ -355,9 +355,9 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
               <Input
                 id="price"
                 type="number"
-                step="0.001"
+                step="0.0000001"
                 min="0"
-                placeholder="0.01"
+                placeholder="0.0000001"
                 value={formData.price}
                 onChange={(e) => handleInputChange("price", e.target.value)}
                 className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 text-base h-11"

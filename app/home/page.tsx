@@ -4,12 +4,13 @@ import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import { CalendarBlank, MapPin, Users, SignOut, Ticket, Storefront } from "phosphor-react";
-import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
+import { CalendarBlank, MapPin, Users, Ticket, Storefront, CalendarCheck } from "phosphor-react";
+import { useAuthCheck } from "@/lib/store/authStore";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 import { useEvents } from "@/lib/hooks/useEvents";
+import { toast } from "sonner";
 interface Event {
   id: number;
   name: string;
@@ -25,16 +26,27 @@ interface Event {
 export default function Home() {
   const router = useRouter();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
-  const { clearAuth } = useAuthStore();
 
-  // Use TanStack Query to fetch events with caching
-  const { data: eventsData, isLoading: isLoadingEvents } = useEvents();
+  const eventsQuery = useEvents({ enabled: isAuthenticated && hasHydrated });
 
-  // Filter out past events and memoize the result
   const events = useMemo(() => {
-    if (!eventsData?.events) return [];
-    return eventsData.events.filter((e: Event) => !e.isPast);
-  }, [eventsData]);
+    if (!eventsQuery.data?.success) {
+      return [] as Event[];
+    }
+    return (eventsQuery.data.events as Event[]).filter((event) => !event.isPast);
+  }, [eventsQuery.data]);
+
+  const isLoadingEvents = eventsQuery.isPending || eventsQuery.isFetching;
+
+  useEffect(() => {
+    if (eventsQuery.isError) {
+      const message =
+        eventsQuery.error instanceof Error
+          ? eventsQuery.error.message
+          : "An unexpected error occurred";
+      toast.error("Failed to load events", { description: message });
+    }
+  }, [eventsQuery.isError, eventsQuery.error]);
 
   // Redirect to login if not authenticated (only after hydration)
   useEffect(() => {
@@ -43,13 +55,12 @@ export default function Home() {
     }
   }, [hasHydrated, isAuthenticated, router]);
 
-  const handleSignOut = () => {
-    clearAuth(); // Clear Zustand auth state
-    router.push('/');
-  };
-
   const handleMyTickets = () => {
     router.push('/tickets');
+  };
+
+  const handleMyEvents = () => {
+    router.push('/my-events');
   };
 
   const handleMarketplace = () => {
@@ -80,9 +91,9 @@ export default function Home() {
 
       {/* Additional Desktop Navigation */}
       <div className="hidden md:flex absolute top-6 right-6 z-20 items-center gap-3">
-        <CreateEventDialog />
+        <CreateEventDialog onEventCreated={() => eventsQuery.refetch()} />
         <button
-          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10"
+          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-white/10"
           type="button"
           onClick={handleMarketplace}
           title="Marketplace"
@@ -91,7 +102,16 @@ export default function Home() {
           <span className="text-sm">Marketplace</span>
         </button>
         <button
-          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10"
+          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-white/10"
+          type="button"
+          onClick={handleMyEvents}
+          title="My Events"
+        >
+          <CalendarCheck size={20} weight="regular" />
+          <span className="text-sm">My Events</span>
+        </button>
+        <button
+          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-white/10"
           type="button"
           onClick={handleMyTickets}
           title="My Tickets"
@@ -99,18 +119,10 @@ export default function Home() {
           <Ticket size={20} weight="regular" />
           <span className="text-sm">My Tickets</span>
         </button>
-        <button
-          className="text-white/40 hover:text-white/80 transition-colors"
-          type="button"
-          onClick={handleSignOut}
-          title="Sign Out"
-        >
-          <SignOut size={24} weight="regular" />
-        </button>
       </div>
 
       {/* Bottom Navigation Bar - Mobile only */}
-      <BottomNav />
+      <BottomNav onEventCreated={() => eventsQuery.refetch()} />
 
       {/* Event cards */}
       <div className="relative z-10 flex-1 px-6">

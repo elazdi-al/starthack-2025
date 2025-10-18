@@ -8,12 +8,17 @@ import { useAuthCheck } from "@/lib/store/authStore";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { ticketsAPI } from "@/lib/api";
-import { EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
+import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
 import { formatEther } from "viem";
 import { toast } from "sonner";
-import { pay, getPaymentStatus } from "@base-org/account";
 import { useTicketStore } from "@/lib/store/ticketStore";
-import { useAccount, useConnect, useConnectors } from "wagmi";
+import {
+  useAccount,
+  useConnect,
+  useConnectors,
+  usePublicClient,
+  useWalletClient,
+} from "wagmi";
 import { useEvent, useInvalidateEvents } from "@/lib/hooks/useEvents";
 
 interface EventDetails {
@@ -39,11 +44,8 @@ interface EventDetails {
 type PurchaseStage =
   | "idle"
   | "validating"
-  | "paying"
-  | "confirming"
-  | "recording";
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  | "minting"
+  | "confirming";
 
 const shortenAddress = (address: string) =>
   address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Unknown";
@@ -69,7 +71,7 @@ const buildFallbackDescription = (event: {
     event.creator
   )} at ${event.location} on ${formattedDate}. Tickets cost ${
     priceEth > 0 ? `${priceEth} ETH` : "free"
-  } and are settled via Base Pay.`;
+  } and are settled directly on Base.`;
 };
 
 const transformEvent = (raw: {
@@ -120,11 +122,13 @@ interface EventPageClientProps {
 export default function EventPageClient({ eventId }: EventPageClientProps) {
   const router = useRouter();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
-  const { addTicket } = useTicketStore();
+  const { invalidateTickets, invalidateDetail } = useInvalidateEvents();
+  const clearDuplicates = useTicketStore((state) => state.clearDuplicates);
   const { address: walletAddress, isConnected } = useAccount();
   const { connect } = useConnect();
   const connectors = useConnectors();
-  const { invalidateDetail, invalidateTickets } = useInvalidateEvents();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
 
   // Use TanStack Query for event data
   const { data: eventData, isLoading: isLoadingEvent, error: fetchError } = useEvent(eventId);
@@ -185,80 +189,44 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
 
       await ticketsAPI.validatePurchase(event.id, accountAddress);
 
-      let paymentId: string | null = null;
-
-      if (Number(event.priceEth) > 0) {
-        setPurchaseStage("paying");
-
-        const payment = await pay({
-          amount: Number(event.priceEth).toFixed(6),
-          to: event.hostAddress as `0x${string}`,
-          testnet: true,
-          payerInfo: {
-            requests: [
-              { type: "email" as const },
-              { type: "phoneNumber" as const, optional: true },
-            ],
-          },
-        });
-
-        paymentId = payment.id;
-
-        setPurchaseStage("confirming");
-
-        let completed = false;
-        for (let attempt = 0; attempt < 10; attempt += 1) {
-          const { status } = await getPaymentStatus({
-            id: paymentId,
-            testnet: true,
-          });
-
-          if (status === "completed") {
-            completed = true;
-            break;
-          }
-
-          if (status !== "pending") {
-            throw new Error("Payment was cancelled or failed.");
-          }
-
-          await delay(2000);
-        }
-
-        if (!completed) {
-          throw new Error("Payment confirmation timed out.");
-        }
+      if (!walletClient) {
+        throw new Error("Wallet client unavailable. Please reconnect your wallet.");
       }
 
-      setPurchaseStage("recording");
+      setPurchaseStage("minting");
 
-      const response = await fetch("/api/tickets/purchase", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          eventId: event.id,
-          address: accountAddress,
-          paymentId,
-        }),
+      const value = BigInt(event.priceWei);
+      const { request } = await publicClient.simulateContract({
+        account: accountAddress as `0x${string}`,
+        address: EVENT_BOOK_ADDRESS,
+        abi: EVENT_BOOK_ABI,
+        functionName: "buyTicket",
+        args: [BigInt(event.id)],
+        value,
       });
 
-      const result = await response.json();
+      const hash = await walletClient.writeContract(request);
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Failed to record ticket purchase.");
+      setPurchaseStage("confirming");
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      if (receipt.status !== "success") {
+        throw new Error("Transaction failed or reverted.");
       }
-
-      addTicket(result.ticket);
 
       // Invalidate cache to refetch latest data
+      const tasks: Promise<unknown>[] = [];
       if (eventId !== null) {
-        invalidateDetail(eventId);
+        tasks.push(invalidateDetail(eventId));
       }
       if (accountAddress) {
-        invalidateTickets(accountAddress);
+        tasks.push(invalidateTickets(accountAddress));
       }
+      if (tasks.length > 0) {
+        await Promise.all(tasks);
+      }
+      clearDuplicates();
 
       toast.success("Ticket purchased!", {
         description: "You can view this ticket in the My Tickets tab.",
@@ -274,7 +242,16 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
       setIsPurchasing(false);
       setPurchaseStage("idle");
     }
-  }, [event, walletAddress, addTicket, eventId, invalidateDetail, invalidateTickets]);
+  }, [
+    event,
+    walletAddress,
+    walletClient,
+    eventId,
+    invalidateDetail,
+    invalidateTickets,
+    publicClient,
+    clearDuplicates,
+  ]);
 
   const renderLoader = () => (
     <div className="relative min-h-screen flex items-center justify-center bg-transparent">
@@ -499,9 +476,10 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
 
               <div className="bg-blue-500/15 border border-blue-500/30 rounded-2xl p-3 sm:p-4">
                 <p className="text-blue-100 text-sm">
-                  Ticket settlement is processed with Base Pay. After payment,
-                  your NFT ticket will appear in the My Tickets tab and can be
-                  managed from your wallet.
+                  Ticket settlement happens fully on-chain via the EventBook
+                  contract. After the transaction confirms, your NFT ticket will
+                  appear in the My Tickets tab and can be managed from your
+                  wallet.
                 </p>
               </div>
 
@@ -524,13 +502,12 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                     <>
                       <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       {purchaseStage === "validating" && "Validating..."}
-                      {purchaseStage === "paying" && "Paying with Base..."}
+                      {purchaseStage === "minting" && "Submitting on-chain..."}
                       {purchaseStage === "confirming" && "Waiting for confirmation..."}
-                      {purchaseStage === "recording" && "Recording ticket..."}
                       {purchaseStage === "idle" && "Processing..."}
                     </>
                   ) : (
-                    "Pay with Base"
+                    Number(event.priceEth) > 0 ? "Purchase Ticket" : "Mint Ticket"
                   )}
                 </button>
               </div>

@@ -9,8 +9,8 @@ const nextConfig: NextConfig = {
   // Configure allowed dev origins for ngrok tunnels
   
     allowedDevOrigins: [
-      "https://ae801d7f98f2.ngrok-free.app",
-      "ae801d7f98f2.ngrok-free.app"
+      "https://gemmuliferous-wafery-warren.ngrok-free.dev",
+      "gemmuliferous-wafery-warren.ngrok-free.dev"
     ],
 
 

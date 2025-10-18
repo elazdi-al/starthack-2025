@@ -1,6 +1,9 @@
 // Ticket Metadata Storage
 // In production, this should be stored in a database or IPFS
 
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+
 export interface TicketMetadata {
   tokenId: string;
   eventId: number;
@@ -14,19 +17,54 @@ export interface TicketMetadata {
   qrData: string;
 }
 
-// In-memory storage (replace with database in production)
-const metadataStore = new Map<string, TicketMetadata>();
+const DATA_DIR = join(process.cwd(), '.data');
+const METADATA_FILE = join(DATA_DIR, 'ticket-metadata.json');
+
+// Ensure data directory exists
+function ensureDataDir() {
+  if (!existsSync(DATA_DIR)) {
+    mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+// Load metadata from file
+function loadMetadata(): Record<string, TicketMetadata> {
+  ensureDataDir();
+  if (existsSync(METADATA_FILE)) {
+    try {
+      const data = readFileSync(METADATA_FILE, 'utf-8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Error loading ticket metadata:', error);
+    }
+  }
+  return {};
+}
+
+// Save metadata to file
+function saveMetadataToFile(metadata: Record<string, TicketMetadata>) {
+  ensureDataDir();
+  try {
+    writeFileSync(METADATA_FILE, JSON.stringify(metadata, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Error saving ticket metadata:', error);
+  }
+}
 
 export function saveTicketMetadata(metadata: TicketMetadata): void {
-  metadataStore.set(metadata.tokenId, metadata);
+  const allMetadata = loadMetadata();
+  allMetadata[metadata.tokenId] = metadata;
+  saveMetadataToFile(allMetadata);
 }
 
 export function getTicketMetadata(tokenId: string): TicketMetadata | undefined {
-  return metadataStore.get(tokenId);
+  const allMetadata = loadMetadata();
+  return allMetadata[tokenId];
 }
 
 export function getAllMetadata(): TicketMetadata[] {
-  return Array.from(metadataStore.values());
+  const allMetadata = loadMetadata();
+  return Object.values(allMetadata);
 }
 
 export function generateTicketMetadata(

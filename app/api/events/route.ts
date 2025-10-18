@@ -24,9 +24,33 @@ export async function GET() {
           abi: EVENT_BOOK_ABI,
           functionName: 'events',
           args: [BigInt(index)],
-        }) as [string, string, bigint, bigint, bigint, string, bigint, bigint];
+        }) as [
+          string,
+          string,
+          bigint,
+          bigint,
+          bigint,
+          string,
+          bigint,
+          bigint,
+          string,
+          boolean,
+          boolean
+        ];
 
-        const [name, location, date, price, _revenueOwed, creator, ticketsSold, maxCapacity] = eventData;
+        const [
+          name,
+          location,
+          date,
+          price,
+          _revenueOwed,
+          creator,
+          ticketsSold,
+          maxCapacity,
+          imageURI,
+          isPrivate,
+          whitelistIsLocked,
+        ] = eventData;
 
         return {
           id: index,
@@ -37,8 +61,12 @@ export async function GET() {
           creator,
           ticketsSold: Number(ticketsSold),
           maxCapacity: Number(maxCapacity),
+          imageURI,
+          isPrivate,
+          whitelistIsLocked,
           // Calculate if event has passed
           isPast: Number(date) < Math.floor(Date.now() / 1000),
+          isFull: Number(maxCapacity) > 0 && Number(ticketsSold) >= Number(maxCapacity),
         };
       })
     );
@@ -116,4 +144,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

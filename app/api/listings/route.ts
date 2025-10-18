@@ -41,7 +41,19 @@ export async function GET(request: NextRequest) {
             abi: EVENT_BOOK_ABI,
             functionName: 'events',
             args: [listingEventId],
-          }) as [string, string, bigint, bigint, bigint, string, bigint, bigint];
+          }) as [
+            string,
+            string,
+            bigint,
+            bigint,
+            bigint,
+            string,
+            bigint,
+            bigint,
+            string,
+            boolean,
+            boolean
+          ];
 
           const [name, location, date, originalPrice] = eventData;
 

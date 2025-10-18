@@ -60,6 +60,10 @@ export const eventsAPI = {
       ticketsSold: number;
       maxCapacity: number;
       isPast: boolean;
+      isFull: boolean;
+      imageURI: string;
+      isPrivate: boolean;
+      whitelistIsLocked: boolean;
     }>;
     count: number;
   }>('/api/events'),
@@ -77,6 +81,9 @@ export const eventsAPI = {
       maxCapacity: number;
       isPast: boolean;
       isFull: boolean;
+      imageURI: string;
+      isPrivate: boolean;
+      whitelistIsLocked: boolean;
     };
   }>(`/api/events/${id}`),
 
@@ -211,4 +218,3 @@ export const walletAPI = {
     };
   }>(`/api/wallet/balance?address=${address}`),
 };
-
