@@ -3,9 +3,9 @@ import { Inter, Source_Code_Pro } from "next/font/google";
 import { minikitConfig } from "../minikit.config";
 import { RootProvider } from "./rootProvider";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
-import { SafeAreaWrapper } from "@/components/safe-area-wrapper";
+import { SafeAreaWrapper } from "@/components/SafeAreaWrapper";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {

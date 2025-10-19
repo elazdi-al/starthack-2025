@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { House, ShoppingCart, Ticket, SignOut } from "phosphor-react";
-import { useAuthStore } from "@/lib/store/authStore";
+import { House, ShoppingCart, Ticket, CalendarCheck } from "phosphor-react";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 
 interface BottomNavProps {
@@ -12,7 +11,6 @@ interface BottomNavProps {
 export function BottomNav({ onEventCreated }: BottomNavProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { clearAuth } = useAuthStore();
 
   const handleHome = () => {
     router.push('/home');
@@ -26,9 +24,8 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
     router.push('/tickets');
   };
 
-  const handleSignOut = () => {
-    clearAuth();
-    router.push('/');
+  const handleMyEvents = () => {
+    router.push('/myevents');
   };
 
   const isActive = (path: string) => pathname === path;
@@ -85,15 +82,19 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
             <span className="text-[11px] font-semibold whitespace-nowrap">Tickets</span>
           </button>
 
-          {/* Sign Out */}
+          {/* My Events */}
           <button
-            className="text-white/40 hover:text-white/80 active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl hover:bg-white/5"
+            className={`${
+              isActive('/myevents')
+                ? 'text-white/80 bg-white/5'
+                : 'text-white/40 hover:text-white/80 hover:bg-white/5'
+            } active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl`}
             type="button"
-            onClick={handleSignOut}
-            title="Sign Out"
+            onClick={handleMyEvents}
+            title="My Events"
           >
-            <SignOut size={24} weight="regular" />
-            <span className="text-[11px] font-semibold whitespace-nowrap">Sign Out</span>
+            <CalendarCheck size={24} weight={isActive('/myevents') ? 'fill' : 'regular'} />
+            <span className="text-[11px] font-semibold whitespace-nowrap">My Events</span>
           </button>
         </div>
       </div>

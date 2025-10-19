@@ -4,13 +4,14 @@ import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { EventCard } from "@/components/EventCard";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import { Ticket, Storefront, CalendarCheck } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 import { useEvents } from "@/lib/hooks/useEvents";
+import { useAccount } from "wagmi";
 import { toast } from "sonner";
+
 interface Event {
   id: number;
   name: string;
@@ -23,18 +24,22 @@ interface Event {
   isPast: boolean;
 }
 
-export default function Home() {
+export default function MyEvents() {
   const router = useRouter();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
+  const { address } = useAccount();
 
   const eventsQuery = useEvents({ enabled: isAuthenticated && hasHydrated });
 
-  const events = useMemo(() => {
-    if (!eventsQuery.data?.success) {
+  // Filter events where current user is the creator
+  const myEvents = useMemo(() => {
+    if (!eventsQuery.data?.success || !address) {
       return [] as Event[];
     }
-    return (eventsQuery.data.events as Event[]).filter((event) => !event.isPast);
-  }, [eventsQuery.data]);
+    return (eventsQuery.data.events as Event[]).filter(
+      (event) => event.creator.toLowerCase() === address.toLowerCase()
+    );
+  }, [eventsQuery.data, address]);
 
   const isLoadingEvents = eventsQuery.isPending || eventsQuery.isFetching;
 
@@ -55,18 +60,6 @@ export default function Home() {
     }
   }, [hasHydrated, isAuthenticated, router]);
 
-  const handleMyTickets = () => {
-    router.push('/tickets');
-  };
-
-  const handleMyEvents = () => {
-    router.push('/myevents');
-  };
-
-  const handleMarketplace = () => {
-    router.push('/marketplace');
-  };
-
   // Show loading while hydrating
   if (!hasHydrated) {
     return (
@@ -86,39 +79,12 @@ export default function Home() {
     <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
 
-      {/* Top bar with Title - Using unified TopBar component */}
-      <TopBar title="Events" showTitle={true} />
+      {/* Top bar with Title */}
+      <TopBar title="My Events" showTitle={true} />
 
-      {/* Additional Desktop Navigation */}
+      {/* Desktop Navigation */}
       <div className="hidden md:flex absolute top-6 right-6 z-20 items-center gap-3">
         <CreateEventDialog onEventCreated={() => eventsQuery.refetch()} />
-        <button
-          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-white/10"
-          type="button"
-          onClick={handleMarketplace}
-          title="Marketplace"
-        >
-          <Storefront size={20} weight="regular" />
-          <span className="text-sm">Marketplace</span>
-        </button>
-        <button
-          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-white/10"
-          type="button"
-          onClick={handleMyEvents}
-          title="My Events"
-        >
-          <CalendarCheck size={20} weight="regular" />
-          <span className="text-sm">My Events</span>
-        </button>
-        <button
-          className="text-white/40 hover:text-white/80 transition-colors flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-white/10"
-          type="button"
-          onClick={handleMyTickets}
-          title="My Tickets"
-        >
-          <Ticket size={20} weight="regular" />
-          <span className="text-sm">My Tickets</span>
-        </button>
       </div>
 
       {/* Bottom Navigation Bar - Mobile only */}
@@ -132,14 +98,14 @@ export default function Home() {
               <div key={i} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 h-48 animate-pulse" />
             ))}
           </div>
-        ) : events.length === 0 ? (
+        ) : myEvents.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-white/40 text-lg">No upcoming events available</p>
-            <p className="text-white/30 text-sm mt-2">Check back later for new events</p>
+            <p className="text-white/40 text-lg">You haven't created any events yet</p>
+            <p className="text-white/30 text-sm mt-2">Create your first event to get started</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-6xl">
-            {events.map((event) => (
+            {myEvents.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
           </div>
@@ -148,3 +114,4 @@ export default function Home() {
     </div>
   );
 }
+
