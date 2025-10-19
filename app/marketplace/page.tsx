@@ -2,15 +2,23 @@
 
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarBlank, Users, ShoppingCart } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore } from "@/lib/store/ticketStore";
-import { pay, getPaymentStatus } from '@base-org/account';
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import {
+  useAccount,
+  useConnect,
+  useConnectors,
+  usePublicClient,
+  useWalletClient,
+} from "wagmi";
+import { useInvalidateEvents } from "@/lib/hooks/useEvents";
+import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
 
 // Types for listings
 interface Listing {
@@ -34,6 +42,8 @@ interface ListingsResponse {
   };
 }
 
+type PurchaseStage = "idle" | "simulating" | "submitting" | "confirming";
+
 // Fetch listings from API
 async function fetchListings({ pageParam = 0 }): Promise<ListingsResponse> {
   const response = await fetch(`/api/listings?offset=${pageParam}&limit=10`);
@@ -43,18 +53,36 @@ async function fetchListings({ pageParam = 0 }): Promise<ListingsResponse> {
   return response.json();
 }
 
+const formatPrice = (price: string) => {
+  const parsed = Number.parseFloat(price);
+  if (Number.isNaN(parsed)) {
+    return price;
+  }
+
+  if (parsed >= 1) {
+    return parsed.toFixed(3);
+  }
+
+  if (parsed >= 0.01) {
+    return parsed.toFixed(4);
+  }
+
+  return parsed.toFixed(6);
+};
+
 interface PurchaseModalProps {
   listing: Listing | null;
   onClose: () => void;
-  onPurchase: (tokenId: string, price: string, seller: string) => void;
+  onPurchase: (listing: Listing) => void;
   isPurchasing: boolean;
+  stage: PurchaseStage;
 }
 
-function PurchaseModal({ listing, onClose, onPurchase, isPurchasing }: PurchaseModalProps) {
+function PurchaseModal({ listing, onClose, onPurchase, isPurchasing, stage }: PurchaseModalProps) {
   if (!listing) return null;
 
   const handlePurchase = () => {
-    onPurchase(listing.tokenId, listing.price, listing.seller);
+    onPurchase(listing);
   };
 
   return (
@@ -94,13 +122,15 @@ function PurchaseModal({ listing, onClose, onPurchase, isPurchasing }: PurchaseM
 
             <div className="pt-3 border-t border-white/10">
               <p className="text-white/50 text-sm">Price</p>
-              <p className="text-white text-3xl font-bold">{listing.price} <span className="text-lg text-white/50">ETH</span></p>
+              <p className="text-white text-3xl font-bold">
+                {formatPrice(listing.price)} <span className="text-lg text-white/50">ETH</span>
+              </p>
             </div>
           </div>
 
           <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3">
             <p className="text-blue-200 text-xs">
-              You&apos;ll be prompted to provide your email address and optionally your phone number for ticket delivery.
+              Settlement happens entirely on-chain via the EventBook contract. Ensure you have enough ETH for the price and gas fees before confirming.
             </p>
           </div>
 
@@ -122,12 +152,15 @@ function PurchaseModal({ listing, onClose, onPurchase, isPurchasing }: PurchaseM
               {isPurchasing ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Processing...
+                  {stage === "simulating" && "Preparing transaction..."}
+                  {stage === "submitting" && "Confirm in wallet..."}
+                  {stage === "confirming" && "Waiting for confirmation..."}
+                  {stage === "idle" && "Processing..."}
                 </>
               ) : (
                 <>
                   <ShoppingCart size={20} weight="regular" />
-                  Pay with Base
+                  Buy Ticket
                 </>
               )}
             </button>
@@ -141,13 +174,18 @@ function PurchaseModal({ listing, onClose, onPurchase, isPurchasing }: PurchaseM
 export default function Marketplace() {
   const router = useRouter();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
-  const { tickets, cancelListing } = useTicketStore();
+  const { tickets, cancelListing, clearDuplicates } = useTicketStore();
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseStage, setPurchaseStage] = useState<PurchaseStage>("idle");
+  const [cancellingTicketId, setCancellingTicketId] = useState<string | null>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
-
-  // Get user's listed tickets
-  const userListedTickets = tickets.filter(t => t.status === 'listed');
+  const { address: walletAddress, isConnected } = useAccount();
+  const { connect } = useConnect();
+  const connectors = useConnectors();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const { invalidateTickets } = useInvalidateEvents();
 
   // Infinite query for listings
   const {
@@ -158,6 +196,7 @@ export default function Marketplace() {
     isLoading,
     isError,
     error,
+    refetch,
   } = useInfiniteQuery({
     queryKey: ['listings'],
     queryFn: fetchListings,
@@ -193,8 +232,60 @@ export default function Marketplace() {
     };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated || isConnected || connectors.length === 0) {
+      return;
+    }
+
+    const injected = connectors.find((connector) => connector.type === "injected");
+    if (injected) {
+      connect({ connector: injected });
+    }
+  }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
+
   // Flatten all pages into a single array
-  const allListings = data?.pages.flatMap((page) => page.listings) ?? [];
+  const allListings = useMemo(
+    () => data?.pages.flatMap((page) => page.listings) ?? [],
+    [data]
+  );
+
+  const userListedTickets = useMemo(() => {
+    const lowerWallet = walletAddress?.toLowerCase() ?? null;
+    const listingPriceByToken = new Map<string, string>();
+
+    if (lowerWallet) {
+      allListings.forEach((listing) => {
+        if (listing.seller.toLowerCase() === lowerWallet) {
+          listingPriceByToken.set(listing.tokenId, listing.price);
+        }
+      });
+    }
+
+    return tickets
+      .filter((ticket) => ticket.status === "listed")
+      .map((ticket) => {
+        if (!ticket.tokenId) {
+          return ticket;
+        }
+
+        const priceFromChain = listingPriceByToken.get(ticket.tokenId);
+        if (priceFromChain && priceFromChain !== ticket.listingPrice) {
+          return { ...ticket, listingPrice: priceFromChain };
+        }
+
+        return ticket;
+      });
+  }, [tickets, allListings, walletAddress]);
+
+  const marketplaceListings = useMemo(() => {
+    if (!walletAddress) {
+      return allListings;
+    }
+    const lowerAddress = walletAddress.toLowerCase();
+    return allListings.filter(
+      (listing) => listing.seller.toLowerCase() !== lowerAddress
+    );
+  }, [allListings, walletAddress]);
 
   // Redirect to login if not authenticated (only after hydration)
   useEffect(() => {
@@ -203,78 +294,179 @@ export default function Marketplace() {
     }
   }, [hasHydrated, isAuthenticated, router]);
 
-  const handlePurchase = async (tokenId: string, price: string, seller: string) => {
-    setIsPurchasing(true);
-
-    try {
-      // Initiate Base Pay payment
-      const payment = await pay({
-        amount: price,
-        to: seller as `0x${string}`, // Seller's address
-        testnet: true, // Set to false for mainnet
-        payerInfo: {
-          requests: [
-            { type: 'email' },
-            { type: 'phoneNumber', optional: true }
-          ]
-        }
-      });
-
-      console.log(`Payment initiated! Transaction ID: ${payment.id}`);
-
-      // Log collected user information
-      if (payment.payerInfoResponses) {
-        if (payment.payerInfoResponses.email) {
-          console.log(`Email: ${payment.payerInfoResponses.email}`);
-        }
-        if (payment.payerInfoResponses.phoneNumber) {
-          console.log(`Phone: ${payment.payerInfoResponses.phoneNumber.number}`);
-        }
+  const handlePurchase = useCallback(
+    async (listing: Listing) => {
+      if (!listing) {
+        return;
       }
 
-      // Poll for payment status
-      const checkStatus = async () => {
-        try {
-          const { status } = await getPaymentStatus({
-            id: payment.id,
-            testnet: true // Must match the testnet setting
-          });
+      if (!walletAddress) {
+        toast.error("Wallet required", {
+          description: "Connect your wallet to buy resale tickets.",
+        });
+        return;
+      }
 
-          if (status === 'completed') {
-            toast.success('Purchase Successful!', {
-              description: 'Ticket sent to your email'
-            });
-            setSelectedListing(null);
+      if (!walletClient) {
+        toast.error("Wallet unavailable", {
+          description: "Reconnect your wallet and try again.",
+        });
+        return;
+      }
 
-            // TODO: Send ticket to user's email
-            // TODO: Add ticket to user's account via backend API
-          } else if (status === 'pending') {
-            // Keep polling
-            setTimeout(checkStatus, 2000);
-          } else {
-            toast.error('Payment failed', {
-              description: 'Payment was cancelled or failed to complete'
-            });
-          }
-        } catch (error) {
-          toast.error('Payment status error', {
-            description: error instanceof Error ? error.message : 'Failed to check payment status'
-          });
-        } finally {
-          setIsPurchasing(false);
+      if (!publicClient) {
+        toast.error("Network unavailable", {
+          description: "Unable to reach the blockchain client right now.",
+        });
+        return;
+      }
+
+      if (listing.seller.toLowerCase() === walletAddress.toLowerCase()) {
+        toast.error("Cannot buy your own ticket", {
+          description: "Please select a ticket listed by another user.",
+        });
+        return;
+      }
+
+      try {
+        setIsPurchasing(true);
+        setPurchaseStage("simulating");
+
+        const tokenId = BigInt(listing.tokenId);
+        const value = BigInt(listing.priceWei);
+
+        const { request } = await publicClient.simulateContract({
+          account: walletAddress as `0x${string}`,
+          address: EVENT_BOOK_ADDRESS,
+          abi: EVENT_BOOK_ABI,
+          functionName: "buyResaleTicket",
+          args: [tokenId],
+          value,
+        });
+
+        setPurchaseStage("submitting");
+
+        const hash = await walletClient.writeContract(request);
+
+        setPurchaseStage("confirming");
+
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+        if (receipt.status !== "success") {
+          throw new Error("Transaction failed or reverted.");
         }
-      };
 
-      // Start polling
-      setTimeout(checkStatus, 2000);
+        toast.success("Ticket purchased", {
+          description: "The ticket is now held by your wallet.",
+        });
 
-    } catch (error) {
-      toast.error('Payment failed', {
-        description: error instanceof Error ? error.message : 'An error occurred during payment'
-      });
-      setIsPurchasing(false);
-    }
-  };
+        setSelectedListing(null);
+
+        const refreshTasks: Array<Promise<unknown>> = [];
+
+        if (walletAddress) {
+          refreshTasks.push(invalidateTickets(walletAddress));
+        }
+
+        refreshTasks.push(refetch({ throwOnError: false }));
+
+        await Promise.allSettled(refreshTasks);
+        clearDuplicates();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "An unexpected error occurred.";
+        toast.error("Purchase failed", {
+          description: message,
+        });
+      } finally {
+        setIsPurchasing(false);
+        setPurchaseStage("idle");
+      }
+    },
+    [walletAddress, walletClient, publicClient, invalidateTickets, refetch, clearDuplicates, setSelectedListing]
+  );
+
+  const handleCancelListing = useCallback(
+    async (ticket: { id: string; tokenId?: string }) => {
+      if (!ticket.tokenId) {
+        toast.error("Missing token information", {
+          description: "Unable to locate the on-chain token id for this ticket.",
+        });
+        return;
+      }
+
+      if (!walletAddress) {
+        toast.error("Wallet required", {
+          description: "Connect your wallet to manage listings.",
+        });
+        return;
+      }
+
+      if (!walletClient) {
+        toast.error("Wallet unavailable", {
+          description: "Reconnect your wallet and try again.",
+        });
+        return;
+      }
+
+      if (!publicClient) {
+        toast.error("Network unavailable", {
+          description: "Unable to reach the blockchain client right now.",
+        });
+        return;
+      }
+
+      try {
+        setCancellingTicketId(ticket.id);
+
+        const tokenId = BigInt(ticket.tokenId);
+
+        const { request } = await publicClient.simulateContract({
+          account: walletAddress as `0x${string}`,
+          address: EVENT_BOOK_ADDRESS,
+          abi: EVENT_BOOK_ABI,
+          functionName: "cancelListing",
+          args: [tokenId],
+        });
+
+        const hash = await walletClient.writeContract(request);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+        if (receipt.status !== "success") {
+          throw new Error("Transaction failed or reverted.");
+        }
+
+        toast.success("Listing cancelled", {
+          description: "Your ticket is available to manage again.",
+        });
+
+        cancelListing(ticket.id);
+
+        await Promise.allSettled([
+          invalidateTickets(walletAddress),
+          refetch({ throwOnError: false }),
+        ]);
+        clearDuplicates();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "An unexpected error occurred.";
+        toast.error("Unable to cancel listing", {
+          description: message,
+        });
+      } finally {
+        setCancellingTicketId(null);
+      }
+    },
+    [
+      walletAddress,
+      walletClient,
+      publicClient,
+      cancelListing,
+      invalidateTickets,
+      refetch,
+      clearDuplicates,
+    ]
+  );
 
   // Show loading while hydrating
   if (!hasHydrated) {
@@ -337,11 +529,19 @@ export default function Marketplace() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation(); // Prevent card click from firing
-                    cancelListing(ticket.id);
+                    void handleCancelListing(ticket);
                   }}
-                  className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold py-2 rounded-xl transition-colors"
+                  disabled={cancellingTicketId === ticket.id}
+                  className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold py-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Cancel Listing
+                  {cancellingTicketId === ticket.id ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border border-red-200/40 border-t-transparent rounded-full animate-spin" />
+                      <span>Canceling...</span>
+                    </>
+                  ) : (
+                    "Cancel Listing"
+                  )}
                 </button>
               </button>
             ))}
@@ -363,14 +563,16 @@ export default function Marketplace() {
           </div>
         )}
 
-        {!isLoading && !isError && allListings.length === 0 && (
+        {!isLoading && !isError && marketplaceListings.length === 0 && data?.pages.length && (
           <div className="text-center py-12">
-            <p className="text-white/60">No listings available at the moment</p>
+            <p className="text-white/60">
+              No listings from other users yet. Your active listings stay visible above.
+            </p>
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
-          {allListings.map((listing) => (
+          {marketplaceListings.map((listing) => (
             <button
               key={listing.tokenId}
               type="button"
@@ -380,7 +582,9 @@ export default function Marketplace() {
               {/* Price Badge */}
               <div className="flex justify-between items-start mb-4">
                 <div className="bg-green-500/20 backdrop-blur-sm px-3 py-1 rounded-full">
-                  <p className="text-green-400 text-sm font-bold">{listing.price} ETH</p>
+                  <p className="text-green-400 text-sm font-bold">
+                    {formatPrice(listing.price)} ETH
+                  </p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
                   <p className="text-white/70 text-xs">Resale</p>
@@ -427,6 +631,7 @@ export default function Marketplace() {
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent card click from firing
+                  setPurchaseStage("idle");
                   setSelectedListing(listing);
                 }}
                 className="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
@@ -452,12 +657,16 @@ export default function Marketplace() {
       {selectedListing && (
         <PurchaseModal
           listing={selectedListing}
-          onClose={() => !isPurchasing && setSelectedListing(null)}
+          onClose={() => {
+            if (isPurchasing) return;
+            setPurchaseStage("idle");
+            setSelectedListing(null);
+          }}
           onPurchase={handlePurchase}
           isPurchasing={isPurchasing}
+          stage={purchaseStage}
         />
       )}
     </div>
   );
 }
-

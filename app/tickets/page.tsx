@@ -2,7 +2,7 @@
 
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarBlank, MapPin, Clock, Ticket as TicketIcon, Tag, ShareNetwork } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore, type Ticket } from "@/lib/store/ticketStore";
@@ -10,11 +10,22 @@ import { QRCodeSVG } from "qrcode.react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
-import { useTickets } from "@/lib/hooks/useEvents";
-import { useAccount } from 'wagmi';
+import { useInvalidateEvents, useTickets } from "@/lib/hooks/useEvents";
+import {
+  useAccount,
+  useConnect,
+  useConnectors,
+  usePublicClient,
+  useWalletClient,
+} from "wagmi";
+import { parseEther } from "viem";
+import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
+import { TICKET_ABI, TICKET_CONTRACT_ADDRESS } from "@/lib/contracts/ticket";
 import { sdk } from "@farcaster/miniapp-sdk";
 
 
+
+type ListingStage = "idle" | "approving" | "listing" | "confirming";
 
 export default function MyTickets() {
   const router = useRouter();
@@ -24,12 +35,22 @@ export default function MyTickets() {
   const [qrSize, setQrSize] = useState(200);
   const [listingTicket, setListingTicket] = useState<Ticket | null>(null);
   const [listingPrice, setListingPrice] = useState("");
+  const [isListing, setIsListing] = useState(false);
+  const [listingStage, setListingStage] = useState<ListingStage>("idle");
   const [sharingTicketId, setSharingTicketId] = useState<string | null>(null);
+  const [cancellingTicketId, setCancellingTicketId] = useState<string | null>(null);
+  const trimmedListingPrice = listingPrice.trim();
   const { address: walletAddress, isConnected} = useAccount();
+  const { connect } = useConnect();
+  const connectors = useConnectors();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const { invalidateTickets } = useInvalidateEvents();
 
   const activeAddress = isAuthenticated && hasHydrated ? walletAddress ?? null : null;
   const ticketsQuery = useTickets(activeAddress);
   const isLoadingTickets = ticketsQuery.isPending || ticketsQuery.isFetching;
+  const refetchTickets = ticketsQuery.refetch;
 
   // Clear duplicates on mount
   useEffect(() => {
@@ -72,6 +93,17 @@ export default function MyTickets() {
       router.push('/');
     }
   }, [hasHydrated, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated || isConnected || connectors.length === 0) {
+      return;
+    }
+
+    const injected = connectors.find((connector) => connector.type === "injected");
+    if (injected) {
+      connect({ connector: injected });
+    }
+  }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 
   const handleFlip = (ticketId: string) => {
     // Find the ticket
@@ -117,21 +149,231 @@ export default function MyTickets() {
       });
       return;
     }
+    if (!ticket.tokenId) {
+      toast.error('Missing token information', {
+        description: 'Unable to locate the on-chain token id for this ticket.',
+      });
+      return;
+    }
     setListingTicket(ticket);
     setListingPrice("");
+    setListingStage("idle");
   };
 
-  const confirmListing = () => {
-    if (listingTicket && listingPrice && Number.parseFloat(listingPrice) > 0) {
-      listTicket(listingTicket.id, listingPrice);
+  const confirmListing = useCallback(async () => {
+    if (!listingTicket) {
+      return;
+    }
+
+    const trimmedPrice = trimmedListingPrice;
+    if (!trimmedPrice) {
+      toast.error("Enter a price", {
+        description: "Please provide an amount in ETH to list this ticket.",
+      });
+      return;
+    }
+
+    let priceWei: bigint;
+    try {
+      priceWei = parseEther(trimmedPrice);
+    } catch (error) {
+      toast.error("Invalid price", {
+        description: "Enter a valid ETH amount, e.g. 0.05",
+      });
+      return;
+    }
+
+    if (priceWei <= 0n) {
+      toast.error("Price must be positive", {
+        description: "Listing price must be greater than 0 ETH.",
+      });
+      return;
+    }
+
+    if (!listingTicket.tokenId) {
+      toast.error("Missing token information", {
+        description: "Unable to locate the on-chain token id for this ticket.",
+      });
+      return;
+    }
+
+    if (!walletAddress) {
+      toast.error("Wallet required", {
+        description: "Connect your wallet to list tickets for sale.",
+      });
+      return;
+    }
+
+    if (!walletClient) {
+      toast.error("Wallet unavailable", {
+        description: "Reconnect your wallet and try again.",
+      });
+      return;
+    }
+
+    if (!publicClient) {
+      toast.error("Network unavailable", {
+        description: "Unable to reach the blockchain client right now.",
+      });
+      return;
+    }
+
+    const tokenId = BigInt(listingTicket.tokenId);
+
+    try {
+      setIsListing(true);
+      setListingStage("approving");
+
+      const approvedFor = (await publicClient.readContract({
+        address: TICKET_CONTRACT_ADDRESS,
+        abi: TICKET_ABI,
+        functionName: "getApproved",
+        args: [tokenId],
+      })) as `0x${string}`;
+
+      if (approvedFor.toLowerCase() !== EVENT_BOOK_ADDRESS.toLowerCase()) {
+        const approveHash = await walletClient.writeContract({
+          account: walletAddress as `0x${string}`,
+          address: TICKET_CONTRACT_ADDRESS,
+          abi: TICKET_ABI,
+          functionName: "approve",
+          args: [EVENT_BOOK_ADDRESS, tokenId],
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      }
+
+      setListingStage("listing");
+
+      const { request } = await publicClient.simulateContract({
+        account: walletAddress as `0x${string}`,
+        address: EVENT_BOOK_ADDRESS,
+        abi: EVENT_BOOK_ABI,
+        functionName: "listTicketForSale",
+        args: [tokenId, priceWei],
+      });
+
+      setListingStage("confirming");
+
+      const hash = await walletClient.writeContract(request);
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      if (receipt.status !== "success") {
+        throw new Error("Transaction failed or reverted.");
+      }
+
+      toast.success("Ticket listed", {
+        description: `Listing created at ${trimmedPrice} ETH.`,
+      });
+
+      listTicket(listingTicket.id, trimmedPrice);
       setListingTicket(null);
       setListingPrice("");
-    }
-  };
+      setListingStage("idle");
 
-  const handleCancelListing = (ticketId: string) => {
-    cancelListing(ticketId);
-  };
+      await Promise.allSettled([
+        invalidateTickets(walletAddress),
+        refetchTickets({ throwOnError: false }),
+      ]);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "An unexpected error occurred.";
+      toast.error("Listing failed", {
+        description: message,
+      });
+    } finally {
+      setIsListing(false);
+      setListingStage("idle");
+    }
+  }, [
+    invalidateTickets,
+    listTicket,
+    trimmedListingPrice,
+    listingTicket,
+    publicClient,
+    refetchTickets,
+    walletAddress,
+    walletClient,
+  ]);
+
+  const handleCancelListing = useCallback(
+    async (ticket: Ticket) => {
+      if (!ticket.tokenId) {
+        toast.error("Missing token information", {
+          description: "Unable to locate the on-chain token id for this ticket.",
+        });
+        return;
+      }
+
+      if (!walletAddress) {
+        toast.error("Wallet required", {
+          description: "Connect your wallet to manage listings.",
+        });
+        return;
+      }
+
+      if (!walletClient) {
+        toast.error("Wallet unavailable", {
+          description: "Reconnect your wallet and try again.",
+        });
+        return;
+      }
+
+      if (!publicClient) {
+        toast.error("Network unavailable", {
+          description: "Unable to reach the blockchain client right now.",
+        });
+        return;
+      }
+
+      try {
+        setCancellingTicketId(ticket.id);
+
+        const tokenId = BigInt(ticket.tokenId);
+
+        const { request } = await publicClient.simulateContract({
+          account: walletAddress as `0x${string}`,
+          address: EVENT_BOOK_ADDRESS,
+          abi: EVENT_BOOK_ABI,
+          functionName: "cancelListing",
+          args: [tokenId],
+        });
+
+        const hash = await walletClient.writeContract(request);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+        if (receipt.status !== "success") {
+          throw new Error("Transaction failed or reverted.");
+        }
+
+        toast.success("Listing cancelled", {
+          description: "This ticket is now available in your wallet again.",
+        });
+
+        cancelListing(ticket.id);
+
+        await Promise.allSettled([
+          invalidateTickets(walletAddress),
+          refetchTickets({ throwOnError: false }),
+        ]);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "An unexpected error occurred.";
+        toast.error("Unable to cancel listing", {
+          description: message,
+        });
+      } finally {
+        setCancellingTicketId(null);
+      }
+    },
+    [
+      cancelListing,
+      invalidateTickets,
+      publicClient,
+      refetchTickets,
+      walletAddress,
+      walletClient,
+    ]
+  );
 
   const handleShareTicket = async (ticket: Ticket) => {
     if (ticket.eventId == undefined) {
@@ -198,18 +440,18 @@ export default function MyTickets() {
   };
 
   // Sort tickets: owned first, then listed, date-valid before expired
-  const sortedTickets = [...tickets].sort((a, b) => {
-    // First sort by status (owned before listed before sold)
-    if (a.status !== b.status) {
-      const statusOrder = { owned: 0, listed: 1, sold: 2 };
-      return statusOrder[a.status] - statusOrder[b.status];
-    }
-    // Then by validity (date-based)
-    const aExpired = hasEventPassed(a.date);
-    const bExpired = hasEventPassed(b.date);
-    if (aExpired === bExpired) return 0;
-    return aExpired ? 1 : -1; // Non-expired tickets first
-  });
+  const sortedTickets = useMemo(() => {
+    return [...tickets].sort((a, b) => {
+      if (a.status !== b.status) {
+        const statusOrder = { owned: 0, listed: 1, sold: 2 } as const;
+        return statusOrder[a.status] - statusOrder[b.status];
+      }
+      const aExpired = hasEventPassed(a.date);
+      const bExpired = hasEventPassed(b.date);
+      if (aExpired === bExpired) return 0;
+      return aExpired ? 1 : -1;
+    });
+  }, [tickets]);
 
   // Show loading while hydrating
   if (!hasHydrated) {
@@ -397,17 +639,25 @@ export default function MyTickets() {
                             <>
                               <div className="flex items-center justify-between mb-2">
                                 <p className="text-white/50 text-xs">Listed for:</p>
-                                <p className="text-green-400 font-bold">${ticket.listingPrice}</p>
+                                <p className="text-green-400 font-bold">Ξ {ticket.listingPrice}</p>
                               </div>
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleCancelListing(ticket.id);
+                                  void handleCancelListing(ticket);
                                 }}
-                                className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs py-2 rounded-lg transition-colors"
+                                disabled={cancellingTicketId === ticket.id}
+                                className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                               >
-                                Cancel Listing
+                                {cancellingTicketId === ticket.id ? (
+                                  <>
+                                    <span className="w-3.5 h-3.5 border border-red-200/40 border-t-transparent rounded-full animate-spin" />
+                                    <span>Canceling...</span>
+                                  </>
+                                ) : (
+                                  "Cancel Listing"
+                                )}
                               </button>
                             </>
                           ) : canListTicket(ticket) ? (
@@ -417,7 +667,8 @@ export default function MyTickets() {
                                 e.stopPropagation();
                                 handleListForSale(ticket);
                               }}
-                              className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
+                              disabled={isListing}
+                              className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Tag size={14} weight="regular" />
                               List for Sale
@@ -489,8 +740,12 @@ export default function MyTickets() {
             {/* Close button */}
             <button
               type="button"
-              onClick={() => setListingTicket(null)}
-              className="absolute top-4 right-4 text-white/40 hover:text-white/80 transition-colors"
+              onClick={() => {
+                if (isListing) return;
+                setListingTicket(null);
+              }}
+              disabled={isListing}
+              className="absolute top-4 right-4 text-white/40 hover:text-white/80 transition-colors disabled:opacity-40"
             >
               ✕
             </button>
@@ -508,21 +763,21 @@ export default function MyTickets() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="listing-price-input" className="text-white/70 text-sm">Set your price (USD)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 text-lg">$</span>
-                  <input
-                    id="listing-price-input"
-                    type="number"
-                    value={listingPrice}
-                    onChange={(e) => setListingPrice(e.target.value)}
-                    placeholder="0.0000001"
-                    step="0.0000001"
-                    min="0"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 pl-8 py-3 text-white text-lg focus:outline-none focus:border-green-500/50 transition-colors"
-                  />
-                </div>
-                <p className="text-white/40 text-xs">Buyers will pay with USDC on Base</p>
+                <label htmlFor="listing-price-input" className="text-white/70 text-sm">Set your price (ETH)</label>
+                <input
+                  id="listing-price-input"
+                  type="number"
+                  value={listingPrice}
+                  onChange={(e) => setListingPrice(e.target.value)}
+                  placeholder="0.05"
+                  step="0.0001"
+                  min="0"
+                  disabled={isListing}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-lg focus:outline-none focus:border-green-500/50 transition-colors disabled:opacity-50"
+                />
+                <p className="text-white/40 text-xs">
+                  Settlement happens fully on-chain in ETH. Choose any sale price you&apos;d like.
+                </p>
               </div>
 
               <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3">
@@ -534,18 +789,32 @@ export default function MyTickets() {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setListingTicket(null)}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors"
+                  onClick={() => {
+                    if (isListing) return;
+                    setListingTicket(null);
+                  }}
+                  disabled={isListing}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={confirmListing}
-                  disabled={!listingPrice || Number.parseFloat(listingPrice) <= 0}
+                  disabled={isListing || !trimmedListingPrice}
                   className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  List Ticket
+                  {isListing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      {listingStage === "approving" && "Awaiting approval..."}
+                      {listingStage === "listing" && "Preparing transaction..."}
+                      {listingStage === "confirming" && "Waiting for confirmation..."}
+                      {listingStage === "idle" && "Processing..."}
+                    </span>
+                  ) : (
+                    "List Ticket"
+                  )}
                 </button>
               </div>
             </div>

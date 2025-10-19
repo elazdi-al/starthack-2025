@@ -28,6 +28,16 @@ export const EVENT_BOOK_ABI = [
   },
   {
     "type": "function",
+    "name": "listTicketForSale",
+    "inputs": [
+      { "name": "tokenId", "type": "uint256" },
+      { "name": "price", "type": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "withdraw",
     "inputs": [
       { "name": "eventId", "type": "uint256" }

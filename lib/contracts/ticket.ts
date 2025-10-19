@@ -4,6 +4,27 @@ export const TICKET_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_TICKET_CONTRACT_A
 
 export const TICKET_ABI = [
   {
+    "type": "function",
+    "name": "approve",
+    "inputs": [
+      { "name": "to", "type": "address" },
+      { "name": "tokenId", "type": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getApproved",
+    "inputs": [
+      { "name": "tokenId", "type": "uint256" }
+    ],
+    "outputs": [
+      { "name": "", "type": "address" }
+    ],
+    "stateMutability": "view"
+  },
+  {
     "type": "constructor",
     "inputs": [],
     "stateMutability": "nonpayable"
@@ -87,4 +108,3 @@ export const TICKET_ABI = [
     "stateMutability": "nonpayable"
   }
 ] as const;
-

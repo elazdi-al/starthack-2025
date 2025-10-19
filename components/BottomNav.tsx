@@ -79,7 +79,7 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
             title="My Tickets"
           >
             <Ticket size={24} weight={isActive('/tickets') ? 'fill' : 'regular'} />
-            <span className="text-[11px] font-semibold whitespace-nowrap">Tickets</span>
+            <span className="text-[11px] font-semibold whitespace-nowrap">My Tickets</span>
           </button>
 
           {/* My Events */}

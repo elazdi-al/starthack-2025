@@ -1,8 +1,9 @@
-import {type NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { publicClient } from '@/lib/contracts/client';
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from '@/lib/contracts/eventBook';
 import { TICKET_CONTRACT_ADDRESS, TICKET_ABI } from '@/lib/contracts/ticket';
 import { getTicketMetadata } from '@/lib/ticketMetadata';
+import { formatUnits } from 'viem';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,6 +132,29 @@ export async function GET(request: NextRequest) {
           const eventDate = Number(date);
           const now = Math.floor(Date.now() / 1000);
 
+          let status: 'owned' | 'listed' | 'sold' = 'owned';
+          let listingPrice: string | undefined;
+
+          try {
+            const listingData = await publicClient.readContract({
+              address: EVENT_BOOK_ADDRESS,
+              abi: EVENT_BOOK_ABI,
+              functionName: 'getListing',
+              args: [tokenId],
+            }) as [string, bigint, boolean];
+
+            const [seller, price, active] = listingData;
+            if (
+              active &&
+              seller.toLowerCase() === normalizedAddress.toLowerCase()
+            ) {
+              status = 'listed';
+              listingPrice = formatUnits(price, 18);
+            }
+          } catch (listingError) {
+            console.warn(`Failed to fetch listing details for token ${tokenId}:`, listingError);
+          }
+
           return {
             id: `TKT-${tokenId}`,
             tokenId: tokenId.toString(),
@@ -150,7 +174,8 @@ export async function GET(request: NextRequest) {
               : new Date().toISOString().split('T')[0],
             qrData: metadata?.qrData || `${tokenId}-${eventId}-${name}`,
             isValid: eventDate > now,
-            status: 'owned' as const,
+            status,
+            listingPrice,
           };
         } catch (err) {
           console.error(`Error processing token ${tokenId}:`, err);

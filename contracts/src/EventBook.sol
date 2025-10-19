@@ -227,9 +227,6 @@ contract EventBook {
         Event storage ev = events[eventId];
         require(block.timestamp < ev.date, "Event already passed");
 
-        // Optional: Set max resale price (e.g., 2x original price to prevent scalping)
-        require(price <= ev.price * 2, "Price too high (max 2x original)");
-
         address approved = IERC721(address(ticketContract)).getApproved(tokenId);
         require(approved == address(this), "You must approve this contract to sell");
 
@@ -551,4 +548,3 @@ contract EventBook {
         }
     }
 }
-
