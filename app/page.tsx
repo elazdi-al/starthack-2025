@@ -44,10 +44,8 @@ export default function Home() {
     <div className="relative min-h-screen flex flex-col items-center justify-between p-6 bg-transparent overflow-hidden">
       <BackgroundGradient />
       {/* Title at the top */}
-      <div className="flex-1 flex items-start justify-center pt-20 relative z-10">
-        <h1 className="text-8xl tracking-tighter font-bold text-center text-white/30">
-          Stars
-        </h1>
+      <div className="flex-1 flex items-start justify-center pt-8 relative z-10">
+        <img src="/icon.svg" alt="Stars" className="w-auto h-48" />
       </div>
 
       {/* Sign in buttons at the bottom */}

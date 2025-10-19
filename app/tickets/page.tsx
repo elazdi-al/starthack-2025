@@ -1,16 +1,20 @@
 "use client";
 
 import { BackgroundGradient } from "@/components/BackgroundGradient";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarBlank, MapPin, Clock, Ticket as TicketIcon, Tag, ShareNetwork } from "phosphor-react";
-import { useAuthCheck } from "@/lib/store/authStore";
-import { useTicketStore, type Ticket } from "@/lib/store/ticketStore";
-import { QRCodeSVG } from "qrcode.react";
-import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
-import { toast } from "sonner";
+import { TopBar } from "@/components/TopBar";
+import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
+import { TICKET_ABI, TICKET_CONTRACT_ADDRESS } from "@/lib/contracts/ticket";
 import { useInvalidateEvents, useTickets } from "@/lib/hooks/useEvents";
+import { useAuthCheck } from "@/lib/store/authStore";
+import { type Ticket, useTicketStore } from "@/lib/store/ticketStore";
+import { sdk } from "@farcaster/miniapp-sdk";
+import { useRouter } from "next/navigation";
+import { CalendarBlank, Clock, MapPin, ShareNetwork, Tag, Ticket as TicketIcon } from "phosphor-react";
+import { QRCodeSVG } from "qrcode.react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { parseEther } from "viem";
 import {
   useAccount,
   useConnect,
@@ -18,10 +22,6 @@ import {
   usePublicClient,
   useWalletClient,
 } from "wagmi";
-import { parseEther } from "viem";
-import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
-import { TICKET_ABI, TICKET_CONTRACT_ADDRESS } from "@/lib/contracts/ticket";
-import { sdk } from "@farcaster/miniapp-sdk";
 
 
 

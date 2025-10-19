@@ -18,7 +18,7 @@ function getUrlHost(request: NextRequest): string {
 
   // Fallback to Host header
   const host = request.headers.get("host");
-  if (host) {
+  if (host) { 
     return host;
   }
 

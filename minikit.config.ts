@@ -20,7 +20,7 @@ export const minikitConfig = {
     subtitle: "Your AI Ad Companion",
     description: "Ads",
     screenshotUrls: [`${ROOT_URL}/screenshot-portrait.png`],
-    iconUrl: `${ROOT_URL}/blue-icon.png`,
+    iconUrl: `${ROOT_URL}/app-icon.svg`,
     splashImageUrl: `${ROOT_URL}/blue-hero.png`,
     splashBackgroundColor: "#000000",
     homeUrl: ROOT_URL,
