@@ -69,12 +69,7 @@ export function TopBar({ showBackButton = false, backPath = "/home", backTitle =
                 {title}
               </h1>
             </div>
-            {/* Connected FID */}
-            {isAuthenticated && fid && (
-              <p className="text-xs md:text-sm text-white/50">
-                FID: {fid}
-              </p>
-            )}
+          
           </div>
         </div>
       )}

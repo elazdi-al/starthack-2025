@@ -32,6 +32,25 @@ function ScannerPageContent() {
   // Get eventId from URL params if present
   const eventId = searchParams.get('eventId');
 
+  // Disable scrolling on mount
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalHeight = document.body.style.height;
+
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.height = '100%';
+    document.body.style.width = '100%';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.position = originalPosition;
+      document.body.style.height = originalHeight;
+      document.body.style.width = '';
+    };
+  }, []);
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) {
@@ -260,14 +279,14 @@ function ScannerPageContent() {
   }
 
   return (
-    <div className="relative h-screen flex flex-col bg-black overflow-hidden">
+    <div className="fixed inset-0 flex flex-col bg-black overflow-hidden touch-none">
       <BackgroundGradient />
 
       <TopBar title="Scan QR Code" showTitle={true} showBackButton={true} backPath="/tickets" />
 
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center overflow-hidden touch-none">
         {error ? (
-          <div className="w-full h-full flex items-center justify-center px-6">
+          <div className="absolute inset-0 flex items-center justify-center px-6 overflow-hidden">
             <div className="max-w-md w-full text-center space-y-4">
               <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6">
                 <XCircle size={48} weight="regular" className="text-red-400 mx-auto mb-4" />
@@ -284,8 +303,8 @@ function ScannerPageContent() {
             </div>
           </div>
         ) : scannedData ? (
-          <div className="w-full h-full flex items-center justify-center px-6">
-            <div className="max-w-md w-full space-y-4">
+          <div className="absolute inset-0 flex items-center justify-center px-6 overflow-y-auto overscroll-none">
+            <div className="max-w-md w-full space-y-4 py-6">
               {verificationMutation.isPending ? (
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
                   <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
@@ -407,25 +426,25 @@ function ScannerPageContent() {
             </div>
           </div>
         ) : (
-          <div className="w-full h-full flex flex-col">
+          <div className="absolute inset-0 flex flex-col overflow-hidden touch-none">
             {/* Camera viewfinder - full screen */}
-            <div className="relative flex-1 bg-black">
+            <div className="relative flex-1 bg-black overflow-hidden touch-none">
               <video
                 ref={videoRef}
-                className="w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover touch-none"
                 playsInline
                 muted
               />
-              
+
               {/* Scanning overlay */}
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="relative w-72 h-72">
                   {/* Corner borders */}
                   <div className="absolute top-0 left-0 w-16 h-16 border-t-4 border-l-4 border-white rounded-tl-2xl" />
                   <div className="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4 border-white rounded-tr-2xl" />
                   <div className="absolute bottom-0 left-0 w-16 h-16 border-b-4 border-l-4 border-white rounded-bl-2xl" />
                   <div className="absolute bottom-0 right-0 w-16 h-16 border-b-4 border-r-4 border-white rounded-br-2xl" />
-                  
+
                   {/* Scanning line animation */}
                   <div className="absolute inset-0 overflow-hidden">
                     <div className="absolute w-full h-1 bg-gradient-to-r from-transparent via-white to-transparent animate-scan" />
