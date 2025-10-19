@@ -13,7 +13,8 @@ export const EVENT_BOOK_ABI = [
       { name: "location", type: "string" },
       { name: "date", type: "uint256" },
       { name: "price", type: "uint256" },
-      { name: "maxCapacity", type: "uint256" }
+      { name: "maxCapacity", type: "uint256" },
+      { name: "imageURI", type: "string" }
     ],
     outputs: [],
     stateMutability: "nonpayable"

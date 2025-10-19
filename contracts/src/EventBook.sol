@@ -89,6 +89,7 @@ contract EventBook {
         uint256 date,
         uint256 price,
         uint256 maxCapacity,
+        string memory imageURI,
         bool isPrivate
     ) public {
         require(date > block.timestamp, "Date must be in the future");
@@ -102,7 +103,7 @@ contract EventBook {
             creator: msg.sender,
             ticketsSold: 0,
             maxCapacity: maxCapacity,
-            imageURI: "",
+            imageURI: imageURI,
             isPrivate: isPrivate,
             whitelistIsLocked: !isPrivate // unlock if it is private
         }));
@@ -113,9 +114,20 @@ contract EventBook {
         string memory location,
         uint256 date,
         uint256 price,
+        uint256 maxCapacity,
+        string memory imageURI
+    ) public {
+        createEvent(name, location, date, price, maxCapacity, imageURI, false);
+    }
+
+    function createEvent(
+        string memory name,
+        string memory location,
+        uint256 date,
+        uint256 price,
         uint256 maxCapacity
     ) public {
-        createEvent(name, location, date, price, maxCapacity, false);
+        createEvent(name, location, date, price, maxCapacity, "", false);
     }
 
     function createEvent(
@@ -124,7 +136,7 @@ contract EventBook {
         uint256 date,
         uint256 price
     ) public {
-        createEvent(name, location, date, price, 0);
+        createEvent(name, location, date, price, 0, "");
     }
 
     function addToWhitelist(uint256 eventId, address user)

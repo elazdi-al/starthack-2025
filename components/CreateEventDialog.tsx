@@ -41,7 +41,6 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imageUploadData, setImageUploadData] = useState<{ cid: string; url: string } | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [pendingEventImage, setPendingEventImage] = useState<{ cid: string; url: string } | null>(null);
   const MAX_DESCRIPTION_LENGTH = 250;
 
   const resetFormState = useCallback(() => {
@@ -51,7 +50,6 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     setImageFile(null);
     setImagePreviewUrl(null);
     setImageUploadData(null);
-    setPendingEventImage(null);
   }, []);
 
   // Use Base auth store for authentication check
@@ -64,7 +62,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     hash,
   });
   const { switchChainAsync } = useSwitchChain();
-  const publicClient = usePublicClient();
+  const _publicClient = usePublicClient();
   const chainId = useChainId();
   const { invalidateAll } = useInvalidateEvents();
   useEffect(() => {
@@ -188,7 +186,6 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     }
 
     try {
-      setPendingEventImage(null);
       // Validate required fields
       if (!formData.name || !formData.location || !date || !formData.time || !formData.price) {
         toast.error("Please fill in all required fields");
@@ -226,9 +223,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         imageUrl: uploadedImage.url,
       });
 
-      setPendingEventImage(uploadedImage);
-
-      // Call smart contract
+      // Call smart contract with imageURL stored on-chain
       writeContract({
         address: EVENT_BOOK_ADDRESS,
         abi: EVENT_BOOK_ABI,
@@ -239,6 +234,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           BigInt(dateTimestamp),
           priceInWei,
           maxCapacity,
+          uploadedImage.url, // Store the image URL on-chain
         ],
       });
 
@@ -247,7 +243,6 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       });
     } catch (error) {
       console.error("Error creating event:", error);
-      setPendingEventImage(null);
       toast.error("Failed to create event", {
         description: error instanceof Error ? error.message : "An unexpected error occurred",
       });
@@ -292,77 +287,11 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     }
 
     toast.success("Event created successfully!", {
-      description: "Your event is now live on the blockchain.",
+      description: "Your event is now live on the blockchain with the image stored on-chain.",
     });
 
     const finalizeCreation = async () => {
-      let resolvedEventId: number | null = null;
-
-      if (pendingEventImage && publicClient) {
-        try {
-          const totalEvents = await publicClient.readContract({
-            address: EVENT_BOOK_ADDRESS,
-            abi: EVENT_BOOK_ABI,
-            functionName: "getNumberOfEvents",
-          }) as bigint;
-
-          const numericTotal = Number(totalEvents);
-          if (!Number.isNaN(numericTotal) && numericTotal > 0) {
-            resolvedEventId = numericTotal - 1;
-          }
-        } catch (error) {
-          console.error("Failed to resolve new event ID via public client:", error);
-        }
-      }
-
-      if (pendingEventImage && (resolvedEventId === null || resolvedEventId < 0)) {
-        try {
-          const response = await fetch("/api/events");
-          const data = await response.json().catch(() => null);
-          if (response.ok && Array.isArray(data?.events) && data.events.length > 0) {
-            const lastEvent = data.events[data.events.length - 1];
-            if (typeof lastEvent?.id === "number") {
-              resolvedEventId = lastEvent.id;
-            }
-          }
-        } catch (error) {
-          console.error("Fallback fetch failed while resolving event ID:", error);
-        }
-      }
-
-      if (pendingEventImage && resolvedEventId !== null && resolvedEventId >= 0) {
-        try {
-          const response = await fetch("/api/events/metadata", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              eventId: resolvedEventId,
-              imageCid: pendingEventImage.cid,
-              imageUrl: pendingEventImage.url,
-            }),
-          } as never);
-
-          if (!response.ok) {
-            const data = await response.json().catch(() => null);
-            console.error("Failed to persist event image metadata:", data);
-            toast.warning("Event image not saved", {
-              description: "The cover image could not be stored. You can retry later from the dashboard.",
-            });
-          }
-        } catch (error) {
-          console.error("Error saving event image metadata:", error);
-          toast.warning("Event image not saved", {
-            description: "The cover image could not be stored. You can retry later from the dashboard.",
-          });
-        }
-      } else if (pendingEventImage) {
-        toast.warning("Event image not saved", {
-          description: "Could not determine the new event ID to attach the image.",
-        });
-      }
-
+      // Invalidate events cache to fetch the new event with on-chain image
       invalidateAll();
 
       resetFormState();
@@ -374,7 +303,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     };
 
     void finalizeCreation();
-  }, [hash, isConfirmed, invalidateAll, onEventCreated, pendingEventImage, publicClient, resetFormState]);
+  }, [hash, isConfirmed, invalidateAll, onEventCreated, resetFormState]);
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
