@@ -495,14 +495,7 @@ export default function MyTickets() {
       {/* Bottom Navigation Bar - Mobile only */}
       <BottomNav />
 
-      {/* Subtitle */}
-      <div className="relative z-10 px-6 pb-4 md:pb-6">
-        <p className="text-xs md:text-sm text-white/50">
-          {tickets.length} {tickets.length === 1 ? 'ticket' : 'tickets'} • {walletAddress}
-        </p>
-        
-      </div>
-
+    
       {/* Tickets grid */}
       <div className="relative z-10 flex-1 px-6">
         {isLoadingTickets ? (

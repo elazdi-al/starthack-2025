@@ -20,11 +20,11 @@
   body {
     max-width: 100vw;
     overflow-x: hidden;
-    overscroll-behavior: none;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: auto;
     -webkit-overflow-scrolling: touch;
-    position: fixed;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
   }
 
   body {
@@ -38,11 +38,12 @@
     user-select: none;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
+    overflow-y: auto;
   }
 
-  /* Disable pull-to-refresh and rubber band scrolling */
+  /* Enable pull-to-refresh */
   html {
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: auto;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
     text-size-adjust: 100%;

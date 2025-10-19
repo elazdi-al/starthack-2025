@@ -15,7 +15,7 @@ interface TopBarProps {
 
 export function TopBar({ showBackButton = false, backPath = "/home", backTitle = "Back", title, showTitle = false }: TopBarProps) {
   const router = useRouter();
-  const { isAuthenticated, fid } = useAuthCheck();
+  const { isAuthenticated: _isAuthenticated, fid: _fid } = useAuthCheck();
   const { clearAuth } = useAuthStore();
 
   const handleBack = () => {

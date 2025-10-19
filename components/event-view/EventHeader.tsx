@@ -11,7 +11,7 @@ interface EventHeaderProps {
 
 export function EventHeader({
   title,
-  category,
+  category: _category,
   isEventOwner,
   activeTab,
   attendeesCount,
