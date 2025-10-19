@@ -548,8 +548,15 @@ export default function MyTickets() {
                   >
                     {/* Front of card - Ticket details */}
                     <div
-                      className="absolute w-full h-full backface-hidden"
-                      style={{ backfaceVisibility: 'hidden' }}
+                      className="absolute w-full h-full"
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        opacity: isFlipped ? 0 : 1,
+                        pointerEvents: isFlipped ? 'none' : 'auto',
+                        transition: 'opacity 200ms ease',
+                        transitionDelay: isFlipped ? '250ms' : '0ms',
+                      }}
                     >
                       <div className="h-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 flex flex-col hover:bg-white/10 transition-all shadow-xl">
                         {/* Ticket ID Badge */}
@@ -693,10 +700,15 @@ export default function MyTickets() {
 
                     {/* Back of card - QR code */}
                     <div
-                      className="absolute w-full h-full backface-hidden"
+                      className="absolute w-full h-full"
                       style={{
                         backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
                         transform: 'rotateY(180deg)',
+                        opacity: isFlipped ? 1 : 0,
+                        pointerEvents: isFlipped ? 'auto' : 'none',
+                        transition: 'opacity 200ms ease',
+                        transitionDelay: isFlipped ? '0ms' : '250ms',
                       }}
                     >
                       <div className="h-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center hover:bg-white/10 transition-all shadow-xl">
