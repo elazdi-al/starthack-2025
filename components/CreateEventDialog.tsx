@@ -30,7 +30,7 @@ const INITIAL_FORM_STATE = {
   time: "",
   price: "",
   maxCapacity: "",
-} as const;
+};
 
 export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const [open, setOpen] = useState(false);
@@ -153,7 +153,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       const response = await fetch("/api/uploads/pinata", {
         method: "POST",
         body,
-      });
+      } as never);
       const result = await response.json().catch(() => null);
 
       if (!response.ok || !result?.success) {
@@ -342,7 +342,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
               imageCid: pendingEventImage.cid,
               imageUrl: pendingEventImage.url,
             }),
-          });
+          } as never);
 
           if (!response.ok) {
             const data = await response.json().catch(() => null);

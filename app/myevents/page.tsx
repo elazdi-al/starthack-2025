@@ -100,7 +100,7 @@ export default function MyEvents() {
           </div>
         ) : myEvents.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-white/40 text-lg">You haven't created any events yet</p>
+            <p className="text-white/40 text-lg">You haven&apos;t created any events yet</p>
             <p className="text-white/30 text-sm mt-2">Create your first event to get started</p>
           </div>
         ) : (

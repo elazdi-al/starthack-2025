@@ -4,6 +4,20 @@ import { EventImage } from "./EventImage";
 import { EventInfo } from "./EventInfo";
 import { HostProfile } from "./HostProfile";
 
+interface FarcasterProfile {
+  fid: number;
+  username?: string | null;
+  display_name?: string | null;
+  pfp_url?: string | null;
+  profile?: {
+    bio?: {
+      text?: string | null;
+    };
+  } | null;
+  follower_count?: number;
+  following_count?: number;
+}
+
 interface EventDetailsTabProps {
   event: {
     title: string;
@@ -18,7 +32,7 @@ interface EventDetailsTabProps {
     maxAttendees: number;
     longDescription: string;
   };
-  farcasterProfile: any;
+  farcasterProfile: FarcasterProfile | null;
   isLoadingProfile: boolean;
   shouldShowProfile: boolean;
   onViewProfile: () => void;

@@ -55,7 +55,7 @@ async function fetchFarcasterProfiles(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ addresses }),
-  });
+  } as never);
 
   if (!response.ok) {
     // Return empty object if profiles fail to load

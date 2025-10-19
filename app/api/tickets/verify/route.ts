@@ -100,16 +100,16 @@ export async function POST(request: NextRequest) {
         functionName: 'ownerOf',
         args: [BigInt(tokenId)],
       }) as string;
-    } catch (error) {
+    } catch {
       return NextResponse.json({
         success: true,
         valid: false,
         error: 'Ticket not found',
         message: 'This ticket NFT does not exist or has been burned',
-        details: { 
+        details: {
           tokenId,
           eventId,
-          eventName 
+          eventName
         }
       });
     }

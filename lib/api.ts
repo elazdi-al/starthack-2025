@@ -22,7 +22,7 @@ async function apiRequest<T>(
         'Content-Type': 'application/json',
         ...options?.headers,
       },
-    });
+    } as never);
 
     const data = await response.json();
 
@@ -108,7 +108,7 @@ export const eventsAPI = {
   }>('/api/events', {
     method: 'POST',
     body: JSON.stringify(data),
-  }),
+  } as never),
 };
 
 // Tickets API
@@ -144,7 +144,7 @@ export const ticketsAPI = {
   }>('/api/tickets/buy', {
     method: 'POST',
     body: JSON.stringify({ eventId, address }),
-  }),
+  } as never),
 };
 
 // Marketplace API
@@ -182,14 +182,14 @@ export const marketplaceAPI = {
   }>('/api/marketplace', {
     method: 'POST',
     body: JSON.stringify(data),
-  }),
+  } as never),
 
   cancel: (listingId: string, seller: string) => apiRequest<{
     success: boolean;
     message: string;
   }>(`/api/marketplace/${listingId}?seller=${seller}`, {
     method: 'DELETE',
-  }),
+  } as never),
 
   buy: (data: {
     listingId: string;
@@ -206,7 +206,7 @@ export const marketplaceAPI = {
   }>('/api/marketplace/buy', {
     method: 'POST',
     body: JSON.stringify(data),
-  }),
+  } as never),
 };
 
 // Wallet API

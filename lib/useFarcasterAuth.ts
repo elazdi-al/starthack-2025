@@ -64,7 +64,7 @@ export function useFarcasterAuth() {
       // Verify the token with backend
       const response = await sdk.quickAuth.fetch("/api/auth", {
         headers: { "Authorization": `Bearer ${authToken}` }
-      });
+      } as never);
 
       if (!response.ok) {
         const errorData = await response.json();

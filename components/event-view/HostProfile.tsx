@@ -4,16 +4,16 @@ import Image from "next/image";
 
 interface FarcasterProfile {
   fid: number;
-  username: string | null;
-  display_name: string | null;
-  pfp_url: string | null;
-  profile: {
-    bio: {
-      text: string;
+  username?: string | null;
+  display_name?: string | null;
+  pfp_url?: string | null;
+  profile?: {
+    bio?: {
+      text?: string | null;
     };
   } | null;
-  follower_count: number;
-  following_count: number;
+  follower_count?: number;
+  following_count?: number;
 }
 
 interface HostProfileProps {

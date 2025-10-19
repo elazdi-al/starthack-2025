@@ -132,7 +132,7 @@ const compactNumberFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 });
 
-const formatCompactNumber = (value: number) =>
+const _formatCompactNumber = (value: number) =>
   compactNumberFormatter.format(value);
 
 export default function EventPage() {

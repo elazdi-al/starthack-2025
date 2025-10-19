@@ -182,14 +182,14 @@ export default function MyTickets() {
     let priceWei: bigint;
     try {
       priceWei = parseEther(trimmedPrice);
-    } catch (error) {
+    } catch {
       toast.error("Invalid price", {
         description: "Enter a valid ETH amount, e.g. 0.05",
       });
       return;
     }
 
-    if (priceWei <= 0n) {
+    if (priceWei <= BigInt(0)) {
       toast.error("Price must be positive", {
         description: "Listing price must be greater than 0 ETH.",
       });
@@ -382,7 +382,7 @@ export default function MyTickets() {
   );
 
   const handleShareTicket = async (ticket: Ticket) => {
-    if (ticket.eventId == undefined) {
+    if (ticket.eventId === undefined) {
       toast.error('Cannot share event', {
         description: 'Missing event identifier for this ticket.',
       });
@@ -616,7 +616,7 @@ export default function MyTickets() {
 
                         {/* Footer / Actions */}
                         <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
-                          {ticket.eventId != undefined ? (
+                          {ticket.eventId !== undefined ? (
                             <button
                               type="button"
                               onClick={(e) => {

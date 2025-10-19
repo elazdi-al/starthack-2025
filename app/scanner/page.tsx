@@ -3,42 +3,32 @@
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { TopBar } from "@/components/TopBar";
 import { useAuthCheck } from "@/lib/store/authStore";
+import { useTicketVerification } from "@/lib/hooks/useTicketVerification";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, Warning, XCircle } from "phosphor-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { toast } from "sonner";
 import { useAccount } from "wagmi";
 
-interface VerificationResult {
-  success: boolean;
-  valid: boolean;
-  error?: string;
-  message: string;
-  details?: {
-    tokenId: string;
-    eventId: string;
-    eventName?: string;
-    currentOwner?: string;
-    originalHolder?: string;
-    ownerChanged?: boolean;
-    verifiedChecks?: string[];
-  };
-}
-
-export default function ScannerPage() {
+function ScannerPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
   const { address: walletAddress } = useAccount();
+
+  // TanStack Query mutation for verification
+  const verificationMutation = useTicketVerification();
+
+  // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Local state
   const [isScanning, setIsScanning] = useState(false);
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Get eventId from URL params if present
   const eventId = searchParams.get('eventId');
 
@@ -136,7 +126,7 @@ export default function ScannerPage() {
           
           // Verify ticket if eventId is present
           if (eventId && walletAddress) {
-            verifyTicket(code.data, eventId, walletAddress);
+            handleVerifyTicket(code.data, eventId, walletAddress);
           } else {
             toast.success("QR Code Scanned!", {
               description: "Code detected successfully"
@@ -158,58 +148,50 @@ export default function ScannerPage() {
     };
   }, [isScanning, eventId, walletAddress]);
 
-  const verifyTicket = async (qrData: string, eventIdParam: string, owner: string) => {
-    setIsVerifying(true);
-    try {
-      const response = await fetch('/api/tickets/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          qrData,
-          eventId: eventIdParam,
-          eventOwner: owner,
-        }),
-      });
-
-      const result: VerificationResult = await response.json();
-      setVerificationResult(result);
-
-      if (result.valid) {
-        // Success - valid ticket
-        if ('vibrate' in navigator) {
-          navigator.vibrate([200, 100, 200]); // Double vibration for success
-        }
-        toast.success("Valid Ticket! ✓", {
-          description: result.message,
-        });
-      } else {
-        // Invalid ticket
-        if ('vibrate' in navigator) {
-          navigator.vibrate([500]); // Long vibration for error
-        }
-        toast.error("Invalid Ticket ✗", {
-          description: result.message || result.error,
-        });
+  // Handle ticket verification using TanStack Query mutation
+  const handleVerifyTicket = (qrData: string, eventIdParam: string, owner: string) => {
+    verificationMutation.mutate(
+      {
+        qrData,
+        eventId: eventIdParam,
+        eventOwner: owner,
+      },
+      {
+        onSuccess: (result) => {
+          if (result.valid) {
+            // Success - valid ticket
+            if ('vibrate' in navigator) {
+              navigator.vibrate([200, 100, 200]); // Double vibration for success
+            }
+            toast.success("Valid Ticket! ✓", {
+              description: result.message,
+            });
+          } else {
+            // Invalid ticket
+            if ('vibrate' in navigator) {
+              navigator.vibrate([500]); // Long vibration for error
+            }
+            toast.error("Invalid Ticket ✗", {
+              description: result.message || result.error,
+            });
+          }
+        },
+        onError: (err) => {
+          console.error('Verification error:', err);
+          if ('vibrate' in navigator) {
+            navigator.vibrate([500]);
+          }
+          toast.error("Verification Failed", {
+            description: err instanceof Error ? err.message : "Could not verify ticket. Please try again.",
+          });
+        },
       }
-    } catch (err) {
-      console.error('Verification error:', err);
-      setVerificationResult({
-        success: false,
-        valid: false,
-        message: 'Failed to verify ticket',
-        error: err instanceof Error ? err.message : 'Unknown error',
-      });
-      toast.error("Verification Failed", {
-        description: "Could not verify ticket. Please try again.",
-      });
-    } finally {
-      setIsVerifying(false);
-    }
+    );
   };
 
   const handleReset = () => {
     setScannedData(null);
-    setVerificationResult(null);
+    verificationMutation.reset();
     setIsScanning(true);
     if (!scanIntervalRef.current && videoRef.current) {
       // Restart scanning
@@ -245,10 +227,10 @@ export default function ScannerPage() {
             if ('vibrate' in navigator) {
               navigator.vibrate(200);
             }
-            
+
             // Verify ticket if eventId is present
             if (eventId && walletAddress) {
-              verifyTicket(code.data, eventId, walletAddress);
+              handleVerifyTicket(code.data, eventId, walletAddress);
             } else {
               toast.success("QR Code Scanned!");
             }
@@ -304,60 +286,60 @@ export default function ScannerPage() {
         ) : scannedData ? (
           <div className="w-full h-full flex items-center justify-center px-6">
             <div className="max-w-md w-full space-y-4">
-              {isVerifying ? (
+              {verificationMutation.isPending ? (
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
                   <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
                   <p className="text-white text-lg font-semibold">Verifying Ticket...</p>
                   <p className="text-white/60 text-sm mt-2">Checking blockchain records</p>
                 </div>
-              ) : verificationResult ? (
+              ) : verificationMutation.data ? (
                 <div className={`${
-                  verificationResult.valid 
-                    ? 'bg-green-500/10 border-green-500/30' 
+                  verificationMutation.data.valid
+                    ? 'bg-green-500/10 border-green-500/30'
                     : 'bg-red-500/10 border-red-500/30'
                 } border rounded-2xl p-6`}>
-                  {verificationResult.valid ? (
+                  {verificationMutation.data.valid ? (
                     <CheckCircle size={64} weight="fill" className="text-green-400 mx-auto mb-4" />
                   ) : (
                     <XCircle size={64} weight="fill" className="text-red-400 mx-auto mb-4" />
                   )}
-                  
+
                   <p className={`${
-                    verificationResult.valid ? 'text-green-400' : 'text-red-400'
+                    verificationMutation.data.valid ? 'text-green-400' : 'text-red-400'
                   } text-2xl font-bold mb-2 text-center`}>
-                    {verificationResult.valid ? 'VALID TICKET ✓' : 'INVALID TICKET ✗'}
-                  </p>
-                  
-                  <p className="text-white/80 text-center mb-6">
-                    {verificationResult.message}
+                    {verificationMutation.data.valid ? 'VALID TICKET ✓' : 'INVALID TICKET ✗'}
                   </p>
 
-                  {verificationResult.details && (
+                  <p className="text-white/80 text-center mb-6">
+                    {verificationMutation.data.message}
+                  </p>
+
+                  {verificationMutation.data.details && (
                     <div className="bg-white/5 rounded-xl p-4 mb-6 space-y-3 text-sm">
-                      {verificationResult.details.eventName && (
+                      {verificationMutation.data.details.eventName && (
                         <div>
                           <span className="text-white/50">Event: </span>
-                          <span className="text-white font-semibold">{verificationResult.details.eventName}</span>
+                          <span className="text-white font-semibold">{verificationMutation.data.details.eventName}</span>
                         </div>
                       )}
                       <div>
                         <span className="text-white/50">Token ID: </span>
-                        <span className="text-white font-mono">{verificationResult.details.tokenId}</span>
+                        <span className="text-white font-mono">{verificationMutation.data.details.tokenId}</span>
                       </div>
-                      {verificationResult.details.currentOwner && (
+                      {verificationMutation.data.details.currentOwner && (
                         <div>
                           <span className="text-white/50">Holder: </span>
                           <span className="text-white font-mono text-xs">
-                            {verificationResult.details.currentOwner.slice(0, 6)}...
-                            {verificationResult.details.currentOwner.slice(-4)}
+                            {verificationMutation.data.details.currentOwner.slice(0, 6)}...
+                            {verificationMutation.data.details.currentOwner.slice(-4)}
                           </span>
                         </div>
                       )}
-                      
-                      {verificationResult.valid && verificationResult.details.verifiedChecks && (
+
+                      {verificationMutation.data.valid && verificationMutation.data.details.verifiedChecks && (
                         <div className="pt-3 border-t border-white/10">
                           <p className="text-white/50 text-xs mb-2">Verification Status:</p>
-                          {verificationResult.details.verifiedChecks.map((check) => (
+                          {verificationMutation.data.details.verifiedChecks.map((check) => (
                             <div key={check} className="flex items-start gap-2 text-xs mb-1">
                               <span className={check.includes('⚠') ? 'text-yellow-400' : 'text-green-400'}>
                                 {check}
@@ -366,8 +348,8 @@ export default function ScannerPage() {
                           ))}
                         </div>
                       )}
-                      
-                      {verificationResult.details.ownerChanged && (
+
+                      {verificationMutation.data.details.ownerChanged && (
                         <div className="flex items-center gap-2 pt-2 border-t border-white/10">
                           <Warning size={16} className="text-yellow-400" />
                           <span className="text-yellow-400 text-xs">Note: Ticket was resold to current holder</span>
@@ -376,10 +358,10 @@ export default function ScannerPage() {
                     </div>
                   )}
 
-                  {!verificationResult.valid && verificationResult.error && (
+                  {!verificationMutation.data.valid && verificationMutation.data.error && (
                     <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-6">
                       <p className="text-red-300 text-xs font-semibold mb-1">Error:</p>
-                      <p className="text-red-200 text-xs">{verificationResult.error}</p>
+                      <p className="text-red-200 text-xs">{verificationMutation.data.error}</p>
                     </div>
                   )}
 
@@ -472,6 +454,19 @@ export default function ScannerPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function ScannerPage() {
+  return (
+    <Suspense fallback={
+      <div className="relative min-h-screen flex items-center justify-center bg-transparent">
+        <BackgroundGradient />
+        <div className="relative z-10 text-white/40">Loading...</div>
+      </div>
+    }>
+      <ScannerPageContent />
+    </Suspense>
   );
 }
 

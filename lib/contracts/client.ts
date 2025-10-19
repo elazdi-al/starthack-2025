@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, http, fallback } from 'viem';
+import { createPublicClient, createWalletClient, http } from 'viem';
 import { base } from 'viem/chains';
 
 
@@ -6,7 +6,7 @@ import { base } from 'viem/chains';
 // Public client for reading from the blockchain
 export const publicClient = createPublicClient({
   chain: base,
-  transport: http("https://base-mainnet.g.alchemy.com/v2/QEp7aTByLENRTC1fyR1zJ"),
+  transport: http(`https://base-mainnet.g.alchemy.com/v2${process.env.ALCHEMY_API_KEY}`),
   batch: {
     multicall: true, // Enable multicall batching for better performance
   },
@@ -20,7 +20,7 @@ export function getWalletClient() {
 
   return createWalletClient({
     chain: base,
-    transport: http("https://base-mainnet.g.alchemy.com/v2/QEp7aTByLENRTC1fyR1zJ", {
+    transport: http(`https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`, {
       timeout: 30_000, // 30 seconds for writes
       retryCount: 2,
     }),

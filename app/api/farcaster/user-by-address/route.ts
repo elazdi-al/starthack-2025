@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const NEYNAR_ENDPOINT =
   "https://api.neynar.com/v2/farcaster/user/bulk-by-address/";
 
-const REQUIRED_ADDRESS_TYPE = "eth";
+const _REQUIRED_ADDRESS_TYPE = "eth";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       },
       // Cached briefly to avoid hammering Neynar on quick navigations
       next: { revalidate: 30 },
-    });
+    } as never);
     if (response.status === 404) {
       // No linked Farcaster account for this address
       return NextResponse.json(

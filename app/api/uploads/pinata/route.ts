@@ -40,7 +40,7 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${token}`,
       },
       body: uploadForm,
-    });
+    } as never);
 
     const responseBody = await pinataResponse.json().catch(() => null);
 

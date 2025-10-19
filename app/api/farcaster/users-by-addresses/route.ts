@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const NEYNAR_ENDPOINT =
   "https://api.neynar.com/v2/farcaster/user/bulk-by-address/";
 
-const REQUIRED_ADDRESS_TYPE = "eth";
+const _REQUIRED_ADDRESS_TYPE = "eth";
 const MAX_ADDRESSES_PER_REQUEST = 350; // Neynar's limit
 
 export async function POST(request: Request) {
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       },
       // Cached briefly to avoid hammering Neynar on quick navigations
       next: { revalidate: 30 },
-    });
+    } as never);
 
     if (response.status === 404) {
       // No linked Farcaster accounts for these addresses
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
 
     // Neynar returns an object with addresses as keys and arrays of users as values
     // Transform this into a more usable format
-    const usersMap: Record<string, any> = {};
+    const usersMap: Record<string, unknown> = {};
 
     for (const [address, users] of Object.entries(data)) {
       if (Array.isArray(users) && users.length > 0) {
