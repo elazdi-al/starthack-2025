@@ -36,6 +36,9 @@ contract Ticket is ERC721, ERC721URIStorage, Ownable {
     // Links a specific NFT (tokenId) back to its event (eventId)
     mapping(uint256 => uint256) public ticketToEvent;
 
+    // Store purchase timestamp for each ticket
+    mapping(uint256 => uint256) public ticketPurchaseTime;
+
     mapping(uint256 => bool) public isCheckedIn;
 
     constructor() ERC721("EventTickets", "EVT") Ownable(msg.sender) {}
@@ -66,6 +69,7 @@ contract Ticket is ERC721, ERC721URIStorage, Ownable {
         _safeMint(_to, newTicketId);
         _setTokenURI(newTicketId, _tokenURI);
         ticketToEvent[newTicketId] = _eventId;
+        ticketPurchaseTime[newTicketId] = block.timestamp;
         
         return newTicketId;
     }
@@ -96,6 +100,8 @@ contract Ticket is ERC721, ERC721URIStorage, Ownable {
         // 2. Get Ticket Status (Checked In?)
         string memory status = isCheckedIn[tokenId] ? "Checked In" : "Ready to Scan";
 
+        // 3. Get Purchase Timestamp
+        uint256 purchaseTime = ticketPurchaseTime[tokenId];
 
         // 4. Construct the JSON String
         string memory json = string(
@@ -106,6 +112,8 @@ contract Ticket is ERC721, ERC721URIStorage, Ownable {
                 '"attributes": [',
                     '{"trait_type": "Event Date", "value": ', Strings.toString(eventDate), '},',
                     '{"trait_type": "Location", "value": "', eventLocation, '"},',
+                    '{"trait_type": "Purchase Date", "value": ', Strings.toString(purchaseTime), '},',
+                    '{"trait_type": "Ticket Type", "value": "General Admission"},',
                     '{"trait_type": "Status", "value": "', status, '"}',
                 ']}'
             )

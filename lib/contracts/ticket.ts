@@ -87,6 +87,28 @@ export const TICKET_ABI = [
   },
   {
     "type": "function",
+    "name": "ticketPurchaseTime",
+    "inputs": [
+      { "name": "", "type": "uint256" }
+    ],
+    "outputs": [
+      { "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isCheckedIn",
+    "inputs": [
+      { "name": "", "type": "uint256" }
+    ],
+    "outputs": [
+      { "name": "", "type": "bool" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "mintTicket",
     "inputs": [
       { "name": "_to", "type": "address" },

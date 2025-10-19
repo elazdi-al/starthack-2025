@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { publicClient } from '@/lib/contracts/client';
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from '@/lib/contracts/eventBook';
 import { TICKET_CONTRACT_ADDRESS, TICKET_ABI } from '@/lib/contracts/ticket';
-import { getTicketMetadata } from '@/lib/ticketMetadata';
 import { formatUnits } from 'viem';
 
 export const dynamic = 'force-dynamic';
@@ -127,7 +126,19 @@ export async function GET(request: NextRequest) {
 
           const [name, location, date] = eventData;
 
-          const metadata = getTicketMetadata(tokenId.toString());
+          // Fetch purchase time from blockchain
+          let purchaseTime: bigint;
+          try {
+            purchaseTime = await publicClient.readContract({
+              address: TICKET_CONTRACT_ADDRESS,
+              abi: TICKET_ABI,
+              functionName: 'ticketPurchaseTime',
+              args: [tokenId],
+            }) as bigint;
+          } catch (error) {
+            console.warn(`Failed to fetch purchase time for token ${tokenId}:`, error);
+            purchaseTime = BigInt(0);
+          }
 
           const eventDate = Number(date);
           const now = Math.floor(Date.now() / 1000);
@@ -168,11 +179,11 @@ export async function GET(request: NextRequest) {
             }),
             location,
             venue: location,
-            ticketType: metadata?.ticketType || 'General Admission',
-            purchaseDate: metadata?.purchaseDate
-              ? new Date(metadata.purchaseDate * 1000).toISOString().split('T')[0]
+            ticketType: 'General Admission', // Stored on-chain in NFT metadata
+            purchaseDate: purchaseTime > BigInt(0)
+              ? new Date(Number(purchaseTime) * 1000).toISOString().split('T')[0]
               : new Date().toISOString().split('T')[0],
-            qrData: metadata?.qrData || `${tokenId}-${eventId}-${name}`,
+            qrData: `${tokenId}-${eventId}-${address}-${name}`, // Generated dynamically
             isValid: eventDate > now,
             status,
             listingPrice,
