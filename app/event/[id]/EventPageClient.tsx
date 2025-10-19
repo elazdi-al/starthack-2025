@@ -23,6 +23,8 @@ import { useEvent, useInvalidateEvents } from "@/lib/hooks/useEvents";
 import Image from "next/image";
 import { useFarcasterProfile } from "@/lib/hooks/useFarcasterProfile";
 import { sdk } from "@farcaster/miniapp-sdk";
+import { useEventAttendees } from "@/lib/hooks/useEventAttendees";
+import { AttendeesList } from "@/components/AttendeesList";
 
 interface EventDetails {
   id: number;
@@ -150,6 +152,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseStage, setPurchaseStage] = useState<PurchaseStage>("idle");
+  const [activeTab, setActiveTab] = useState<"details" | "attendees">("details");
 
   // Transform the event data from the query
   const event = useMemo(() => {
@@ -158,7 +161,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
   }, [eventData]);
 
   const farcasterProfileQuery = useFarcasterProfile(event?.hostAddress);
-  const farcasterProfile = farcasterProfileQuery.data ?? null;  
+  const farcasterProfile = farcasterProfileQuery.data ?? null;
   const farcasterFid = farcasterProfile?.fid ?? null;
   const shouldShowFarcasterProfile =
     !!event &&
@@ -192,6 +195,10 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     if (!event || !walletAddress) return false;
     return event.hostAddress.toLowerCase() === walletAddress.toLowerCase();
   }, [event, walletAddress]);
+
+  // Fetch attendees data (only for event owners)
+  const attendeesQuery = useEventAttendees(isEventOwner ? eventId : null);
+  const attendeesData = attendeesQuery.data ?? { attendees: [], count: 0 };
 
   const handleScannerClick = useCallback(() => {
     if (event) {
@@ -402,6 +409,36 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
           {event.title}
         </h1>
 
+        {/* Tab Navigation - only shown for event owners */}
+        {isEventOwner && (
+          <div className="flex gap-2 mb-6 sm:mb-8 border-b border-white/10">
+            <button
+              type="button"
+              onClick={() => setActiveTab("details")}
+              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === "details"
+                  ? "text-white border-white"
+                  : "text-white/50 border-transparent hover:text-white/70"
+              }`}
+            >
+              Event Details
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("attendees")}
+              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === "attendees"
+                  ? "text-white border-white"
+                  : "text-white/50 border-transparent hover:text-white/70"
+              }`}
+            >
+              Attendees ({attendeesData.count})
+            </button>
+          </div>
+        )}
+
+        {activeTab === "details" && (
+          <>
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 mb-8 sm:mb-12">
           <div className="relative w-full lg:w-[45%] aspect-[4/3] rounded-3xl border border-white/10 bg-white/5 overflow-hidden">
             {event.imageUri ? (
@@ -600,6 +637,21 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                 </div>
               )}
             </div>
+          </div>
+        )}
+          </>
+        )}
+
+        {/* Attendees Tab */}
+        {activeTab === "attendees" && isEventOwner && (
+          <div className="mb-8 sm:mb-12">
+            <h2 className="text-xl sm:text-2xl font-semibold text-white/90 mb-4 sm:mb-5">
+              Event Attendees
+            </h2>
+            <AttendeesList
+              attendees={attendeesData.attendees}
+              isLoading={attendeesQuery.isLoading}
+            />
           </div>
         )}
 
