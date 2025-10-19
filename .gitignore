@@ -41,6 +41,5 @@ yarn-error.log*
 next-env.d.ts
 
 # local data storage
-/.data/
 
 contracts/broadcast/Stars.s.sol/31337/

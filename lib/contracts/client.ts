@@ -17,6 +17,7 @@ export function getWalletClient() {
   if (typeof window === 'undefined' || !window.ethereum) {
     throw new Error('No ethereum provider found');
   }
+  
 
   return createWalletClient({
     chain: base,
