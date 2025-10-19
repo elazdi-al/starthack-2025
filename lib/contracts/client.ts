@@ -6,7 +6,7 @@ import { base } from 'viem/chains';
 // Public client for reading from the blockchain
 export const publicClient = createPublicClient({
   chain: base,
-  transport: http(`https://base-mainnet.g.alchemy.com/v2${process.env.ALCHEMY_API_KEY}`),
+  transport: http(`https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`),
   batch: {
     multicall: true, // Enable multicall batching for better performance
   },
