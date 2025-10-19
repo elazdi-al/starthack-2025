@@ -399,7 +399,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           <span className="text-[11px] font-semibold whitespace-nowrap">Create</span>
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-[95vw] sm:max-w-[600px] max-h-[85vh] bg-white/5 border-white/10 text-white backdrop-blur-xl flex flex-col">
+      <DialogContent className="max-w-[95vw] sm:max-w-[600px] max-h-[85vh] bg-white/5 border-white/10 text-white backdrop-blur-xl flex flex-col overflow-hidden">
         <DialogHeader className="text-left space-y-2 flex-shrink-0">
           <DialogTitle className="text-5xl sm:text-6xl md:text-7xl tracking-tighter font-bold text-white/90">Create Event</DialogTitle>
           <DialogDescription className="text-sm tracking-tight text-white/50">
@@ -407,8 +407,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="space-y-4 py-2 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="space-y-4 py-2 overflow-y-auto overflow-x-hidden flex-1 pr-1">
           {/* Event Type Toggle */}
           <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10">
             <div className="space-y-0.5">
