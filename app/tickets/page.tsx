@@ -64,6 +64,12 @@ export default function MyTickets() {
   }, [ticketsQuery.data, setTickets]);
 
   useEffect(() => {
+    if (hasHydrated && isAuthenticated && activeAddress) {
+      void refetchTickets({ throwOnError: false });
+    }
+  }, [hasHydrated, isAuthenticated, activeAddress, refetchTickets]);
+
+  useEffect(() => {
     if (ticketsQuery.isError) {
       const message =
         ticketsQuery.error instanceof Error

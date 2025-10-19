@@ -269,8 +269,11 @@ contract EventBook {
         // Transfer NFT from seller to buyer
         ticketContract.transferFrom(listing.seller, msg.sender, tokenId);
 
-        // Pay seller
-        payable(listing.seller).transfer(sellerAmount);
+        // Pay seller - use call to support smart contract wallets
+        (bool payoutSuccess, ) = payable(listing.seller).call{value: sellerAmount}("");
+        require(payoutSuccess, "Payout to seller failed");
+
+        userTickets[msg.sender].push(tokenId);
 
         emit TicketSold(tokenId, listing.seller, msg.sender, listing.price);
     }
