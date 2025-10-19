@@ -220,3 +220,31 @@ export const walletAPI = {
     };
   }>(`/api/wallet/balance?address=${address}`),
 };
+
+// Farcaster API
+export type FarcasterUserProfile = {
+  fid: number;
+  username?: string | null;
+  display_name?: string | null;
+  custody_address?: string;
+  pfp_url?: string | null;
+  follower_count?: number;
+  following_count?: number;
+  profile?: {
+    bio?: {
+      text?: string | null;
+    };
+  };
+};
+
+export const farcasterAPI = {
+  getUserByAddress: (address: string, addressType: string = "eth") =>
+    apiRequest<{
+      success: boolean;
+      user: FarcasterUserProfile | null;
+    }>(
+      `/api/farcaster/user-by-address?address=${encodeURIComponent(
+        address,
+      )}&address_type=${encodeURIComponent(addressType)}`,
+    ),
+};

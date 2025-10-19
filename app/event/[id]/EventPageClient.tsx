@@ -21,6 +21,8 @@ import {
 } from "wagmi";
 import { useEvent, useInvalidateEvents } from "@/lib/hooks/useEvents";
 import Image from "next/image";
+import { useFarcasterProfile } from "@/lib/hooks/useFarcasterProfile";
+import { sdk } from "@farcaster/miniapp-sdk";
 
 interface EventDetails {
   id: number;
@@ -119,6 +121,14 @@ const transformEvent = (raw: {
   };
 };
 
+const compactNumberFormatter = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+const formatCompactNumber = (value: number) =>
+  compactNumberFormatter.format(value);
+
 interface EventPageClientProps {
   eventId: number | null;
 }
@@ -146,6 +156,13 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     if (!eventData?.event) return null;
     return transformEvent(eventData.event);
   }, [eventData]);
+
+  const farcasterProfileQuery = useFarcasterProfile(event?.hostAddress);
+  const farcasterProfile = farcasterProfileQuery.data ?? null;  
+  const farcasterFid = farcasterProfile?.fid ?? null;
+  const shouldShowFarcasterProfile =
+    !!event &&
+    (farcasterProfileQuery.isFetching || farcasterProfileQuery.isFetched);
 
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) {
@@ -183,6 +200,41 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
       router.push('/scanner');
     }
   }, [router, event]);
+
+  const handleViewProfile = useCallback(async () => {
+    if (!farcasterFid) {
+      toast.info("Profile unavailable", {
+        description: "This host has not linked a Farcaster account yet.",
+      });
+      return;
+    }
+
+    try {
+      const inMiniApp = await sdk.isInMiniApp();
+
+      if (!inMiniApp) {
+        toast.info("Open in Farcaster", {
+          description: "Profile viewing is available from inside the Farcaster app.",
+        });
+        return;
+      }
+
+      if (typeof sdk.actions?.viewProfile !== "function") {
+        toast.error("Unsupported action", {
+          description: "This Farcaster client does not support opening profiles.",
+        });
+        return;
+      }
+
+      await sdk.actions.viewProfile({ fid: farcasterFid });
+    } catch (error) {
+      console.error("Failed to open Farcaster profile", error);
+      toast.error("Unable to open profile", {
+        description:
+          error instanceof Error ? error.message : "Unexpected error while opening the Farcaster profile.",
+      });
+    }
+  }, [farcasterFid]);
 
   const handlePurchase = useCallback(async () => {
     if (!event) {
@@ -457,6 +509,99 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
             {event.longDescription}
           </p>
         </div>
+
+        {shouldShowFarcasterProfile && (
+          <div className="mb-8 sm:mb-12">
+            <h2 className="text-xl sm:text-2xl font-semibold text-white/90 mb-4 sm:mb-5">
+              Host on Farcaster
+            </h2>
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-5 sm:p-6">
+              {farcasterProfileQuery.isFetching && !farcasterProfile ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/10 animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-white/10 rounded animate-pulse" />
+                    <div className="h-3 w-1/2 bg-white/10 rounded animate-pulse" />
+                  </div>
+                </div>
+              ) : farcasterProfile ? (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border border-white/10 bg-white/10 shrink-0">
+                    {farcasterProfile.pfp_url ? (
+                      <Image
+                        src={farcasterProfile.pfp_url}
+                        alt={`${
+                          farcasterProfile.display_name ??
+                          farcasterProfile.username ??
+                          "Farcaster user"
+                        } profile`}
+                        fill
+                        unoptimized
+                        sizes="80px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white/60 text-xl uppercase">
+                        {farcasterProfile.display_name?.[0] ??
+                          farcasterProfile.username?.[0] ??
+                          "?"}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <p className="text-white text-lg sm:text-xl font-semibold">
+                        {farcasterProfile.display_name ??
+                          farcasterProfile.username ??
+                          `Farcaster #${farcasterProfile.fid}`}
+                      </p>
+                      {farcasterProfile.username && (
+                        <p className="text-white/60 text-sm">
+                          @{farcasterProfile.username}
+                        </p>
+                      )}
+                    </div>
+                    {farcasterProfile.profile?.bio?.text && (
+                      <p className="text-white/60 text-sm leading-relaxed">
+                        {farcasterProfile.profile.bio.text}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-white/50 text-xs sm:text-sm">
+                      {typeof farcasterProfile.follower_count === "number" && (
+                        <span>
+                          {formatCompactNumber(
+                            farcasterProfile.follower_count,
+                          )}{" "}
+                          followers
+                        </span>
+                      )}
+                      {typeof farcasterProfile.following_count === "number" && (
+                        <span>
+                          Following{" "}
+                          {formatCompactNumber(
+                            farcasterProfile.following_count,
+                          )}
+                        </span>
+                      )}
+                      <span>FID {farcasterProfile.fid}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleViewProfile}
+                    className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white font-medium px-4 py-2 rounded-xl transition-colors"
+                  >
+                    View Profile
+                  </button>
+                </div>
+              ) : (
+                <div className="text-white/60 text-sm">
+                  This host has not linked a Farcaster profile yet. {farcasterProfileQuery.data?.toString() ?? "null"}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="fixed bottom-[112px] left-0 right-0 px-6 py-3 sm:static sm:px-0 sm:py-0 z-30 sm:z-auto">
           <div className="max-w-3xl mx-auto">
