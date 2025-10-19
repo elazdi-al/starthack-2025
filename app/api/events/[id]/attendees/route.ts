@@ -4,15 +4,43 @@ import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
 import { TICKET_ABI } from "@/lib/contracts/ticket";
 
 const TICKET_CONTRACT = process.env.NEXT_PUBLIC_TICKET_CONTRACT_ADDRESS as `0x${string}`;
+const BATCH_SIZE = 100;
+const MAX_TOKEN_ID = 10000;
+
+async function getTicketOwner(tokenId: bigint, eventId: number): Promise<string | null> {
+  try {
+    const [tokenEventId, owner] = await Promise.all([
+      publicClient.readContract({
+        address: TICKET_CONTRACT,
+        abi: TICKET_ABI,
+        functionName: "ticketToEvent",
+        args: [tokenId],
+      }) as Promise<bigint>,
+      publicClient.readContract({
+        address: TICKET_CONTRACT,
+        abi: TICKET_ABI,
+        functionName: "ownerOf",
+        args: [tokenId],
+      }) as Promise<`0x${string}`>
+    ]);
+
+    if (Number(tokenEventId) === eventId && owner !== '0x0000000000000000000000000000000000000000') {
+      return owner.toLowerCase();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const eventId = parseInt(id);
+  const eventId = Number.parseInt(id);
 
-  if (isNaN(eventId)) {
+  if (Number.isNaN(eventId)) {
     return NextResponse.json(
       { success: false, error: "Invalid event ID" },
       { status: 400 }
@@ -21,33 +49,20 @@ export async function GET(
 
   if (!TICKET_CONTRACT) {
     return NextResponse.json(
-      { success: false, error: "Ticket contract address not configured" },
+      { success: false, error: "Ticket contract not configured" },
       { status: 500 }
     );
   }
 
   try {
-    // Get event details to verify it exists and get tickets sold count
     const eventData = await publicClient.readContract({
       address: EVENT_BOOK_ADDRESS,
       abi: EVENT_BOOK_ABI,
       functionName: "events",
       args: [BigInt(eventId)],
-    }) as [
-      string,  // name
-      string,  // location
-      bigint,  // date
-      bigint,  // price
-      bigint,  // revenueOwed
-      string,  // creator
-      bigint,  // ticketsSold
-      bigint,  // maxCapacity
-      string,  // imageURI
-      boolean, // isPrivate
-      boolean  // whitelistIsLocked
-    ];
+    }) as [string, string, bigint, bigint, bigint, string, bigint, bigint, string, boolean, boolean];
 
-    if (!eventData || !eventData[0]) {
+    if (!eventData?.[0]) {
       return NextResponse.json(
         { success: false, error: "Event not found" },
         { status: 404 }
@@ -56,81 +71,34 @@ export async function GET(
 
     const ticketsSold = Number(eventData[6]);
 
-    // If no tickets sold, return empty array early
     if (ticketsSold === 0) {
-      return NextResponse.json({
-        success: true,
-        attendees: [],
-        count: 0,
-      });
+      return NextResponse.json({ success: true, attendees: [], count: 0 });
     }
 
-    // Use multicall batching for efficiency
-    const attendeeAddresses = new Set<string>();
-    const BATCH_SIZE = 50;
-    const MAX_TOKEN_ID = 10000;
+    const attendeeSet = new Set<string>();
 
-    // Process in batches to find all tickets for this event
-    for (let startId = 0; startId < MAX_TOKEN_ID; startId += BATCH_SIZE) {
-      const batchPromises = [];
+    for (let startId = 0; startId < MAX_TOKEN_ID && attendeeSet.size < ticketsSold; startId += BATCH_SIZE) {
+      const endId = Math.min(startId + BATCH_SIZE, MAX_TOKEN_ID);
+      const tokenIds = Array.from({ length: endId - startId }, (_, i) => BigInt(startId + i));
 
-      for (let tokenId = startId; tokenId < startId + BATCH_SIZE && tokenId < MAX_TOKEN_ID; tokenId++) {
-        batchPromises.push(
-          publicClient.readContract({
-            address: TICKET_CONTRACT,
-            abi: TICKET_ABI,
-            functionName: "ticketToEvent",
-            args: [BigInt(tokenId)],
-          }).then(async (tokenEventId) => {
-            // If this ticket belongs to our event, get its owner
-            if (Number(tokenEventId) === eventId) {
-              const owner = await publicClient.readContract({
-                address: TICKET_CONTRACT,
-                abi: TICKET_ABI,
-                functionName: "ownerOf",
-                args: [BigInt(tokenId)],
-              }) as `0x${string}`;
+      const owners = await Promise.all(tokenIds.map(id => getTicketOwner(id, eventId)));
 
-              if (owner && owner !== '0x0000000000000000000000000000000000000000') {
-                return owner.toLowerCase();
-              }
-            }
-            return null;
-          }).catch(() => null) // Token doesn't exist, skip
-        );
-      }
-
-      const batchResults = await Promise.all(batchPromises);
-
-      // Add valid addresses to the set
-      batchResults.forEach(address => {
-        if (address) {
-          attendeeAddresses.add(address);
-        }
+      owners.forEach(owner => {
+        if (owner) attendeeSet.add(owner);
       });
-
-      // Stop early if we've found all tickets
-      if (attendeeAddresses.size >= ticketsSold) {
-        break;
-      }
     }
-
-    const attendees = Array.from(attendeeAddresses);
 
     return NextResponse.json({
       success: true,
-      attendees,
-      count: attendees.length,
+      attendees: Array.from(attendeeSet),
+      count: attendeeSet.size,
     });
   } catch (error) {
     console.error("[events:attendees]", error);
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch event attendees",
+        error: error instanceof Error ? error.message : "Failed to fetch attendees",
       },
       { status: 500 }
     );

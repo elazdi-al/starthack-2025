@@ -2,11 +2,10 @@
 
 import { BackgroundGradient } from "@/components/BackgroundGradient";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CheckCircle, Warning, XCircle } from "phosphor-react";
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle, XCircle, Scan, Warning } from "phosphor-react";
 import { toast } from "sonner";
 import { useAccount } from "wagmi";
 
