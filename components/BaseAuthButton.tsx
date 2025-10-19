@@ -3,7 +3,8 @@
 import { useFarcasterAuth } from "@/lib/useFarcasterAuth";
 import { SignInWithBaseButton } from '@base-org/account-ui/react';
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { sdk } from "@farcaster/miniapp-sdk";
 
 /**
  * Farcaster authentication button component
@@ -14,6 +15,49 @@ import { useEffect } from "react";
 export function BaseAuthButton() {
   const { isAuthenticated, fid, signIn, isLoading, error } = useFarcasterAuth();
   const router = useRouter();
+  const [isMiniApp, setIsMiniApp] = useState<boolean | null>(null);
+  const autoSignInAttemptedRef = useRef(false);
+
+  // Detect if we're running inside the Base / Farcaster mini app.
+  useEffect(() => {
+    let mounted = true;
+
+    sdk.isInMiniApp()
+      .then((inMiniApp) => {
+        if (mounted) {
+          setIsMiniApp(inMiniApp);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setIsMiniApp(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Automatically sign in when inside the mini app environment.
+  useEffect(() => {
+    if (
+      isMiniApp !== true ||
+      isAuthenticated ||
+      isLoading ||
+      autoSignInAttemptedRef.current
+    ) {
+      return;
+    }
+
+    autoSignInAttemptedRef.current = true;
+
+    void signIn().catch((err) => {
+      // If auto sign-in fails, allow manual retry via button.
+      console.error("Automatic mini app sign-in failed:", err);
+      autoSignInAttemptedRef.current = false;
+    });
+  }, [isMiniApp, isAuthenticated, isLoading, signIn]);
 
   useEffect(() => {
     if (isAuthenticated) {
