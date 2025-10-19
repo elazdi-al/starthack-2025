@@ -23,10 +23,11 @@ function BackgroundGradientBase({ className, asOverlay = true }: Props) {
   return (
     <div
       className={clsx(
-        "absolute inset-0 -z-10 overflow-hidden", // full-bleed, behind content
+        "fixed inset-0 -z-10 overflow-hidden min-h-screen", // fixed positioning with extended height
         asOverlay && "pointer-events-none",
         className
       )}
+      style={{ height: '120vh', top: '-10vh' }} // extend beyond viewport
       aria-hidden="true"
     >
       {/* SVG Gradient Background */}

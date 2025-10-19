@@ -31,16 +31,16 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
   const isActive = (path: string) => pathname === path;
 
   return (
-    <div className="md:hidden fixed bottom-4 left-4 right-4 z-30">
+    <div className="md:hidden fixed bottom-8 left-4 right-4 z-30">
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
-        <div className="flex items-center justify-around px-2 py-3 max-w-lg mx-auto">
+        <div className="flex items-center justify-between px-4 py-2 max-w-lg mx-auto">
           {/* Home */}
           <button
             className={`${
               isActive('/home')
                 ? 'text-white/80 bg-white/5'
                 : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-            } active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl`}
+            } active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-3 py-2 rounded-xl min-w-[60px]`}
             type="button"
             onClick={handleHome}
             title="Home"
@@ -55,7 +55,7 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
               isActive('/marketplace')
                 ? 'text-white/80 bg-white/5'
                 : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-            } active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl`}
+            } active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-3 py-2 rounded-xl min-w-[60px]`}
             type="button"
             onClick={handleMarketplace}
             title="Marketplace"
@@ -64,8 +64,10 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
             <span className="text-[11px] font-semibold whitespace-nowrap">Market</span>
           </button>
 
-          {/* Create Event */}
-          <CreateEventDialog onEventCreated={onEventCreated} />
+          {/* Create Event - Centered */}
+          <div className="flex-shrink-0">
+            <CreateEventDialog onEventCreated={onEventCreated} />
+          </div>
 
           {/* Tickets */}
           <button
@@ -73,13 +75,13 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
               isActive('/tickets')
                 ? 'text-white/80 bg-white/5'
                 : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-            } active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl`}
+            } active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-3 py-2 rounded-xl min-w-[60px]`}
             type="button"
             onClick={handleTickets}
             title="My Tickets"
           >
             <Ticket size={24} weight={isActive('/tickets') ? 'fill' : 'regular'} />
-            <span className="text-[11px] font-semibold whitespace-nowrap">My Tickets</span>
+            <span className="text-[11px] font-semibold whitespace-nowrap">Tickets</span>
           </button>
 
           {/* My Events */}
@@ -88,13 +90,13 @@ export function BottomNav({ onEventCreated }: BottomNavProps) {
               isActive('/myevents')
                 ? 'text-white/80 bg-white/5'
                 : 'text-white/40 hover:text-white/80 hover:bg-white/5'
-            } active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl`}
+            } active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-3 py-2 rounded-xl min-w-[60px]`}
             type="button"
             onClick={handleMyEvents}
             title="My Events"
           >
             <CalendarCheck size={24} weight={isActive('/myevents') ? 'fill' : 'regular'} />
-            <span className="text-[11px] font-semibold whitespace-nowrap">My Events</span>
+            <span className="text-[11px] font-semibold whitespace-nowrap">Events</span>
           </button>
         </div>
       </div>

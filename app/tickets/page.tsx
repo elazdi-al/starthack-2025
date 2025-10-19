@@ -622,37 +622,12 @@ export default function MyTickets() {
                         </div>
 
                         {/* Footer / Actions */}
-                        <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
-                          {ticket.eventId !== undefined ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (sharingTicketId !== ticket.id) {
-                                  void handleShareTicket(ticket);
-                                }
-                              }}
-                              disabled={sharingTicketId === ticket.id}
-                              className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {sharingTicketId === ticket.id ? (
-                                <>
-                                  <span className="w-3.5 h-3.5 border border-blue-200/30 border-t-transparent rounded-full animate-spin" />
-                                  <span>Opening composer...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ShareNetwork size={14} weight="regular" />
-                                  <span>Share on Base</span>
-                                </>
-                              )}
-                            </button>
-                          ) : null}
+                        <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
                           {ticket.status === 'listed' ? (
                             <>
                               <div className="flex items-center justify-between mb-2">
-                                <p className="text-white/50 text-xs">Listed for:</p>
-                                <p className="text-green-400 font-bold">Ξ {ticket.listingPrice}</p>
+                                <p className="text-white/50 text-sm">Listed for:</p>
+                                <p className="text-green-400 font-bold text-lg">Ξ {ticket.listingPrice}</p>
                               </div>
                               <button
                                 type="button"
@@ -661,11 +636,11 @@ export default function MyTickets() {
                                   void handleCancelListing(ticket);
                                 }}
                                 disabled={cancellingTicketId === ticket.id}
-                                className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                               >
                                 {cancellingTicketId === ticket.id ? (
                                   <>
-                                    <span className="w-3.5 h-3.5 border border-red-200/40 border-t-transparent rounded-full animate-spin" />
+                                    <span className="w-4 h-4 border-2 border-red-200/40 border-t-transparent rounded-full animate-spin" />
                                     <span>Canceling...</span>
                                   </>
                                 ) : (
@@ -673,25 +648,58 @@ export default function MyTickets() {
                                 )}
                               </button>
                             </>
-                          ) : canListTicket(ticket) ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleListForSale(ticket);
-                              }}
-                              disabled={isListing}
-                              className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <Tag size={14} weight="regular" />
-                              List for Sale
-                            </button>
-                          ) : ticket.status === 'owned' && hasEventPassed(ticket.date) ? (
-                            <div className="text-center py-2">
-                              <p className="text-red-400/60 text-xs">Event has passed</p>
+                          ) : (
+                            <div className="flex gap-2">
+                              {/* Share Button */}
+                              {ticket.eventId !== undefined && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (sharingTicketId !== ticket.id) {
+                                      void handleShareTicket(ticket);
+                                    }
+                                  }}
+                                  disabled={sharingTicketId === ticket.id}
+                                  className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 active:bg-blue-500/40 text-blue-200 text-sm font-semibold py-3.5 rounded-xl transition-all flex flex-col items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60 min-h-[64px]"
+                                >
+                                  {sharingTicketId === ticket.id ? (
+                                    <>
+                                      <span className="w-5 h-5 border-2 border-blue-200/30 border-t-transparent rounded-full animate-spin" />
+                                      <span className="text-xs">Sharing...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ShareNetwork size={24} weight="fill" />
+                                      <span>Share</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+
+                              {/* List for Sale Button */}
+                              {canListTicket(ticket) ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleListForSale(ticket);
+                                  }}
+                                  disabled={isListing}
+                                  className="flex-1 bg-green-500/20 hover:bg-green-500/30 active:bg-green-500/40 text-green-400 text-sm font-semibold py-3.5 rounded-xl transition-all flex flex-col items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed min-h-[64px]"
+                                >
+                                  <Tag size={24} weight="fill" />
+                                  <span>Sell</span>
+                                </button>
+                              ) : ticket.status === 'owned' && hasEventPassed(ticket.date) ? (
+                                <div className="flex-1 flex items-center justify-center py-3.5">
+                                  <p className="text-red-400/60 text-sm">Event has passed</p>
+                                </div>
+                              ) : null}
                             </div>
-                          ) : null}
-                          <p className="text-white/40 text-xs text-center pt-2">
+                          )}
+
+                          <p className="text-white/40 text-xs text-center pt-1">
                             {ticket.status === 'listed' ? 'Listed - QR code locked' : 'Tap to view QR code'}
                           </p>
                         </div>

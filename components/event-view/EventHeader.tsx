@@ -19,12 +19,6 @@ export function EventHeader({
 }: EventHeaderProps) {
   return (
     <div>
-      <div className="mb-3 sm:mb-4">
-        <span className="text-xs sm:text-sm px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/50">
-          {category}
-        </span>
-      </div>
-
       <h1 className="text-4xl sm:text-5xl md:text-6xl tracking-tighter font-bold text-white mb-6 sm:mb-8">
         {title}
       </h1>

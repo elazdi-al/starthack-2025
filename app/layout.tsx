@@ -11,6 +11,12 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: minikitConfig.miniapp.name,
     description: minikitConfig.miniapp.description,
+    viewport: {
+      width: "device-width",
+      initialScale: 1,
+      maximumScale: 1,
+      userScalable: false,
+    },
     other: {
       "fc:frame": JSON.stringify({
         version: minikitConfig.miniapp.version,
@@ -45,6 +51,37 @@ export default function RootLayout({
   return (
     <RootProvider>
       <html lang="en" suppressHydrationWarning>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                // Prevent zoom on double tap
+                let lastTouchEnd = 0;
+                document.addEventListener('touchend', function(event) {
+                  const now = Date.now();
+                  if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                  }
+                  lastTouchEnd = now;
+                }, { passive: false });
+
+                // Prevent zoom with gestures
+                document.addEventListener('gesturestart', function(e) {
+                  e.preventDefault();
+                }, { passive: false });
+
+                // Remove URL hash on load and prevent hash changes
+                if (window.location.hash) {
+                  history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
+                window.addEventListener('hashchange', function() {
+                  history.replaceState(null, '', window.location.pathname + window.location.search);
+                });
+              `,
+            }}
+          />
+        </head>
         <body className={`${inter.variable} ${sourceCodePro.variable}`}>
           <ThemeProvider
             attribute="class"
