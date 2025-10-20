@@ -45,7 +45,7 @@ export default function Home() {
       <BackgroundGradient />
       {/* Title at the top */}
       <div className="flex-1 flex items-start justify-center pt-8 relative z-10">
-        <img src="/icon.svg" alt="Stars" className="w-auto h-48" />
+        <img src="/hero.svg" alt="Stars" className="w-auto h-48" />
       </div>
 
       {/* Sign in buttons at the bottom */}

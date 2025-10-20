@@ -22,17 +22,8 @@ function getUrlHost(request: NextRequest): string {
     return host;
   }
 
-  // Final fallback to environment variables (your original logic)
-  let urlValue: string;
-  if (process.env.VERCEL_ENV === "production") {
-    urlValue = process.env.NEXT_PUBLIC_URL!;
-  } else if (process.env.VERCEL_URL) {
-    urlValue = `https://${process.env.VERCEL_URL}`;
-  } else {
-    urlValue = "http://localhost:3000";
-  }
 
-  const url = new URL(urlValue);
+  const url = new URL(process.env.NEXT_PUBLIC_URL ?? "");
   return url.host;
 }
 
