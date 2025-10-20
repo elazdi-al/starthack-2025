@@ -8,6 +8,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { SafeAreaWrapper } from "@/components/SafeAreaWrapper";
 
 export async function generateMetadata(): Promise<Metadata> {
+  const ROOT_URL = process.env.NEXT_PUBLIC_URL ?? 'http://localhost:3000';
+
   return {
     title: minikitConfig.miniapp.name,
     description: minikitConfig.miniapp.description,
@@ -18,14 +20,17 @@ export async function generateMetadata(): Promise<Metadata> {
       userScalable: false,
     },
     other: {
-      "fc:frame": JSON.stringify({
-        version: minikitConfig.miniapp.version,
-        imageUrl: minikitConfig.miniapp.heroImageUrl,
+      "fc:miniapp": JSON.stringify({
+        version: 'next',
+        imageUrl: minikitConfig.miniapp.heroImageUrl || `${ROOT_URL}/hero.png`,
         button: {
-          title: `Join the ${minikitConfig.miniapp.name} Waitlist`,
+          title: `Launch ${minikitConfig.miniapp.name}`,
           action: {
-            name: `Launch ${minikitConfig.miniapp.name}`,
-            type: "launch_frame",
+            type: 'launch_miniapp',
+            name: minikitConfig.miniapp.name,
+            url: ROOT_URL,
+            splashImageUrl: minikitConfig.miniapp.splashImageUrl || `${ROOT_URL}/hero.png`,
+            splashBackgroundColor: minikitConfig.miniapp.splashBackgroundColor || '#000000',
           },
         },
       }),

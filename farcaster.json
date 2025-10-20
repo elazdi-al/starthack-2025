@@ -3,22 +3,21 @@
     "header": "eyJmaWQiOjEzOTA0NTAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg4NjE5RUI4Y2M0ODM1YkU4RkEyNzZDMzU4ZGMzOUVBRjQwM0VCZjdjIn0",
     "payload": "eyJkb21haW4iOiJzdGFydGhhY2stMjAyNS1pb3RhLnZlcmNlbC5hcHAifQ",
     "signature": "f8n/ksHVfEhU5nDREMVqx5ECKAZHDseBS3IzevhVKI5/emAIduoB90HEvskpdRIqQ4HnXiBY7D6OGsxrYirtOBw="
-  }, 
-   "baseBuilder": {
-    "ownerAddress": "0xB23053be8Da836dcA0856b99B0E7296D8B7e6d4f"
   },
   "miniapp": {
     "version": "1",
-    "name": "Basecamp 2025",               
-    "description": "Access and manage your experience @ Basecamp", 
-    "iconUrl": "https://basecamp25.app/icon.png",   
-    "homeUrl": "https://basecamp25.app",           
-    "canonicalDomain": "basecamp25.app",          
-    "requiredChains": ["eip155:8453"],           
-    "tags": ["basecamp", "miniapp"],            
-    "requiredCapabilities": [                  
-      "actions.ready",
-      "actions.signIn"
-    ]
+    "name": "Stars",
+    "subtitle": "Your AI Ad Companion",
+    "description": "Ads",
+    "iconUrl": "https://starthack-2025-iota.vercel.app/app-icon.png",
+    "splashImageUrl": "https://starthack-2025-iota.vercel.app/hero.png",
+    "splashBackgroundColor": "#000000",
+    "homeUrl": "https://starthack-2025-iota.vercel.app",
+    "webhookUrl": "https://starthack-2025-iota.vercel.app/api/webhook",
+    "primaryCategory": "social",
+    "tags": ["marketing", "ads", "quickstart", "waitlist"],
+    "screenshotUrls": ["https://starthack-2025-iota.vercel.app/screenshot-portrait.png"],
+    "heroImageUrl": "https://starthack-2025-iota.vercel.app/hero.png",
+    "ogImageUrl": "https://starthack-2025-iota.vercel.app/hero.png"
   }
 }
