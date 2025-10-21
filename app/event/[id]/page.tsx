@@ -60,30 +60,6 @@ type PurchaseStage =
 const shortenAddress = (address: string) =>
   address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Unknown";
 
-const buildFallbackDescription = (event: {
-  name: string;
-  location: string;
-  date: number;
-  price: string;
-  creator: string;
-}) => {
-  const eventDate = new Date(event.date * 1000);
-  const formattedDate = eventDate.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-
-  const priceEth = Number(formatEther(BigInt(event.price)));
-
-  return `On-chain event hosted by ${shortenAddress(
-    event.creator
-  )} at ${event.location} on ${formattedDate}. Tickets cost ${
-    priceEth > 0 ? `${priceEth} ETH` : "free"
-  } and are settled directly on Base.`;
-};
-
 const transformEvent = (raw: {
   id: number;
   name: string;
@@ -103,13 +79,11 @@ const transformEvent = (raw: {
     minute: "2-digit",
   });
 
-  const description = buildFallbackDescription(raw);
-
   return {
     id: raw.id,
     title: raw.name,
-    description,
-    longDescription: `${description} This ticket is minted on-chain and can be resold in the marketplace.`,
+    description: "",
+    longDescription: "",
     date: eventDate.toISOString(),
     time,
     location: raw.location,

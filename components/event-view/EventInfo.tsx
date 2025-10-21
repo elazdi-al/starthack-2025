@@ -21,7 +21,7 @@ export function EventInfo({
   attendees,
   host,
   priceEth,
-  maxAttendees,
+  maxAttendees: _maxAttendees,
 }: EventInfoProps) {
   return (
     <div className="flex-1 space-y-6">
@@ -76,27 +76,15 @@ export function EventInfo({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-5">
-          <p className="text-white/40 text-xs uppercase tracking-[0.2em] mb-1">
-            Price
-          </p>
-          <p className="text-white text-2xl font-semibold">
-            {Number(priceEth) > 0
-              ? `${Number(priceEth).toFixed(4)} ETH`
-              : "Free"}
-          </p>
-        </div>
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-5">
-          <p className="text-white/40 text-xs uppercase tracking-[0.2em] mb-1">
-            Capacity
-          </p>
-          <p className="text-white text-2xl font-semibold">
-            {maxAttendees > 0
-              ? `${attendees}/${maxAttendees}`
-              : `${attendees} attending`}
-          </p>
-        </div>
+      <div className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-5">
+        <p className="text-white/40 text-xs uppercase tracking-[0.2em] mb-1">
+          Price
+        </p>
+        <p className="text-white text-2xl font-semibold">
+          {Number(priceEth) > 0
+            ? `${Number(priceEth).toFixed(4)} ETH`
+            : "Free"}
+        </p>
       </div>
     </div>
   );

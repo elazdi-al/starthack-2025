@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { BaseAuthButton } from "@/components/BaseAuthButton";
 import { useAuthCheck } from "@/lib/store/authStore";
+import Image from "next/image";
 
 export default function Home() {
   const { isFrameReady, setFrameReady } = useMiniKit();
@@ -45,7 +46,7 @@ export default function Home() {
       <BackgroundGradient />
       {/* Title at the top */}
       <div className="flex-1 flex items-start justify-center pt-8 relative z-10">
-        <img src="/hero.svg" alt="Stars" className="w-auto h-48" />
+        <Image src="/hero.svg" alt="Stars" width={192} height={192} className="w-auto h-48" priority />
       </div>
 
       {/* Sign in buttons at the bottom */}

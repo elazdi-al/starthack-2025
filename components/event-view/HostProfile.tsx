@@ -105,7 +105,6 @@ export function HostProfile({
             {typeof profile.following_count === "number" && (
               <span>Following {formatCompactNumber(profile.following_count)}</span>
             )}
-            <span>FID {profile.fid}</span>
           </div>
         </div>
         <button

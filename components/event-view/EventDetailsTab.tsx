@@ -61,19 +61,21 @@ export function EventDetailsTab({
         />
       </div>
 
-      <div className="mb-8 sm:mb-12">
-        <h2 className="text-xl sm:text-2xl font-semibold text-white/90 mb-4 sm:mb-5">
-          About
-        </h2>
-        <p className="text-base sm:text-lg text-white/60 leading-relaxed">
-          {event.longDescription}
-        </p>
-      </div>
+      {event.longDescription && event.longDescription.trim().length > 0 && (
+        <div className="mb-8 sm:mb-12">
+          <h2 className="text-xl sm:text-2xl font-semibold text-white/90 mb-4 sm:mb-5">
+            About
+          </h2>
+          <p className="text-base sm:text-lg text-white/60 leading-relaxed">
+            {event.longDescription}
+          </p>
+        </div>
+      )}
 
       {shouldShowProfile && (
         <div className="mb-8 sm:mb-12">
           <h2 className="text-xl sm:text-2xl font-semibold text-white/90 mb-4 sm:mb-5">
-            Host on Farcaster
+            Host on Base
           </h2>
           <HostProfile
             profile={farcasterProfile}

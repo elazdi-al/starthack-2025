@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, SignOut } from "phosphor-react";
+import { ArrowLeft } from "phosphor-react";
 import { WalletBalance } from "@/components/WalletBalance";
-import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
+import { useAuthCheck } from "@/lib/store/authStore";
 
 interface TopBarProps {
   showBackButton?: boolean;
@@ -16,33 +16,17 @@ interface TopBarProps {
 export function TopBar({ showBackButton = false, backPath = "/home", backTitle = "Back", title, showTitle = false }: TopBarProps) {
   const router = useRouter();
   const { isAuthenticated: _isAuthenticated, fid: _fid } = useAuthCheck();
-  const { clearAuth } = useAuthStore();
 
   const handleBack = () => {
     router.push(backPath);
   };
 
-  const handleSignOut = () => {
-    clearAuth();
-    router.push('/');
-  };
-
   return (
-    <>
-      {/* Sign Out button - Top Left Corner */}
-      <button
-        className="absolute top-6 left-6 z-20 text-white/40 hover:text-white/80 transition-colors bg-white/5 backdrop-blur-sm p-2 rounded-full border border-white/10 hover:bg-white/10"
-        type="button"
-        onClick={handleSignOut}
-        title="Sign Out"
-      >
-        <SignOut size={20} weight="regular" />
-      </button>
-
-      {/* Back button - Desktop only when showBackButton is true */}
+    <div className="sticky top-0 z-30 bg-transparent backdrop-blur-md border-b border-white/5">
+      {/* Back button when showBackButton is true */}
       {showBackButton && (
         <button
-          className="absolute top-6 left-16 z-20 text-white/40 hover:text-white/80 transition-colors flex items-center gap-2"
+          className="absolute top-6 left-6 z-20 text-white/40 hover:text-white/80 transition-colors flex items-center gap-2"
           type="button"
           onClick={handleBack}
           title={backTitle}
@@ -69,7 +53,7 @@ export function TopBar({ showBackButton = false, backPath = "/home", backTitle =
                 {title}
               </h1>
             </div>
-          
+
           </div>
         </div>
       )}
@@ -80,6 +64,6 @@ export function TopBar({ showBackButton = false, backPath = "/home", backTitle =
           <WalletBalance />
         </div>
       )}
-    </>
+    </div>
   );
 }
