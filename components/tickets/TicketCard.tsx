@@ -83,13 +83,22 @@ export function TicketCard({
                     <p className="text-blue-400 text-xs font-semibold">LISTED</p>
                   </div>
                 )}
-                {/* Status dot indicator */}
+                {/* Active/Expired badge */}
                 <div
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    !hasEventPassed(ticket.date) ? 'bg-green-500' : 'bg-red-500'
+                  className={`backdrop-blur-sm px-3 py-1 rounded-full ${
+                    !hasEventPassed(ticket.date)
+                      ? 'bg-green-500/20'
+                      : 'bg-red-500/20'
                   }`}
-                  title={!hasEventPassed(ticket.date) ? 'Valid' : 'Event has passed'}
-                />
+                >
+                  <p className={`text-xs font-semibold ${
+                    !hasEventPassed(ticket.date)
+                      ? 'text-green-400'
+                      : 'text-red-400'
+                  }`}>
+                    {!hasEventPassed(ticket.date) ? 'ACTIVE' : 'EXPIRED'}
+                  </p>
+                </div>
               </div>
             </div>
 

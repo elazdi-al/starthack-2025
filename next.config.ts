@@ -7,12 +7,22 @@ const nextConfig: NextConfig = {
   },
 
   // Configure allowed dev origins for ngrok tunnels
-  
+
     allowedDevOrigins: [
       "https://gemmuliferous-wafery-warren.ngrok-free.dev",
       "gemmuliferous-wafery-warren.ngrok-free.dev"
     ],
 
+  // Configure image domains for external images
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'gateway.pinata.cloud',
+        pathname: '/ipfs/**',
+      },
+    ],
+  },
 
   // Add headers to allow Base Account popup to function
   async headers() {

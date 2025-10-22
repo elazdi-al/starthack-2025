@@ -51,7 +51,7 @@ export default function MyTickets() {
 
   const activeAddress = isAuthenticated && hasHydrated ? walletAddress ?? null : null;
   const ticketsQuery = useTickets(activeAddress);
-  const isLoadingTickets = ticketsQuery.isPending || ticketsQuery.isFetching;
+  const isLoadingTickets = ticketsQuery.isPending;
   const refetchTickets = ticketsQuery.refetch;
 
   // Clear duplicates on mount

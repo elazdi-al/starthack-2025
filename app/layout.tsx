@@ -5,7 +5,7 @@ import { RootProvider } from "./rootProvider";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
-import { SafeAreaWrapper } from "@/components/SafeAreaWrapper";
+import { SafeAreaWrapper } from "@/components/layout/SafeAreaWrapper";
 
 export const viewport = {
   width: "device-width",

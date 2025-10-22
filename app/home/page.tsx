@@ -10,7 +10,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { DesktopNav } from "@/components/layout/DesktopNav";
 import { useEvents } from "@/lib/hooks/useEvents";
 import { toast } from "sonner";
-import { SearchBar } from "@/components/SearchBar";
+import { SearchBar } from "@/components/home/SearchBar";
 
 export default function Home() {
   const router = useRouter();

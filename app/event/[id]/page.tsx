@@ -24,7 +24,7 @@ import { useEvent, useInvalidateEvents } from "@/lib/hooks/useEvents";
 import { useFarcasterProfile } from "@/lib/hooks/useFarcasterProfile";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useEventAttendees } from "@/lib/hooks/useEventAttendees";
-import { AttendeesList } from "@/components/AttendeesList";
+import { AttendeesList } from "@/components/event-view/AttendeesList";
 import {
   EventHeader,
   EventDetailsTab,
