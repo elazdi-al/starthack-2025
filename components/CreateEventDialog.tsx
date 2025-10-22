@@ -94,7 +94,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       // Try to connect with the first available connector (usually injected wallet)
       const injectedConnector = connectors.find(c => c.type === 'injected');
       if (injectedConnector) {
-        connect({ connector: injectedConnector });
+        connect({ connector: injectedConnector, chainId: base.id });
       }
     }
   }, [isAuthenticated, isConnected, connectors, connect]);

@@ -19,6 +19,7 @@ import {
   usePublicClient,
   useWalletClient,
 } from "wagmi";
+import { base } from "wagmi/chains";
 import { useEvent, useInvalidateEvents } from "@/lib/hooks/useEvents";
 import { useFarcasterProfile } from "@/lib/hooks/useFarcasterProfile";
 import { sdk } from "@farcaster/miniapp-sdk";
@@ -120,8 +121,8 @@ export default function EventPage() {
   const { address: walletAddress, isConnected } = useAccount();
   const { connect } = useConnect();
   const connectors = useConnectors();
-  const publicClient = usePublicClient();
-  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient({ chainId: base.id });
+  const { data: walletClient } = useWalletClient({ chainId: base.id });
 
   const { data: eventData, isLoading: isLoadingEvent, error: fetchError } = useEvent(eventId);
 
@@ -155,7 +156,7 @@ export default function EventPage() {
 
     const injected = connectors.find((connector) => connector.type === "injected");
     if (injected) {
-      connect({ connector: injected });
+      connect({ connector: injected, chainId: base.id });
     }
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 

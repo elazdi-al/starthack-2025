@@ -7,18 +7,19 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { SafeAreaWrapper } from "@/components/SafeAreaWrapper";
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const ROOT_URL = process.env.NEXT_PUBLIC_URL ?? 'http://localhost:3000';
 
   return {
     title: minikitConfig.miniapp.name,
     description: minikitConfig.miniapp.description,
-    viewport: {
-      width: "device-width",
-      initialScale: 1,
-      maximumScale: 1,
-      userScalable: false,
-    },
     other: {
       "fc:miniapp": JSON.stringify({
         version: 'next',
@@ -57,7 +58,6 @@ export default function RootLayout({
     <RootProvider>
       <html lang="en" suppressHydrationWarning>
         <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
           <script
             dangerouslySetInnerHTML={{
               __html: `

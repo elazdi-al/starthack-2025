@@ -22,6 +22,7 @@ import {
   usePublicClient,
   useWalletClient,
 } from "wagmi";
+import { base } from "wagmi/chains";
 
 
 
@@ -43,8 +44,8 @@ export default function MyTickets() {
   const { address: walletAddress, isConnected} = useAccount();
   const { connect } = useConnect();
   const connectors = useConnectors();
-  const publicClient = usePublicClient();
-  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient({ chainId: base.id });
+  const { data: walletClient } = useWalletClient({ chainId: base.id });
   const { invalidateTickets } = useInvalidateEvents();
 
   const activeAddress = isAuthenticated && hasHydrated ? walletAddress ?? null : null;
@@ -107,7 +108,7 @@ export default function MyTickets() {
 
     const injected = connectors.find((connector) => connector.type === "injected");
     if (injected) {
-      connect({ connector: injected });
+      connect({ connector: injected, chainId: base.id });
     }
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 
@@ -238,13 +239,15 @@ export default function MyTickets() {
       })) as `0x${string}`;
 
       if (approvedFor.toLowerCase() !== EVENT_BOOK_ADDRESS.toLowerCase()) {
-        const approveHash = await walletClient.writeContract({
+        const { request: approveRequest } = await publicClient.simulateContract({
           account: walletAddress as `0x${string}`,
           address: TICKET_CONTRACT_ADDRESS,
           abi: TICKET_ABI,
           functionName: "approve",
           args: [EVENT_BOOK_ADDRESS, tokenId],
         });
+
+        const approveHash = await walletClient.writeContract(approveRequest);
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
       }
 
@@ -476,11 +479,17 @@ export default function MyTickets() {
 
   if (!walletAddress || !isConnected) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center bg-transparent">
+      <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
         <BackgroundGradient />
-        <div className="relative z-10 text-white/40 text-center space-y-2">
-          <p>Connect your wallet to view your tickets.</p>
+
+        <TopBar title="My Tickets" showTitle={true} />
+
+        <div className="relative z-10 flex-1 px-6 flex flex-col items-center justify-center text-center space-y-3 text-white/60">
+          <p className="text-lg font-medium">Connect your wallet to see your tickets.</p>
+          <p className="text-sm text-white/40">Use the button above or your browser wallet to continue.</p>
         </div>
+
+        <BottomNav />
       </div>
     );
   }
@@ -492,11 +501,6 @@ export default function MyTickets() {
       {/* Top Bar with Title */}
       <TopBar title="My Tickets" showTitle={true}/>
 
-      {/* Bottom Navigation Bar - Mobile only */}
-      <BottomNav />
-
-    
-      {/* Tickets grid */}
       <div className="relative z-10 flex-1 px-6">
         {isLoadingTickets ? (
           <div className="flex flex-col items-center justify-center h-64 text-white/40">
@@ -514,9 +518,9 @@ export default function MyTickets() {
             {sortedTickets.map((ticket) => {
               const isFlipped = flippedCards.has(ticket.id);
               return (
-                    <div
-                      key={ticket.id}
-                      className={`relative h-[420px] perspective-1000 ${
+                        <div
+                          key={ticket.id}
+                          className={`relative h-[420px] perspective-1000 ${
                         ticket.status === 'listed' ? 'cursor-not-allowed' : 'cursor-pointer'
                       }`}
                       onClick={() => handleFlip(ticket.id)}
@@ -751,6 +755,9 @@ export default function MyTickets() {
           </div>
         )}
       </div>
+
+      {/* Bottom Navigation Bar - Mobile only */}
+      <BottomNav />
 
       {/* Listing Modal */}
       {listingTicket && (

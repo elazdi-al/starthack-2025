@@ -12,19 +12,36 @@ interface AuthState {
   isAuthenticated: boolean;
   fid: number | null;
   token: string | null;
+  address: string | null;
   authenticatedAt: number | null;
   expiresAt: number | null;
+  authMethod: AuthMethod | null;
   _hasHydrated: boolean;
 }
 
 interface AuthActions {
-  setAuth: (fid: number, token: string, expiresInDays?: number) => void;
+  setAuth: (params: SetAuthParams) => void;
   clearAuth: () => void;
   isSessionValid: () => boolean;
   setHasHydrated: (state: boolean) => void;
 }
 
 type AuthStore = AuthState & AuthActions;
+
+type AuthMethod = 'farcaster' | 'wallet';
+
+type SetAuthParams =
+  | {
+      method: 'farcaster';
+      fid: number;
+      token: string;
+      address?: string | null;
+      expiresInDays?: number;
+    }
+  | {
+      method: 'wallet';
+      address: string;
+    };
 
 const DEFAULT_EXPIRY_DAYS = 7;
 
@@ -35,22 +52,42 @@ export const useAuthStore = create<AuthStore>()(
       isAuthenticated: false,
       fid: null,
       token: null,
+      address: null,
       authenticatedAt: null,
       expiresAt: null,
+      authMethod: null,
       _hasHydrated: false,
 
       // Set Farcaster authentication
-      setAuth: (fid: number, token: string, expiresInDays = DEFAULT_EXPIRY_DAYS) => {
+      setAuth: (params: SetAuthParams) => {
         const now = Date.now();
-        const expiresAt = now + (expiresInDays * 24 * 60 * 60 * 1000);
-
-        set({
+        const nextState: Partial<AuthState> = {
           isAuthenticated: true,
-          fid,
-          token,
           authenticatedAt: now,
-          expiresAt,
-        });
+          _hasHydrated: true,
+          authMethod: params.method,
+        };
+
+        if (params.method === 'farcaster') {
+          const expiresInDays = params.expiresInDays ?? DEFAULT_EXPIRY_DAYS;
+          const expiresAt = now + expiresInDays * 24 * 60 * 60 * 1000;
+
+          Object.assign(nextState, {
+            fid: params.fid,
+            token: params.token,
+            address: params.address ?? null,
+            expiresAt,
+          });
+        } else {
+          Object.assign(nextState, {
+            fid: null,
+            token: null,
+            address: params.address,
+            expiresAt: null,
+          });
+        }
+
+        set(nextState as AuthState);
       },
 
       // Clear authentication
@@ -59,8 +96,10 @@ export const useAuthStore = create<AuthStore>()(
           isAuthenticated: false,
           fid: null,
           token: null,
+          address: null,
           authenticatedAt: null,
           expiresAt: null,
+          authMethod: null,
         });
       },
 
@@ -68,20 +107,31 @@ export const useAuthStore = create<AuthStore>()(
       isSessionValid: () => {
         const state = get();
         
-        if (!state.isAuthenticated || !state.expiresAt) {
+        if (!state.isAuthenticated) {
           return false;
         }
 
-        const now = Date.now();
-        
-        // Check if session has expired
-        if (now > state.expiresAt) {
-          // Auto-clear expired session
+        if (state.authMethod === 'wallet') {
+          if (!state.address) {
+            get().clearAuth();
+            return false;
+          }
+          return true;
+        }
+
+        if (state.authMethod !== 'farcaster' || !state.expiresAt) {
           get().clearAuth();
           return false;
         }
 
-        return true;
+        const now = Date.now();
+
+        if (now > state.expiresAt) {
+          get().clearAuth();
+          return false;
+        }
+
+        return !!state.token;
       },
 
       // Set hydration state
@@ -115,7 +165,7 @@ export const useAuthStore = create<AuthStore>()(
  * Use this in protected routes to avoid flash of unauthenticated content.
  */
 export const useAuthCheck = () => {
-  const { isSessionValid, isAuthenticated, fid, _hasHydrated } = useAuthStore();
+  const { isSessionValid, isAuthenticated, fid, address, authMethod, _hasHydrated } = useAuthStore();
 
   // Check validity on every use
   const isValid = isSessionValid();
@@ -123,7 +173,8 @@ export const useAuthCheck = () => {
   return {
     isAuthenticated: isValid && isAuthenticated,
     fid: isValid ? fid : null,
+    address: isValid ? address : null,
+    authMethod: isValid ? authMethod : null,
     hasHydrated: _hasHydrated,
   };
 };
-
