@@ -27,11 +27,25 @@ export function EventCard({ event }: EventCardProps) {
   const [imageError, setImageError] = useState(false);
 
   const eventDate = new Date(event.date * 1000);
-  const formattedDate = eventDate.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+
+  // Format as a clean phrase
+  const now = new Date();
+  const isToday = eventDate.toDateString() === now.toDateString();
+  const isTomorrow = eventDate.toDateString() === new Date(now.getTime() + 86400000).toDateString();
+
+  let datePhrase;
+  if (isToday) {
+    datePhrase = "Today";
+  } else if (isTomorrow) {
+    datePhrase = "Tomorrow";
+  } else {
+    datePhrase = eventDate.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: eventDate.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+    });
+  }
+
   const formattedTime = eventDate.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -40,10 +54,10 @@ export function EventCard({ event }: EventCardProps) {
 
   return (
     <Card
-      className="bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/[0.07] transition-all duration-200 cursor-pointer overflow-hidden group"
+      className="bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/[0.07] transition-all duration-200 cursor-pointer overflow-hidden group p-1"
       onClick={() => router.push(`/event/${event.id}`)}
     >
-      <div className="flex gap-3 px-3 py-2.5">
+      <div className="flex gap-5 px-3 py-2.5">
         {/* Left: Square Image */}
         <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-white/[0.02]">
           {/* Shimmer loading animation */}
@@ -100,7 +114,7 @@ export function EventCard({ event }: EventCardProps) {
             <div className="flex items-center gap-2">
               <Calendar size={15} className="text-white/50 flex-shrink-0" strokeWidth={2} />
               <span className="text-white/70 text-sm">
-                {formattedDate} · {formattedTime}
+                {datePhrase} at {formattedTime}
               </span>
             </div>
 
