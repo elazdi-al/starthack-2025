@@ -5,11 +5,7 @@ import { House, ShoppingCart, Ticket, CalendarCheck } from "phosphor-react";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 import { memo, useCallback } from "react";
 
-interface DesktopNavProps {
-  onEventCreated?: () => void;
-}
-
-export const DesktopNav = memo(function DesktopNav({ onEventCreated }: DesktopNavProps) {
+export const DesktopNav = memo(function DesktopNav() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -82,7 +78,7 @@ export const DesktopNav = memo(function DesktopNav({ onEventCreated }: DesktopNa
       </button>
 
       {/* Create Event */}
-      <CreateEventDialog onEventCreated={onEventCreated} />
+      <CreateEventDialog />
     </div>
   );
 });

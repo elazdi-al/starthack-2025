@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useState, useRef, type ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +42,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const [imageUploadData, setImageUploadData] = useState<{ cid: string; url: string } | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const MAX_DESCRIPTION_LENGTH = 250;
+  const hasFinalized = useRef(false);
+  const hasTriedChainSwitch = useRef(false);
 
   const resetFormState = useCallback(() => {
     setFormData({ ...INITIAL_FORM_STATE });
@@ -50,6 +52,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     setImageFile(null);
     setImagePreviewUrl(null);
     setImageUploadData(null);
+    hasFinalized.current = false;
   }, []);
 
   // Use Base auth store for authentication check
@@ -67,16 +70,19 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const { invalidateAll } = useInvalidateEvents();
   useEffect(() => {
     const switchToBase = async () => {
-      if (chainId !== base.id){
+      if (hasTriedChainSwitch.current) return;
+
+      if (isConnected && chainId !== base.id){
+        hasTriedChainSwitch.current = true;
         try {
           await switchChainAsync({chainId:base.id})
-        } catch {
-          console.error("Failed to switch to Base chain")
+        } catch (error) {
+          console.error("Failed to switch to Base chain", error)
         }
       }
     };
-    switchToBase();
-  }, [chainId, switchChainAsync]);
+    void switchToBase();
+  }, [isConnected, chainId, switchChainAsync]);
 
   useEffect(() => {
     if (!imagePreviewUrl) {
@@ -257,7 +263,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     setOpen(false);
   };
 
-  const handleDialogChange = (nextOpen: boolean) => {
+  const handleDialogChange = useCallback((nextOpen: boolean) => {
     if (!nextOpen) {
       if (isPending || isConfirming || isUploadingImage) {
         toast.info("Just a moment", {
@@ -268,7 +274,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       resetFormState();
     }
     setOpen(nextOpen);
-  };
+  }, [isPending, isConfirming, isUploadingImage, resetFormState]);
 
   // Handle transaction errors
   useEffect(() => {
@@ -282,9 +288,11 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
   // Handle successful transaction
   useEffect(() => {
-    if (!isConfirmed || !hash) {
+    if (!isConfirmed || !hash || hasFinalized.current) {
       return;
     }
+
+    hasFinalized.current = true;
 
     toast.success("Event created successfully!", {
       description: "Your event is now live on the blockchain with the image stored on-chain.",
@@ -294,16 +302,19 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       // Invalidate events cache to fetch the new event with on-chain image
       invalidateAll();
 
-      resetFormState();
-      setOpen(false);
+      // Small delay to ensure state updates don't conflict with Dialog animations
+      setTimeout(() => {
+        resetFormState();
+        setOpen(false);
 
-      if (onEventCreated) {
-        onEventCreated();
-      }
+        if (onEventCreated) {
+          onEventCreated();
+        }
+      }, 150);
     };
 
     void finalizeCreation();
-  }, [hash, isConfirmed, invalidateAll, onEventCreated, resetFormState]);
+  }, [isConfirmed, hash]);
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>

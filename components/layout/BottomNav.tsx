@@ -5,11 +5,7 @@ import { House, ShoppingCart, Ticket, CalendarCheck } from "phosphor-react";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 import { memo, useCallback } from "react";
 
-interface BottomNavProps {
-  onEventCreated?: () => void;
-}
-
-export const BottomNav = memo(function BottomNav({ onEventCreated }: BottomNavProps) {
+export const BottomNav = memo(function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -55,7 +51,7 @@ export const BottomNav = memo(function BottomNav({ onEventCreated }: BottomNavPr
 
           {/* Create Event - Centered */}
           <div className="flex-shrink-0">
-            <CreateEventDialog onEventCreated={onEventCreated} />
+            <CreateEventDialog />
           </div>
 
           {/* Tickets */}

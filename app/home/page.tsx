@@ -74,7 +74,7 @@ export default function Home() {
       <TopBar title="Events" showTitle={true} />
 
       {/* Desktop Navigation - Fixed at top right */}
-      <DesktopNav onEventCreated={() => eventsQuery.refetch()} />
+      <DesktopNav />
 
       {/* Search Bar */}
       <div className="relative z-10 px-6 pb-6 flex justify-center">
@@ -82,7 +82,7 @@ export default function Home() {
       </div>
 
       {/* Mobile Navigation */}
-      <BottomNav onEventCreated={() => eventsQuery.refetch()} />
+      <BottomNav />
 
       {/* Event cards */}
       <div className="relative z-10 flex-1 px-6 pb-6">
