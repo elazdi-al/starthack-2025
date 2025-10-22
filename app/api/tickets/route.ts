@@ -126,8 +126,8 @@ export async function GET(request: NextRequest) {
 
           const [name, location, date] = eventData;
 
-          // Fetch purchase time from blockchain
-          let purchaseTime: bigint;
+          // Fetch purchase time from blockchain, fallback to mint block timestamp
+          let purchaseTime: bigint = BigInt(0);
           try {
             purchaseTime = await publicClient.readContract({
               address: TICKET_CONTRACT_ADDRESS,
@@ -136,8 +136,40 @@ export async function GET(request: NextRequest) {
               args: [tokenId],
             }) as bigint;
           } catch (error) {
-            console.warn(`Failed to fetch purchase time for token ${tokenId}:`, error);
-            purchaseTime = BigInt(0);
+            try {
+              const mintLogs = await publicClient.getLogs({
+                address: TICKET_CONTRACT_ADDRESS,
+                event: {
+                  type: 'event',
+                  name: 'Transfer',
+                  inputs: [
+                    { type: 'address', indexed: true, name: 'from' },
+                    { type: 'address', indexed: true, name: 'to' },
+                    { type: 'uint256', indexed: true, name: 'tokenId' },
+                  ],
+                },
+                args: {
+                  tokenId,
+                },
+                fromBlock: BigInt(0),
+                toBlock: 'latest',
+              });
+
+              const mintLog = mintLogs.find(
+                (log) =>
+                  log.args.from?.toLowerCase() === '0x0000000000000000000000000000000000000000' &&
+                  typeof log.blockNumber === 'bigint',
+              );
+
+              if (mintLog?.blockNumber !== undefined) {
+                const block = await publicClient.getBlock({ blockNumber: mintLog.blockNumber });
+                if (block.timestamp !== undefined) {
+                  purchaseTime = block.timestamp;
+                }
+              }
+            } catch (fallbackError) {
+              console.warn(`Unable to determine purchase time for token ${tokenId}:`, fallbackError);
+            }
           }
 
           const eventDate = Number(date);

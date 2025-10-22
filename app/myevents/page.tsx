@@ -27,7 +27,7 @@ interface Event {
 export default function MyEvents() {
   const router = useRouter();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
 
   const eventsQuery = useEvents({ enabled: isAuthenticated && hasHydrated });
 
@@ -75,6 +75,23 @@ export default function MyEvents() {
     return null;
   }
 
+  if (!address || !isConnected) {
+    return (
+      <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
+        <BackgroundGradient />
+
+        <TopBar title="My Events" showTitle={true} />
+
+        <div className="relative z-10 flex-1 px-6 flex flex-col items-center justify-center text-center space-y-3 text-white/60">
+          <p className="text-lg font-medium">Connect your wallet to manage your events.</p>
+          <p className="text-sm text-white/40">Use the button above or your browser wallet to continue.</p>
+        </div>
+
+        <BottomNav onEventCreated={() => eventsQuery.refetch()} />
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
@@ -114,4 +131,3 @@ export default function MyEvents() {
     </div>
   );
 }
-

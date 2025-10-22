@@ -1,11 +1,16 @@
-import { createConfig , http} from "wagmi";
-import { mainnet, base, basePreconf } from "viem/chains";
-
+import { createConfig, http } from "wagmi";
+import { base } from "wagmi/chains";
+import { injected } from "wagmi/connectors";
 
 export const config = createConfig({
-    chains:[base], 
-    transports:{
-        [base.id]: http(),
-        
-    }
-})
+  chains: [base],
+  connectors: [
+    injected({
+      shimDisconnect: true,
+    }),
+  ],
+  transports: {
+    [base.id]: http(),
+  },
+  ssr: true,
+});

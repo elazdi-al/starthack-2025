@@ -2,6 +2,8 @@
 
 export const TICKET_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_TICKET_CONTRACT_ADDRESS as `0x${string}` || '0x0000000000000000000000000000000000000000' as `0x${string}`;
 
+import type { Abi } from "viem";
+
 export const TICKET_ABI = [
   {
     "type": "function",
@@ -129,4 +131,4 @@ export const TICKET_ABI = [
     "outputs": [],
     "stateMutability": "nonpayable"
   }
-] as const;
+] as const satisfies Abi;

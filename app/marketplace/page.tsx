@@ -11,6 +11,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount, useConnect, useConnectors, usePublicClient, useWalletClient } from "wagmi";
+import { base } from "wagmi/chains";
 import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
 import { ListingCard } from "./ListingCard";
 import { PurchaseModal } from "./PurchaseModal";
@@ -55,8 +56,8 @@ export default function Marketplace() {
   const { address: walletAddress, isConnected } = useAccount();
   const { connect } = useConnect();
   const connectors = useConnectors();
-  const publicClient = usePublicClient();
-  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient({ chainId: base.id });
+  const { data: walletClient } = useWalletClient({ chainId: base.id });
   const queryClient = useQueryClient();
 
   // Fetch listings with infinite scroll
@@ -99,7 +100,7 @@ export default function Marketplace() {
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated || isConnected || connectors.length === 0) return;
     const injected = connectors.find((connector) => connector.type === "injected");
-    if (injected) connect({ connector: injected });
+    if (injected) connect({ connector: injected, chainId: base.id });
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 
   // Redirect if not authenticated

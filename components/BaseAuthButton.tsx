@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { sdk } from "@farcaster/miniapp-sdk";
 
+const shortenAddress = (value: string) =>
+  value ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
+
 /**
  * Farcaster authentication button component
  * 
@@ -13,7 +16,7 @@ import { sdk } from "@farcaster/miniapp-sdk";
  * Automatically redirects to home page upon successful authentication.
  */
 export function BaseAuthButton() {
-  const { isAuthenticated, fid, signIn, isLoading, error } = useFarcasterAuth();
+  const { isAuthenticated, fid, address, authMethod, signIn, isLoading, error } = useFarcasterAuth();
   const router = useRouter();
   const [isMiniApp, setIsMiniApp] = useState<boolean | null>(null);
   const autoSignInAttemptedRef = useRef(false);
@@ -70,7 +73,13 @@ export function BaseAuthButton() {
       <div className="w-full max-w-sm space-y-4">
         <div className="text-center text-white/80">
           <p className="text-sm text-white/60 mb-2">Authenticated as</p>
-          <p className="text-lg font-semibold">FID: {fid}</p>
+          {authMethod === "farcaster" && fid !== null ? (
+            <p className="text-lg font-semibold">FID: {fid}</p>
+          ) : (
+            <p className="text-lg font-semibold">
+              Wallet: {address ? shortenAddress(address) : "Connected"}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -79,7 +88,11 @@ export function BaseAuthButton() {
   return (
     <div className="w-full max-w-sm space-y-4">
       <SignInWithBaseButton 
-        onClick={() => signIn()} 
+        onClick={() => {
+          if (!isLoading) {
+            void signIn();
+          }
+        }} 
         colorScheme="dark"
       />
       {isLoading && (
