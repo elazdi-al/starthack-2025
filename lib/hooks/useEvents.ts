@@ -1,5 +1,5 @@
 import { eventsAPI, ticketsAPI } from "@/lib/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 
 // Query keys for better cache management
 export const eventKeys = {
@@ -16,18 +16,59 @@ export const ticketKeys = {
 };
 
 /**
- * Fetch all events with caching
+ * Fetch all events with caching (optimized with multicall)
  */
-export function useEvents(options?: { enabled?: boolean }) {
+export function useEvents(options?: {
+  enabled?: boolean;
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
+  const { enabled = true, page, limit, search } = options || {};
+
   return useQuery({
-    queryKey: eventKeys.lists(),
+    queryKey: eventKeys.list({ page, limit, search }),
     queryFn: async () => {
-      const response = await eventsAPI.getAll();
+      // Fetch all events once for caching, then filter client-side
+      const response = await eventsAPI.getAll({
+        all: true, // Get all events in one multicall batch
+      });
       return response;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache longer
+    refetchOnWindowFocus: false, // Don't refetch on window focus (use cache)
+    refetchOnMount: false, // Don't refetch on mount if data exists
+    enabled,
+  });
+}
+
+/**
+ * Fetch events with server-side search (for large datasets)
+ */
+export function useEventsWithSearch(options?: {
+  enabled?: boolean;
+  page?: number;
+  limit?: number;
+  search?: string;
+}) {
+  const { enabled = true, page = 1, limit = 50, search = '' } = options || {};
+
+  return useQuery({
+    queryKey: eventKeys.list({ page, limit, search }),
+    queryFn: async () => {
+      const response = await eventsAPI.getAll({
+        page,
+        limit,
+        search
+      });
+      return response;
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes for search results
     gcTime: 10 * 60 * 1000, // 10 minutes
-    enabled: options?.enabled ?? true,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData, // Keep showing old data while fetching new
+    enabled,
   });
 }
 

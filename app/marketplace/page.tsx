@@ -1,21 +1,23 @@
 "use client";
 
-import { BackgroundGradient } from "@/components/BackgroundGradient";
+import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore } from "@/lib/store/ticketStore";
 import { useMarketplace } from "@/lib/store/marketplaceStore";
-import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
+import { TopBar } from "@/components/layout/TopBar";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { toast } from "sonner";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount, useConnect, useConnectors, usePublicClient, useWalletClient } from "wagmi";
 import { base } from "wagmi/chains";
 import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
 import { ListingCard } from "./ListingCard";
+import { ListingCardSkeleton } from "./ListingCardSkeleton";
 import { PurchaseModal } from "./PurchaseModal";
 import { UserListings } from "./UserListings";
+import { DesktopNav } from "@/components/layout/DesktopNav";
 
 // Types
 interface Listing {
@@ -103,11 +105,6 @@ export default function Marketplace() {
     if (injected) connect({ connector: injected, chainId: base.id });
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (hasHydrated && !isAuthenticated) router.push("/");
-  }, [hasHydrated, isAuthenticated, router]);
-
   // Flatten listings
   const allListings = useMemo(() => data?.pages.flatMap((page) => page.listings) ?? [], [data]);
 
@@ -142,6 +139,14 @@ export default function Marketplace() {
     const lowerAddress = walletAddress.toLowerCase();
     return allListings.filter((listing) => listing.seller.toLowerCase() !== lowerAddress);
   }, [allListings, walletAddress]);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (hasHydrated && !isAuthenticated) router.push("/");
+  }, [hasHydrated, isAuthenticated, router]);
+
+  // Show nothing while hydrating or if not authenticated after hydration
+  if (!hasHydrated || (hasHydrated && !isAuthenticated)) return null;
 
   // Handle ticket purchase
   const handlePurchase = async (listing: Listing) => {
@@ -192,26 +197,15 @@ export default function Marketplace() {
     }
   };
 
-  // Loading state
-  if (!hasHydrated) {
-    return (
-      <div className="relative min-h-screen flex items-center justify-center bg-transparent">
-        <BackgroundGradient />
-        <div className="relative z-10 text-white/40">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) return null;
-
   return (
     <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
       <TopBar title="Marketplace" showTitle={true} />
+      <DesktopNav />
       <BottomNav />
 
-      {/* User's Listings */}
-      {userListedTickets.length > 0 && (
+      {/* User's Listings - Only show when loaded and has tickets */}
+      {!isLoading && userListedTickets.length > 0 && (
         <UserListings
           tickets={userListedTickets}
           onCancel={async (ticket) => {
@@ -252,33 +246,33 @@ export default function Marketplace() {
 
       {/* Marketplace Listings */}
       <div className="relative z-10 flex-1 px-6">
-        {isLoading && (
-          <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          </div>
-        )}
-
         {isError && (
           <div className="text-center py-12">
             <p className="text-red-400">Error loading listings: {error.message}</p>
           </div>
         )}
 
-        {!isLoading && !isError && marketplaceListings.length === 0 && data?.pages.length && (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <ListingCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : !isError && marketplaceListings.length === 0 && data?.pages.length ? (
           <div className="text-center py-12">
             <p className="text-white/60">No listings from other users yet.</p>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
+            {marketplaceListings.map((listing) => (
+              <ListingCard
+                key={listing.tokenId}
+                listing={listing}
+                onBuyClick={(listing) => setSelectedListing(listing)}
+              />
+            ))}
+          </div>
         )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
-          {marketplaceListings.map((listing) => (
-            <ListingCard
-              key={listing.tokenId}
-              listing={listing}
-              onBuyClick={(listing) => setSelectedListing(listing)}
-            />
-          ))}
-        </div>
 
         {/* Infinite scroll trigger */}
         {hasNextPage && (

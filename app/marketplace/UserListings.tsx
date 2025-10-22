@@ -28,10 +28,9 @@ export function UserListings({ tickets, onCancel }: UserListingsProps) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {tickets.map((ticket) => (
-          <button
+          <div
             key={ticket.id}
-            type="button"
-            className="bg-blue-500/10 backdrop-blur-xl border border-blue-500/30 rounded-2xl p-6 shadow-xl cursor-pointer hover:bg-blue-500/20 transition-all text-left"
+            className="bg-blue-500/10 backdrop-blur-xl border border-blue-500/30 rounded-2xl p-6 cursor-pointer hover:bg-blue-500/20 transition-all"
             onClick={() => ticket.eventId && router.push(`/event/${ticket.eventId}`)}
           >
             <div className="flex justify-between items-start mb-3">
@@ -62,10 +61,10 @@ export function UserListings({ tickets, onCancel }: UserListingsProps) {
                   <span>Canceling...</span>
                 </>
               ) : (
-                "Cancel Listing"
+                "Cancel"
               )}
             </button>
-          </button>
+          </div>
         ))}
       </div>
     </div>

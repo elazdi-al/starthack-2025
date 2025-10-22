@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
               functionName: 'ticketPurchaseTime',
               args: [tokenId],
             }) as bigint;
-          } catch (error) {
+          } catch {
             try {
               const mintLogs = await publicClient.getLogs({
                 address: TICKET_CONTRACT_ADDRESS,

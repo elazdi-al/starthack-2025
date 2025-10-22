@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BackgroundGradient } from "@/components/BackgroundGradient";
+import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { useRouter, useParams } from "next/navigation";
 import { QrCode } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
-import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
+import { TopBar } from "@/components/layout/TopBar";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { ticketsAPI } from "@/lib/api";
 import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
 import { formatEther } from "viem";
@@ -361,7 +361,7 @@ export default function EventPage() {
         <button
           type="button"
           onClick={handleScannerClick}
-          className="fixed top-4 right-4 z-20 bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-3 transition-all active:scale-95"
+          className="fixed top-6 right-6 z-20 bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-3 transition-all active:scale-95 md:top-8 md:right-8"
           title="Scan QR Code"
         >
           <QrCode size={24} weight="regular" className="text-white/80" />
@@ -370,7 +370,7 @@ export default function EventPage() {
 
       <BottomNav />
 
-      <div className="relative z-10 flex-1 pb-8 md:pb-8 max-w-3xl mx-auto w-full px-6 pt-16 sm:pt-20">
+      <div className="relative z-10 flex-1 pb-8 md:pb-12 max-w-4xl mx-auto w-full px-6 pt-16 sm:pt-20 md:pt-24">
         <EventHeader
           title={event.title}
           category={event.category}

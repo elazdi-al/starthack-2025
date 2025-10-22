@@ -4,9 +4,15 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/events - Get all events
-export async function GET() {
+// GET /api/events - Get all events with pagination and search
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const page = Number.parseInt(searchParams.get('page') || '1', 10);
+    const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50', 10), 100); // Max 100 per page
+    const search = searchParams.get('search') || '';
+    const includeAll = searchParams.get('all') === 'true'; // For client-side caching
+
     // Get total number of events
     const numberOfEvents = await publicClient.readContract({
       address: EVENT_BOOK_ADDRESS,
@@ -15,69 +21,94 @@ export async function GET() {
     }) as bigint;
 
     const eventCount = Number(numberOfEvents);
-    
-    // Fetch all events
-    const events = await Promise.all(
-      Array.from({ length: eventCount }, async (_, index) => {
-        const eventData = await publicClient.readContract({
-          address: EVENT_BOOK_ADDRESS,
-          abi: EVENT_BOOK_ABI,
-          functionName: 'events',
-          args: [BigInt(index)],
-        }) as [
-          string,
-          string,
-          bigint,
-          bigint,
-          bigint,
-          string,
-          bigint,
-          bigint,
-          string,
-          boolean,
-          boolean
-        ];
 
-        const [
-          name,
-          location,
-          date,
-          price,
-          _revenueOwed,
-          creator,
-          ticketsSold,
-          maxCapacity,
-          imageURI,
-          isPrivate,
-          whitelistIsLocked,
-        ] = eventData;
+    // Use multicall to fetch all events in batches (viem handles this automatically)
+    const eventContracts = Array.from({ length: eventCount }, (_, index) => ({
+      address: EVENT_BOOK_ADDRESS,
+      abi: EVENT_BOOK_ABI,
+      functionName: 'events' as const,
+      args: [BigInt(index)],
+    }));
 
-        return {
-          id: index,
-          name,
-          location,
-          date: Number(date),
-          price: price.toString(),
-          creator,
-          ticketsSold: Number(ticketsSold),
-          maxCapacity: Number(maxCapacity),
-          imageURI, // Using on-chain imageURI directly
-          isPrivate,
-          whitelistIsLocked,
-          // Calculate if event has passed
-          isPast: Number(date) < Math.floor(Date.now() / 1000),
-          isFull: Number(maxCapacity) > 0 && Number(ticketsSold) >= Number(maxCapacity),
-        };
-      })
-    );
+    // Fetch all events using multicall - viem batches these automatically
+    const eventResults = await publicClient.multicall({
+      contracts: eventContracts,
+      allowFailure: false, // Fail if any call fails
+    }) as Array<[string, string, bigint, bigint, bigint, string, bigint, bigint, string, boolean, boolean]>;
+
+    // Transform results
+    const allEvents = eventResults.map((eventData, index) => {
+      const [
+        name,
+        location,
+        date,
+        price,
+        _revenueOwed,
+        creator,
+        ticketsSold,
+        maxCapacity,
+        imageURI,
+        isPrivate,
+        whitelistIsLocked,
+      ] = eventData;
+
+      return {
+        id: index,
+        name,
+        location,
+        date: Number(date),
+        price: price.toString(),
+        creator,
+        ticketsSold: Number(ticketsSold),
+        maxCapacity: Number(maxCapacity),
+        imageURI,
+        isPrivate,
+        whitelistIsLocked,
+        isPast: Number(date) < Math.floor(Date.now() / 1000),
+        isFull: Number(maxCapacity) > 0 && Number(ticketsSold) >= Number(maxCapacity),
+      };
+    });
+
+    // Apply search filter if provided
+    let filteredEvents = allEvents;
+    if (search) {
+      const query = search.toLowerCase();
+      filteredEvents = allEvents.filter(event =>
+        event.name.toLowerCase().includes(query) ||
+        event.location.toLowerCase().includes(query)
+      );
+    }
 
     // Sort by date (upcoming first)
-    const sortedEvents = events.sort((a, b) => a.date - b.date);
+    const sortedEvents = filteredEvents.sort((a, b) => a.date - b.date);
 
-    return NextResponse.json({ 
-      success: true, 
-      events: sortedEvents,
-      count: eventCount 
+    // Return all if requested (for initial cache)
+    if (includeAll) {
+      return NextResponse.json({
+        success: true,
+        events: sortedEvents,
+        count: eventCount,
+        total: filteredEvents.length,
+        page: 1,
+        limit: filteredEvents.length,
+        hasMore: false,
+      });
+    }
+
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedEvents = sortedEvents.slice(startIndex, endIndex);
+    const hasMore = endIndex < sortedEvents.length;
+
+    return NextResponse.json({
+      success: true,
+      events: paginatedEvents,
+      count: eventCount,
+      total: filteredEvents.length,
+      page,
+      limit,
+      hasMore,
     });
 
   } catch (error) {

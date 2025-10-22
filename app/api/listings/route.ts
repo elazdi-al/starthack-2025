@@ -32,53 +32,66 @@ export async function GET(request: NextRequest) {
 
       const [tokenIds, sellers, prices, total] = result;
 
-      // Fetch event details for each listing
-      const listings = await Promise.all(
-        tokenIds.map(async (tokenId, index) => {
-          const listingEventId = BigInt(eventId);
-          const eventData = await publicClient.readContract({
-            address: EVENT_BOOK_ADDRESS,
-            abi: EVENT_BOOK_ABI,
-            functionName: 'events',
-            args: [listingEventId],
-          }) as [
-            string,
-            string,
-            bigint,
-            bigint,
-            bigint,
-            string,
-            bigint,
-            bigint,
-            string,
-            boolean,
-            boolean
-          ];
+      // If we have listings, fetch event details using multicall
+      if (tokenIds.length > 0) {
+        const listingEventId = BigInt(eventId);
 
-          const [name, location, date, originalPrice] = eventData;
+        // Fetch event details once (not per listing)
+        const eventData = await publicClient.readContract({
+          address: EVENT_BOOK_ADDRESS,
+          abi: EVENT_BOOK_ABI,
+          functionName: 'events',
+          args: [listingEventId],
+        }) as [
+          string,
+          string,
+          bigint,
+          bigint,
+          bigint,
+          string,
+          bigint,
+          bigint,
+          string,
+          boolean,
+          boolean
+        ];
 
-          return {
-            tokenId: tokenId.toString(),
-            seller: sellers[index],
-            price: formatUnits(prices[index], 18),
-            priceWei: prices[index].toString(),
-            eventId: listingEventId.toString(),
-            eventName: name,
-            eventLocation: location,
-            eventDate: Number(date),
-            originalPrice: formatUnits(originalPrice, 18),
-          };
-        })
-      );
+        const [name, location, date, originalPrice] = eventData;
 
+        // Map all listings with the same event data
+        const listings = tokenIds.map((tokenId, index) => ({
+          tokenId: tokenId.toString(),
+          seller: sellers[index],
+          price: formatUnits(prices[index], 18),
+          priceWei: prices[index].toString(),
+          eventId: listingEventId.toString(),
+          eventName: name,
+          eventLocation: location,
+          eventDate: Number(date),
+          originalPrice: formatUnits(originalPrice, 18),
+        }));
+
+        return NextResponse.json({
+          success: true,
+          listings,
+          pagination: {
+            offset,
+            limit,
+            total: Number(total),
+            hasMore: offset + limit < Number(total),
+          },
+        });
+      }
+
+      // No listings for this event
       return NextResponse.json({
         success: true,
-        listings,
+        listings: [],
         pagination: {
           offset,
           limit,
           total: Number(total),
-          hasMore: offset + limit < Number(total),
+          hasMore: false,
         },
       });
     }

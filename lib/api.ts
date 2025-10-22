@@ -48,26 +48,40 @@ async function apiRequest<T>(
 
 // Events API
 export const eventsAPI = {
-  getAll: () => apiRequest<{
-    success: boolean;
-    events: Array<{
-      id: number;
-      name: string;
-      location: string;
-      date: number;
-      price: string;
-      creator: string;
-      ticketsSold: number;
-      maxCapacity: number;
-      isPast: boolean;
-      isFull: boolean;
-      imageURI: string;
-      imageCid?: string | null;
-      isPrivate: boolean;
-      whitelistIsLocked: boolean;
-    }>;
-    count: number;
-  }>('/api/events'),
+  getAll: (params?: { page?: number; limit?: number; search?: string; all?: boolean }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.all) searchParams.set('all', 'true');
+
+    const url = `/api/events${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+
+    return apiRequest<{
+      success: boolean;
+      events: Array<{
+        id: number;
+        name: string;
+        location: string;
+        date: number;
+        price: string;
+        creator: string;
+        ticketsSold: number;
+        maxCapacity: number;
+        isPast: boolean;
+        isFull: boolean;
+        imageURI: string;
+        imageCid?: string | null;
+        isPrivate: boolean;
+        whitelistIsLocked: boolean;
+      }>;
+      count: number;
+      total: number;
+      page: number;
+      limit: number;
+      hasMore: boolean;
+    }>(url);
+  },
 
   getById: (id: number) => apiRequest<{
     success: boolean;

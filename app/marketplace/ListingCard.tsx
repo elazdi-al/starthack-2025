@@ -37,9 +37,8 @@ export function ListingCard({ listing, onBuyClick }: ListingCardProps) {
   const router = useRouter();
 
   return (
-    <button
-      type="button"
-      className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all shadow-xl flex flex-col cursor-pointer text-left overflow-hidden"
+    <div
+      className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all flex flex-col cursor-pointer overflow-hidden"
       onClick={() => router.push(`/event/${listing.eventId}`)}
     >
       {/* Badges - Top Row */}
@@ -62,16 +61,14 @@ export function ListingCard({ listing, onBuyClick }: ListingCardProps) {
       {/* Event Date */}
       <div className="flex items-start gap-3 mb-6">
         <CalendarBlank size={20} weight="regular" className="text-white/60 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="text-white/90 text-sm">
-            {new Date(listing.eventDate * 1000).toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </p>
-        </div>
+        <p className="text-white/90 text-sm">
+          {new Date(listing.eventDate * 1000).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}
+        </p>
       </div>
 
       {/* Seller info */}
@@ -94,6 +91,6 @@ export function ListingCard({ listing, onBuyClick }: ListingCardProps) {
         <ShoppingCart size={20} weight="regular" />
         Buy Ticket
       </button>
-    </button>
+    </div>
   );
 }

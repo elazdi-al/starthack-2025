@@ -1,13 +1,14 @@
 "use client";
 
-import { BackgroundGradient } from "@/components/BackgroundGradient";
-import { EventCard } from "@/components/EventCard";
+import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
+import { EventCard } from "@/components/home/EventCard";
+import { EventCardSkeleton } from "@/components/home/EventCardSkeleton";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { useAuthCheck } from "@/lib/store/authStore";
-import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
-import { CreateEventDialog } from "@/components/CreateEventDialog";
+import { TopBar } from "@/components/layout/TopBar";
+import { BottomNav } from "@/components/layout/BottomNav";
+import { DesktopNav } from "@/components/layout/DesktopNav";
 import { useEvents } from "@/lib/hooks/useEvents";
 import { useAccount } from "wagmi";
 import { toast } from "sonner";
@@ -60,20 +61,8 @@ export default function MyEvents() {
     }
   }, [hasHydrated, isAuthenticated, router]);
 
-  // Show loading while hydrating
-  if (!hasHydrated) {
-    return (
-      <div className="relative min-h-screen flex items-center justify-center bg-transparent">
-        <BackgroundGradient />
-        <div className="relative z-10 text-white/40">Loading...</div>
-      </div>
-    );
-  }
-
-  // Will redirect if not authenticated
-  if (!isAuthenticated) {
-    return null;
-  }
+  // Show nothing while hydrating or if not authenticated after hydration
+  if (!hasHydrated || (hasHydrated && !isAuthenticated)) return null;
 
   if (!address || !isConnected) {
     return (
@@ -100,19 +89,17 @@ export default function MyEvents() {
       <TopBar title="My Events" showTitle={true} />
 
       {/* Desktop Navigation */}
-      <div className="hidden md:flex absolute top-6 right-6 z-20 items-center gap-3">
-        <CreateEventDialog onEventCreated={() => eventsQuery.refetch()} />
-      </div>
+      <DesktopNav onEventCreated={() => eventsQuery.refetch()} />
 
       {/* Bottom Navigation Bar - Mobile only */}
       <BottomNav onEventCreated={() => eventsQuery.refetch()} />
 
       {/* Event cards */}
-      <div className="relative z-10 flex-1 px-6">
+      <div className="relative z-10 flex-1 px-6 pt-6">
         {isLoadingEvents ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-6xl">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 h-48 animate-pulse" />
+              <EventCardSkeleton key={i} />
             ))}
           </div>
         ) : myEvents.length === 0 ? (

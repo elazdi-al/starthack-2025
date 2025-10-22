@@ -1,8 +1,9 @@
 "use client";
 
-import { BackgroundGradient } from "@/components/BackgroundGradient";
-import { BottomNav } from "@/components/BottomNav";
-import { TopBar } from "@/components/TopBar";
+import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
+import { BottomNav } from "@/components/layout/BottomNav";
+import { TopBar } from "@/components/layout/TopBar";
+import { DesktopNav } from "@/components/layout/DesktopNav";
 import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
 import { TICKET_ABI, TICKET_CONTRACT_ADDRESS } from "@/lib/contracts/ticket";
 import { useInvalidateEvents, useTickets } from "@/lib/hooks/useEvents";
@@ -10,8 +11,8 @@ import { useAuthCheck } from "@/lib/store/authStore";
 import { type Ticket, useTicketStore } from "@/lib/store/ticketStore";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useRouter } from "next/navigation";
-import { CalendarBlank, Clock, MapPin, ShareNetwork, Tag, Ticket as TicketIcon } from "phosphor-react";
-import { QRCodeSVG } from "qrcode.react";
+import { Tag, Ticket as TicketIcon } from "phosphor-react";
+import { TicketCard, TicketCardSkeleton } from "@/components/tickets/TicketCard";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { parseEther } from "viem";
@@ -97,7 +98,7 @@ export default function MyTickets() {
   // Redirect to login if not authenticated (only after hydration)
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) {
-      router.push('/');
+      router.push("/");
     }
   }, [hasHydrated, isAuthenticated, router]);
 
@@ -112,60 +113,13 @@ export default function MyTickets() {
     }
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 
-  const handleFlip = (ticketId: string) => {
-    // Find the ticket
-    const ticket = tickets.find(t => t.id === ticketId);
-
-    // Prevent flipping if ticket is listed (can't view QR code)
-    if (ticket?.status === 'listed') {
-      return;
-    }
-
-    setFlippedCards((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(ticketId)) {
-        newSet.delete(ticketId);
-      } else {
-        newSet.add(ticketId);
-      }
-      return newSet;
-    });
-  };
-
-  // Check if event date has passed
-  const hasEventPassed = (dateString: string): boolean => {
-    const eventDate = new Date(dateString);
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    return eventDate < now;
-  };
-
-  // Check if a ticket can be listed (date hasn't passed)
-  const canListTicket = (ticket: Ticket): boolean => {
+  const canListTicket = useCallback((ticket: Ticket): boolean => {
     const eventDate = new Date(ticket.date);
     const now = new Date();
     now.setHours(0, 0, 0, 0); // Reset time for fair comparison
     const dateValid = eventDate >= now;
     return dateValid && ticket.status === 'owned';
-  };
-
-  const handleListForSale = (ticket: Ticket) => {
-    if (!canListTicket(ticket)) {
-      toast.warning('Cannot list ticket', {
-        description: 'Event date has passed or ticket is invalid'
-      });
-      return;
-    }
-    if (!ticket.tokenId) {
-      toast.error('Missing token information', {
-        description: 'Unable to locate the on-chain token id for this ticket.',
-      });
-      return;
-    }
-    setListingTicket(ticket);
-    setListingPrice("");
-    setListingStage("idle");
-  };
+  }, []);
 
   const confirmListing = useCallback(async () => {
     if (!listingTicket) {
@@ -384,6 +338,76 @@ export default function MyTickets() {
     ]
   );
 
+  // Sort tickets: owned first, then listed, date-valid before expired
+  const sortedTickets = useMemo(() => {
+    const hasEventPassed = (dateString: string): boolean => {
+      const eventDate = new Date(dateString);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      return eventDate < now;
+    };
+
+    return [...tickets].sort((a, b) => {
+      if (a.status !== b.status) {
+        const statusOrder = { owned: 0, listed: 1, sold: 2 } as const;
+        return statusOrder[a.status] - statusOrder[b.status];
+      }
+      const aExpired = hasEventPassed(a.date);
+      const bExpired = hasEventPassed(b.date);
+      if (aExpired === bExpired) return 0;
+      return aExpired ? 1 : -1;
+    });
+  }, [tickets]);
+
+  // Show nothing while hydrating or if not authenticated after hydration
+  if (!hasHydrated || (hasHydrated && !isAuthenticated)) return null;
+
+  const handleFlip = (ticketId: string) => {
+    // Find the ticket
+    const ticket = tickets.find(t => t.id === ticketId);
+
+    // Prevent flipping if ticket is listed (can't view QR code)
+    if (ticket?.status === 'listed') {
+      return;
+    }
+
+    setFlippedCards((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(ticketId)) {
+        newSet.delete(ticketId);
+      } else {
+        newSet.add(ticketId);
+      }
+      return newSet;
+    });
+  };
+
+  // Check if event date has passed
+  const hasEventPassed = (dateString: string): boolean => {
+    const eventDate = new Date(dateString);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return eventDate < now;
+  };
+
+  const handleListForSale = (ticket: Ticket) => {
+    if (!canListTicket(ticket)) {
+      toast.warning('Cannot list ticket', {
+        description: 'Event date has passed or ticket is invalid'
+      });
+      return;
+    }
+    if (!ticket.tokenId) {
+      toast.error('Missing token information', {
+        description: 'Unable to locate the on-chain token id for this ticket.',
+      });
+      return;
+    }
+    setListingTicket(ticket);
+    setListingPrice("");
+    setListingStage("idle");
+  };
+
   const handleShareTicket = async (ticket: Ticket) => {
     if (ticket.eventId === undefined) {
       toast.error('Cannot share event', {
@@ -448,35 +472,6 @@ export default function MyTickets() {
     }
   };
 
-  // Sort tickets: owned first, then listed, date-valid before expired
-  const sortedTickets = useMemo(() => {
-    return [...tickets].sort((a, b) => {
-      if (a.status !== b.status) {
-        const statusOrder = { owned: 0, listed: 1, sold: 2 } as const;
-        return statusOrder[a.status] - statusOrder[b.status];
-      }
-      const aExpired = hasEventPassed(a.date);
-      const bExpired = hasEventPassed(b.date);
-      if (aExpired === bExpired) return 0;
-      return aExpired ? 1 : -1;
-    });
-  }, [tickets]);
-
-  // Show loading while hydrating
-  if (!hasHydrated) {
-    return (
-      <div className="relative min-h-screen flex items-center justify-center bg-transparent">
-        <BackgroundGradient />
-        <div className="relative z-10 text-white/40">Loading...</div>
-      </div>
-    );
-  }
-
-  // Will redirect if not authenticated
-  if (!isAuthenticated) {
-    return null;
-  }
-
   if (!walletAddress || !isConnected) {
     return (
       <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
@@ -501,11 +496,15 @@ export default function MyTickets() {
       {/* Top Bar with Title */}
       <TopBar title="My Tickets" showTitle={true}/>
 
-      <div className="relative z-10 flex-1 px-6">
+      {/* Desktop Navigation */}
+      <DesktopNav />
+
+      <div className="relative z-10 flex-1 px-6 pt-6">
         {isLoadingTickets ? (
-          <div className="flex flex-col items-center justify-center h-64 text-white/40">
-            <div className="w-12 h-12 border-4 border-white/20 border-t-white/60 rounded-full animate-spin" />
-            <p className="mt-4 text-lg">Loading tickets...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <TicketCardSkeleton key={i} />
+            ))}
           </div>
         ) : tickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-white/40">
@@ -515,243 +514,23 @@ export default function MyTickets() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
-            {sortedTickets.map((ticket) => {
-              const isFlipped = flippedCards.has(ticket.id);
-              return (
-                        <div
-                          key={ticket.id}
-                          className={`relative h-[420px] perspective-1000 ${
-                        ticket.status === 'listed' ? 'cursor-not-allowed' : 'cursor-pointer'
-                      }`}
-                      onClick={() => handleFlip(ticket.id)}
-                      role="button"
-                      tabIndex={ticket.status === 'listed' ? -1 : 0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleFlip(ticket.id);
-                        }
-                      }}
-                    >
-                  {/* Flip container */}
-                  <div
-                    className={`relative w-full h-full transition-all duration-700 transform-style-3d ${
-                      isFlipped ? 'rotate-y-180' : ''
-                    }`}
-                    style={{
-                      transformStyle: 'preserve-3d',
-                      transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                    }}
-                  >
-                    {/* Front of card - Ticket details */}
-                    <div
-                      className="absolute w-full h-full"
-                      style={{
-                        backfaceVisibility: 'hidden',
-                        WebkitBackfaceVisibility: 'hidden',
-                        opacity: isFlipped ? 0 : 1,
-                        pointerEvents: isFlipped ? 'none' : 'auto',
-                        transition: 'opacity 200ms ease',
-                        transitionDelay: isFlipped ? '250ms' : '0ms',
-                      }}
-                    >
-                      <div className="h-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 flex flex-col hover:bg-white/10 transition-all shadow-xl">
-                        {/* Ticket ID Badge */}
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
-                            <p className="text-white/70 text-xs font-mono">{ticket.id}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {/* Status badge for listed tickets */}
-                            {ticket.status === 'listed' && (
-                              <div className="bg-blue-500/20 backdrop-blur-sm px-3 py-1 rounded-full">
-                                <p className="text-blue-400 text-xs font-semibold">LISTED</p>
-                              </div>
-                            )}
-                            {/* Status dot indicator */}
-                            <div 
-                              className={`w-2.5 h-2.5 rounded-full ${
-                                !hasEventPassed(ticket.date) ? 'bg-green-500' : 'bg-red-500'
-                              }`}
-                              title={!hasEventPassed(ticket.date) ? 'Valid' : 'Event has passed'}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Event title */}
-                        <h3 className="text-white font-bold text-xl mb-4 line-clamp-2">
-                          {ticket.eventTitle}
-                        </h3>
-
-                        {/* Details */}
-                        <div className="space-y-3 flex-1">
-                          <div className="flex items-start gap-3">
-                            <CalendarBlank size={20} weight="regular" className="text-white/60 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <p className="text-white/90 text-sm">
-                                {new Date(ticket.date).toLocaleDateString('en-US', {
-                                  weekday: 'long',
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric'
-                                })}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-3">
-                            <Clock size={20} weight="regular" className="text-white/60 mt-0.5 flex-shrink-0" />
-                            <p className="text-white/90 text-sm">{ticket.time}</p>
-                          </div>
-
-                          <div className="flex items-start gap-3">
-                            <MapPin size={20} weight="regular" className="text-white/60 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <p className="text-white/90 text-sm">{ticket.venue}</p>
-                              <p className="text-white/60 text-xs">{ticket.location}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-3">
-                            <TicketIcon size={20} weight="regular" className="text-white/60 mt-0.5 flex-shrink-0" />
-                            <p className="text-white/90 text-sm">{ticket.ticketType}</p>
-                          </div>
-                        </div>
-
-                        {/* Footer / Actions */}
-                        <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
-                          {ticket.status === 'listed' ? (
-                            <>
-                              <div className="flex items-center justify-between mb-2">
-                                <p className="text-white/50 text-sm">Listed for:</p>
-                                <p className="text-green-400 font-bold text-lg">Ξ {ticket.listingPrice}</p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  void handleCancelListing(ticket);
-                                }}
-                                disabled={cancellingTicketId === ticket.id}
-                                className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                              >
-                                {cancellingTicketId === ticket.id ? (
-                                  <>
-                                    <span className="w-4 h-4 border-2 border-red-200/40 border-t-transparent rounded-full animate-spin" />
-                                    <span>Canceling...</span>
-                                  </>
-                                ) : (
-                                  "Cancel Listing"
-                                )}
-                              </button>
-                            </>
-                          ) : (
-                            <div className="flex gap-2">
-                              {/* Share Button */}
-                              {ticket.eventId !== undefined && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (sharingTicketId !== ticket.id) {
-                                      void handleShareTicket(ticket);
-                                    }
-                                  }}
-                                  disabled={sharingTicketId === ticket.id}
-                                  className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 active:bg-blue-500/40 text-blue-200 text-sm font-semibold py-3.5 rounded-xl transition-all flex flex-col items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60 min-h-[64px]"
-                                >
-                                  {sharingTicketId === ticket.id ? (
-                                    <>
-                                      <span className="w-5 h-5 border-2 border-blue-200/30 border-t-transparent rounded-full animate-spin" />
-                                      <span className="text-xs">Sharing...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ShareNetwork size={24} weight="fill" />
-                                      <span>Share</span>
-                                    </>
-                                  )}
-                                </button>
-                              )}
-
-                              {/* List for Sale Button */}
-                              {canListTicket(ticket) ? (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleListForSale(ticket);
-                                  }}
-                                  disabled={isListing}
-                                  className="flex-1 bg-green-500/20 hover:bg-green-500/30 active:bg-green-500/40 text-green-400 text-sm font-semibold py-3.5 rounded-xl transition-all flex flex-col items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed min-h-[64px]"
-                                >
-                                  <Tag size={24} weight="fill" />
-                                  <span>Sell</span>
-                                </button>
-                              ) : ticket.status === 'owned' && hasEventPassed(ticket.date) ? (
-                                <div className="flex-1 flex items-center justify-center py-3.5">
-                                  <p className="text-red-400/60 text-sm">Event has passed</p>
-                                </div>
-                              ) : null}
-                            </div>
-                          )}
-
-                          <p className="text-white/40 text-xs text-center pt-1">
-                            {ticket.status === 'listed' ? 'Listed - QR code locked' : 'Tap to view QR code'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Back of card - QR code */}
-                    <div
-                      className="absolute w-full h-full"
-                      style={{
-                        backfaceVisibility: 'hidden',
-                        WebkitBackfaceVisibility: 'hidden',
-                        transform: 'rotateY(180deg)',
-                        opacity: isFlipped ? 1 : 0,
-                        pointerEvents: isFlipped ? 'auto' : 'none',
-                        transition: 'opacity 200ms ease',
-                        transitionDelay: isFlipped ? '0ms' : '250ms',
-                      }}
-                    >
-                      <div className="h-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center hover:bg-white/10 transition-all shadow-xl">
-                        {/* QR Code - centered and responsive */}
-                        <div className="flex-1 flex items-center justify-center">
-                          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-2xl">
-                            <QRCodeSVG
-                              value={ticket.qrData}
-                              size={qrSize}
-                              level="H"
-                              includeMargin={true}
-                              className="w-full h-auto"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Ticket info */}
-                        <div className="text-center space-y-2">
-                          <p className="text-white font-semibold text-base sm:text-lg line-clamp-1">
-                            {ticket.eventTitle}
-                          </p>
-                          <p className="text-white/60 text-xs sm:text-sm font-mono">
-                            {ticket.id}
-                          </p>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="mt-4">
-                          <p className="text-white/40 text-xs text-center">
-                            Tap to view details
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {sortedTickets.map((ticket) => (
+              <TicketCard
+                key={ticket.id}
+                ticket={ticket}
+                isFlipped={flippedCards.has(ticket.id)}
+                qrSize={qrSize}
+                cancellingTicketId={cancellingTicketId}
+                sharingTicketId={sharingTicketId}
+                isListing={isListing}
+                onFlip={handleFlip}
+                onShare={(ticket) => void handleShareTicket(ticket)}
+                onListForSale={handleListForSale}
+                onCancelListing={(ticket) => void handleCancelListing(ticket)}
+                hasEventPassed={hasEventPassed}
+                canListTicket={canListTicket}
+              />
+            ))}
           </div>
         )}
       </div>

@@ -1,12 +1,12 @@
 "use client";
 
-import { BackgroundGradient } from "@/components/BackgroundGradient";
-import { TopBar } from "@/components/TopBar";
+import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
+import { TopBar } from "@/components/layout/TopBar";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketVerification } from "@/lib/hooks/useTicketVerification";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, Warning, XCircle } from "phosphor-react";
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense, useCallback } from "react";
 import { toast } from "sonner";
 import { useAccount } from "wagmi";
 
@@ -87,8 +87,9 @@ function ScannerPageContent() {
 
     // Cleanup
     return () => {
-      if (videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
+      const video = videoRef.current;
+      if (video?.srcObject) {
+        const stream = video.srcObject as MediaStream;
         const tracks = stream.getTracks();
         for (const track of tracks) {
           track.stop();
@@ -100,75 +101,8 @@ function ScannerPageContent() {
     };
   }, [hasHydrated, isAuthenticated]);
 
-  // Scan for QR codes
-  useEffect(() => {
-    if (!isScanning || !videoRef.current || !canvasRef.current) return;
-
-    const scanQRCode = async () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-
-      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
-        return;
-      }
-
-      const context = canvas.getContext("2d");
-      if (!context) return;
-
-      // Set canvas size to video size
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      // Draw video frame to canvas
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      try {
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        
-        // Import jsQR dynamically
-        const { default: jsQR } = await import("jsqr");
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: "dontInvert",
-        });
-
-        if (code) {
-          setScannedData(code.data);
-          setIsScanning(false);
-          if (scanIntervalRef.current) {
-            clearInterval(scanIntervalRef.current);
-          }
-          
-          // Haptic feedback if available
-          if ('vibrate' in navigator) {
-            navigator.vibrate(200);
-          }
-          
-          // Verify ticket if eventId is present
-          if (eventId && walletAddress) {
-            handleVerifyTicket(code.data, eventId, walletAddress);
-          } else {
-            toast.success("QR Code Scanned!", {
-              description: "Code detected successfully"
-            });
-          }
-        }
-      } catch (err) {
-        console.error("QR scan error:", err);
-      }
-    };
-
-    // Scan every 300ms
-    scanIntervalRef.current = setInterval(scanQRCode, 300);
-
-    return () => {
-      if (scanIntervalRef.current) {
-        clearInterval(scanIntervalRef.current);
-      }
-    };
-  }, [isScanning, eventId, walletAddress]);
-
   // Handle ticket verification using TanStack Query mutation
-  const handleVerifyTicket = (qrData: string, eventIdParam: string, owner: string) => {
+  const handleVerifyTicket = useCallback((qrData: string, eventIdParam: string, owner: string) => {
     verificationMutation.mutate(
       {
         qrData,
@@ -206,7 +140,74 @@ function ScannerPageContent() {
         },
       }
     );
-  };
+  }, [verificationMutation]);
+
+  // Scan for QR codes
+  useEffect(() => {
+    if (!isScanning || !videoRef.current || !canvasRef.current) return;
+
+    const scanQRCode = async () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+
+      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        return;
+      }
+
+      const context = canvas.getContext("2d");
+      if (!context) return;
+
+      // Set canvas size to video size
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Draw video frame to canvas
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      try {
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+
+        // Import jsQR dynamically
+        const { default: jsQR } = await import("jsqr");
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        });
+
+        if (code) {
+          setScannedData(code.data);
+          setIsScanning(false);
+          if (scanIntervalRef.current) {
+            clearInterval(scanIntervalRef.current);
+          }
+
+          // Haptic feedback if available
+          if ('vibrate' in navigator) {
+            navigator.vibrate(200);
+          }
+
+          // Verify ticket if eventId is present
+          if (eventId && walletAddress) {
+            handleVerifyTicket(code.data, eventId, walletAddress);
+          } else {
+            toast.success("QR Code Scanned!", {
+              description: "Code detected successfully"
+            });
+          }
+        }
+      } catch (err) {
+        console.error("QR scan error:", err);
+      }
+    };
+
+    // Scan every 300ms
+    scanIntervalRef.current = setInterval(scanQRCode, 300);
+
+    return () => {
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+      }
+    };
+  }, [isScanning, eventId, walletAddress, handleVerifyTicket]);
 
   const handleReset = () => {
     setScannedData(null);

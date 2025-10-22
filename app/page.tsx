@@ -1,5 +1,5 @@
 "use client";
-import { BackgroundGradient } from "@/components/BackgroundGradient";
+import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "phosphor-react";
-import { WalletBalance } from "@/components/WalletBalance";
+import { WalletBalance } from "@/components/layout/WalletBalance";
 import { useAuthCheck } from "@/lib/store/authStore";
 
 interface TopBarProps {
@@ -22,7 +22,7 @@ export function TopBar({ showBackButton = false, backPath = "/home", backTitle =
   };
 
   return (
-    <div className="sticky top-0 z-30 bg-transparent backdrop-blur-md border-b border-white/5">
+    <div className="sticky top-0 z-30 bg-transparent backdrop-blur-md">
       {/* Back button when showBackButton is true */}
       {showBackButton && (
         <button

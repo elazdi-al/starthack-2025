@@ -314,7 +314,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           type="button"
         >
           <Plus size={20} weight="regular" />
-          <span className="text-sm tracking-tight">Create Event {chainId}</span>
+          <span className="text-sm tracking-tight">Create Event</span>
         
         </button>
       </DialogTrigger>
@@ -332,7 +332,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         <DialogHeader className="text-left space-y-2 flex-shrink-0">
           <DialogTitle className="text-5xl sm:text-6xl md:text-7xl tracking-tighter font-bold text-white/90">Create Event</DialogTitle>
           <DialogDescription className="text-sm tracking-tight text-white/50">
-            Fill in the details below to create a new event on the blockchain .{chainId}
+            Fill in the details below to create a new event on the blockchain.
           </DialogDescription>
         </DialogHeader>
 
