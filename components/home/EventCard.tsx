@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Calendar, MapPin, Users } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
+import { parseEventMetadata } from "@/lib/utils/eventMetadata";
 
 interface EventCardProps {
   event: {
@@ -25,6 +26,9 @@ export function EventCard({ event }: EventCardProps) {
   const router = useRouter();
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+
+  const parsedMetadata = parseEventMetadata(event.imageURI ?? null);
+  const imageUrl = parsedMetadata.imageUrl ?? (event.imageURI ?? null);
 
   const eventDate = new Date(event.date * 1000);
 
@@ -61,13 +65,13 @@ export function EventCard({ event }: EventCardProps) {
         {/* Left: Square Image */}
         <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-white/[0.02]">
           {/* Shimmer loading animation */}
-          {imageLoading && event.imageURI && !imageError && (
+          {imageLoading && imageUrl && !imageError && (
             <div className="absolute inset-0 animate-shimmer" />
           )}
 
-          {event.imageURI && !imageError ? (
+          {imageUrl && !imageError ? (
             <Image
-              src={event.imageURI}
+              src={imageUrl}
               alt={event.name}
               fill
               className={`object-cover transition-all duration-500 ${
@@ -142,4 +146,3 @@ export function EventCard({ event }: EventCardProps) {
     </Card>
   );
 }
-

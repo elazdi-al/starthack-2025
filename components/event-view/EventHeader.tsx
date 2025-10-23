@@ -2,7 +2,7 @@
 
 interface EventHeaderProps {
   title: string;
-  category: string;
+  categories: string[];
   isEventOwner: boolean;
   activeTab: "details" | "attendees";
   attendeesCount: number;
@@ -11,7 +11,7 @@ interface EventHeaderProps {
 
 export function EventHeader({
   title,
-  category: _category,
+  categories,
   isEventOwner,
   activeTab,
   attendeesCount,
@@ -19,9 +19,26 @@ export function EventHeader({
 }: EventHeaderProps) {
   return (
     <div>
-      <h1 className="text-4xl sm:text-5xl md:text-6xl tracking-tighter font-bold text-white mb-6 sm:mb-8">
-        {title}
-      </h1>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl tracking-tighter font-bold text-white mb-4 sm:mb-5">
+          {title}
+        </h1>
+        {categories.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] uppercase tracking-[0.32em] text-white/40">
+              Categories
+            </span>
+            {categories.map((category) => (
+              <span
+                key={category}
+                className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs sm:text-sm font-medium tracking-tight text-white/80"
+              >
+                {category}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       {isEventOwner && (
         <div className="flex gap-2 mb-6 sm:mb-8 border-b border-white/10">

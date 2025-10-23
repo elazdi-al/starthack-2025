@@ -30,6 +30,7 @@ import {
   EventDetailsTab,
   PurchaseModal,
 } from "@/components/event-view";
+import { parseEventMetadata } from "@/lib/utils/eventMetadata";
 
 interface EventDetails {
   id: number;
@@ -42,7 +43,7 @@ interface EventDetails {
   venue: string;
   attendees: number;
   maxAttendees: number;
-  category: string;
+  categories: string[];
   host: string;
   hostAddress: string;
   priceWei: string;
@@ -74,6 +75,15 @@ const transformEvent = (raw: {
   isFull: boolean;
   imageURI?: string | null;
 }): EventDetails => {
+  const parsedMetadata = parseEventMetadata(raw.imageURI ?? null);
+  const resolvedImageUri =
+    parsedMetadata.imageUrl ??
+    (raw.imageURI && raw.imageURI.trim().length > 0 ? raw.imageURI : null);
+  const resolvedCategories =
+    parsedMetadata.categories.length > 0
+      ? parsedMetadata.categories
+      : ["Event"];
+
   const eventDate = new Date(raw.date * 1000);
   const time = eventDate.toLocaleTimeString("en-US", {
     hour: "2-digit",
@@ -91,14 +101,14 @@ const transformEvent = (raw: {
     venue: raw.location,
     attendees: raw.ticketsSold,
     maxAttendees: raw.maxCapacity,
-    category: "Blockchain Event",
+    categories: resolvedCategories,
     host: shortenAddress(raw.creator),
     hostAddress: raw.creator,
     priceWei: raw.price,
     priceEth: formatEther(BigInt(raw.price)),
     isPast: raw.isPast,
     isFull: raw.isFull,
-    imageUri: raw.imageURI && raw.imageURI.trim().length > 0 ? raw.imageURI : null,
+    imageUri: resolvedImageUri,
   };
 };
 
@@ -373,7 +383,7 @@ export default function EventPage() {
       <div className="relative z-10 flex-1 pb-8 md:pb-12 max-w-4xl mx-auto w-full px-6 pt-16 sm:pt-20 md:pt-24">
         <EventHeader
           title={event.title}
-          category={event.category}
+          categories={event.categories}
           isEventOwner={isEventOwner}
           activeTab={activeTab}
           attendeesCount={attendeesData.count}

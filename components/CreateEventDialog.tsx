@@ -18,10 +18,26 @@ import { format } from "date-fns";
 import { useAuthStore } from "@/lib/store/authStore";
 import { base } from "viem/chains";
 import { useInvalidateEvents } from "@/lib/hooks/useEvents";
+import { buildEventMetadataString } from "@/lib/utils/eventMetadata";
 
 interface CreateEventDialogProps {
   onEventCreated?: () => void;
 }
+
+const EVENT_TAG_OPTIONS = [
+  "Conference",
+  "Workshop",
+  "Hackathon",
+  "Meetup",
+  "Networking",
+  "Crypto",
+  "Gaming",
+  "Social",
+  "Music",
+  "Work"
+] as const;
+
+const MAX_SELECTED_TAGS = 3 as const; // can be changed if needed idk
 
 const INITIAL_FORM_STATE = {
   name: "",
@@ -37,6 +53,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const [isPrivate, setIsPrivate] = useState(false);
   const [date, setDate] = useState<Date>();
   const [formData, setFormData] = useState(() => ({ ...INITIAL_FORM_STATE }));
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imageUploadData, setImageUploadData] = useState<{ cid: string; url: string } | null>(null);
@@ -49,6 +66,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     setFormData({ ...INITIAL_FORM_STATE });
     setDate(undefined);
     setIsPrivate(false);
+    setSelectedTags([]);
     setImageFile(null);
     setImagePreviewUrl(null);
     setImageUploadData(null);
@@ -107,6 +125,27 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const toggleTagSelection = (tag: string) => {
+    setSelectedTags((prev) => {
+      if (prev.includes(tag)) {
+        return prev.filter((value) => value !== tag);
+      }
+
+      if (prev.length >= MAX_SELECTED_TAGS) {
+        toast.warning("Too many tags", {
+          description: `You can select up to ${MAX_SELECTED_TAGS} tags for your event.`,
+        });
+        return prev;
+      }
+
+      return [...prev, tag];
+    });
+  };
+
+  const removeTag = (tag: string) => {
+    setSelectedTags((prev) => prev.filter((value) => value !== tag));
   };
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -218,6 +257,17 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       // Parse max capacity (0 means unlimited)
       const maxCapacity = formData.maxCapacity ? BigInt(formData.maxCapacity) : BigInt(0);
 
+      if (selectedTags.length > MAX_SELECTED_TAGS) {
+        toast.error("Too many tags selected");
+        return;
+      }
+
+      const metadataString = buildEventMetadataString({
+        imageUrl: uploadedImage.url,
+        imageCid: uploadedImage.cid,
+        categories: selectedTags,
+      });
+
       console.log("Creating event with:", {
         name: formData.name,
         location: formData.location,
@@ -227,6 +277,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         address: EVENT_BOOK_ADDRESS,
         imageCid: uploadedImage.cid,
         imageUrl: uploadedImage.url,
+        tags: selectedTags,
       });
 
       // Call smart contract with imageURL stored on-chain
@@ -240,7 +291,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           BigInt(dateTimestamp),
           priceInWei,
           maxCapacity,
-          uploadedImage.url, // Store the image URL on-chain
+          metadataString,
         ],
       });
 
@@ -314,7 +365,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     };
 
     void finalizeCreation();
-  }, [isConfirmed, hash]);
+  }, [isConfirmed, hash, invalidateAll, onEventCreated, resetFormState]);
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
@@ -406,6 +457,89 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
               maxLength={MAX_DESCRIPTION_LENGTH}
               className="bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder:text-white/30 h-[90px] focus:border-white/20 focus:bg-white/10 resize-none text-base"
             />
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-white/90 text-base">
+                Event Tags
+              </Label>
+              <span className="text-xs text-white/40">
+                {selectedTags.length}/{MAX_SELECTED_TAGS}
+              </span>
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full bg-white/5 backdrop-blur-sm border border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 rounded-md px-3 h-11 text-left flex items-center justify-between hover:bg-white/10 transition-colors text-base"
+                >
+                  {selectedTags.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-sm text-white"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-white/40">
+                      Select up to {MAX_SELECTED_TAGS} tags
+                    </span>
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl">
+                <p className="text-xs text-white/50 mb-3">
+                  Choose tags that best describe your event.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {EVENT_TAG_OPTIONS.map((tag) => {
+                    const isSelected = selectedTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleTagSelection(tag)}
+                        className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          isSelected
+                            ? "border-white/40 bg-white/15 text-white"
+                            : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                        }`}
+                      >
+                        <span>{tag}</span>
+                        {isSelected && (
+                          <span className="text-xs text-white/60">Selected</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+            {selectedTags.length === 0 ? (
+              <p className="text-xs text-white/40">
+                Select up to {MAX_SELECTED_TAGS} tags to help attendees find your event.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {selectedTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 hover:bg-white/15 transition-colors"
+                  >
+                    <span>{tag}</span>
+                    <span aria-hidden className="text-white/60">×</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Cover Image */}
