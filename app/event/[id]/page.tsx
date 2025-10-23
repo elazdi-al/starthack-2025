@@ -120,6 +120,34 @@ const compactNumberFormatter = new Intl.NumberFormat("en-US", {
 const _formatCompactNumber = (value: number) =>
   compactNumberFormatter.format(value);
 
+// Skeleton components for loading states
+const EventHeaderSkeleton = () => (
+  <div className="mb-8 sm:mb-10 animate-pulse">
+    <div className="h-8 sm:h-10 bg-white/10 rounded-lg w-3/4 mb-4"></div>
+    <div className="flex gap-2 mb-4">
+      <div className="h-6 bg-white/10 rounded-full w-20"></div>
+      <div className="h-6 bg-white/10 rounded-full w-24"></div>
+    </div>
+  </div>
+);
+
+const EventDetailsSkeleton = () => (
+  <div className="space-y-6 mb-8 sm:mb-12 animate-pulse">
+    <div className="space-y-3">
+      <div className="h-4 bg-white/10 rounded w-1/4"></div>
+      <div className="h-6 bg-white/10 rounded w-2/3"></div>
+    </div>
+    <div className="space-y-3">
+      <div className="h-4 bg-white/10 rounded w-1/4"></div>
+      <div className="h-6 bg-white/10 rounded w-1/2"></div>
+    </div>
+    <div className="space-y-3">
+      <div className="h-4 bg-white/10 rounded w-1/4"></div>
+      <div className="h-6 bg-white/10 rounded w-3/4"></div>
+    </div>
+  </div>
+);
+
 export default function EventPage() {
   const router = useRouter();
   const params = useParams();
@@ -311,22 +339,22 @@ export default function EventPage() {
     clearDuplicates,
   ]);
 
-  const renderLoader = () => (
-    <div className="relative min-h-screen flex items-center justify-center bg-transparent">
-      <BackgroundGradient />
-      <div className="relative z-10 text-white/40">Loading...</div>
-    </div>
-  );
-
-  if (!hasHydrated || isLoadingEvent) {
-    return renderLoader();
+  // Only show full page loader during initial hydration
+  if (!hasHydrated) {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center bg-transparent">
+        <BackgroundGradient />
+        <div className="relative z-10 text-white/40">Loading...</div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
     return null;
   }
 
-  if (!event) {
+  // Show error state only after loading is complete and there's an actual error
+  if (!isLoadingEvent && !event && fetchError) {
     return (
       <div className="relative min-h-screen flex flex-col items-center justify-center p-6 bg-transparent overflow-hidden">
         <BackgroundGradient />
@@ -334,11 +362,9 @@ export default function EventPage() {
           <h1 className="text-4xl font-bold text-white/30 mb-4">
             Event Not Found
           </h1>
-          {fetchError && (
-            <p className="text-white/40 text-sm mb-4">
-              {fetchError instanceof Error ? fetchError.message : "Failed to load event"}
-            </p>
-          )}
+          <p className="text-white/40 text-sm mb-4">
+            {fetchError instanceof Error ? fetchError.message : "Failed to load event"}
+          </p>
           <button
             type="button"
             onClick={() => router.push("/home")}
@@ -351,9 +377,9 @@ export default function EventPage() {
     );
   }
 
-  const isUnavailableMessage = event.isPast
+  const isUnavailableMessage = event?.isPast
     ? "This event has already taken place."
-    : event.isFull
+    : event?.isFull
     ? "This event is fully booked."
     : null;
 
@@ -384,23 +410,35 @@ export default function EventPage() {
       <BottomNav />
 
       <div className="relative z-10 flex-1 pb-8 md:pb-12 max-w-4xl mx-auto w-full px-6 pt-20 sm:pt-20 md:pt-24">
-        <EventHeader
-          title={event.title}
-          categories={event.categories}
-          isEventOwner={isEventOwner}
-          activeTab={activeTab}
-          attendeesCount={attendeesData.count}
-          onTabChange={setActiveTab}
-        />
-
-        {activeTab === "details" && (
-          <EventDetailsTab
-            event={event}
-            farcasterProfile={farcasterProfile}
-            isLoadingProfile={farcasterProfileQuery.isFetching}
-            shouldShowProfile={shouldShowFarcasterProfile}
-            onViewProfile={handleViewProfile}
+        {/* Show skeleton or actual header */}
+        {isLoadingEvent || !event ? (
+          <EventHeaderSkeleton />
+        ) : (
+          <EventHeader
+            title={event.title}
+            categories={event.categories}
+            isEventOwner={isEventOwner}
+            activeTab={activeTab}
+            attendeesCount={attendeesData.count}
+            onTabChange={setActiveTab}
           />
+        )}
+
+        {/* Show skeleton or actual content based on tab */}
+        {activeTab === "details" && (
+          <>
+            {isLoadingEvent || !event ? (
+              <EventDetailsSkeleton />
+            ) : (
+              <EventDetailsTab
+                event={event}
+                farcasterProfile={farcasterProfile}
+                isLoadingProfile={farcasterProfileQuery.isFetching}
+                shouldShowProfile={shouldShowFarcasterProfile}
+                onViewProfile={handleViewProfile}
+              />
+            )}
+          </>
         )}
 
         {activeTab === "attendees" && isEventOwner && (
@@ -415,37 +453,44 @@ export default function EventPage() {
           </div>
         )}
 
+        {/* Show button with loading state or actual state */}
         <div className="fixed bottom-[112px] left-0 right-0 px-6 py-3 sm:static sm:px-0 sm:py-0 z-30 sm:z-auto">
           <div className="max-w-3xl mx-auto">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              disabled={isRegisterDisabled}
-              className="w-full bg-white text-gray-950 font-semibold py-3.5 sm:py-4 px-6 rounded-xl transition-all hover:bg-white/90 active:scale-[0.98] disabled:bg-white/30 disabled:text-gray-600 disabled:cursor-not-allowed shadow-none"
-            >
-              {isUnavailableMessage ?? "Register for Event"}
-            </button>
+            {isLoadingEvent ? (
+              <div className="w-full h-14 bg-white/10 rounded-xl animate-pulse"></div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                disabled={isRegisterDisabled}
+                className="w-full bg-white text-gray-950 font-semibold py-3.5 sm:py-4 px-6 rounded-xl transition-all hover:bg-white/90 active:scale-[0.98] disabled:bg-white/30 disabled:text-gray-600 disabled:cursor-not-allowed shadow-none"
+              >
+                {isUnavailableMessage ?? "Register for Event"}
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      <PurchaseModal
-        isOpen={isModalOpen}
-        isPurchasing={isPurchasing}
-        purchaseStage={purchaseStage}
-        event={{
-          id: event.id,
-          title: event.title,
-          priceEth: event.priceEth,
-          attendees: event.attendees,
-          maxAttendees: event.maxAttendees,
-          host: event.host,
-          location: event.location,
-        }}
-        contractAddress={EVENT_BOOK_ADDRESS}
-        onClose={() => setIsModalOpen(false)}
-        onPurchase={handlePurchase}
-      />
+      {event && (
+        <PurchaseModal
+          isOpen={isModalOpen}
+          isPurchasing={isPurchasing}
+          purchaseStage={purchaseStage}
+          event={{
+            id: event.id,
+            title: event.title,
+            priceEth: event.priceEth,
+            attendees: event.attendees,
+            maxAttendees: event.maxAttendees,
+            host: event.host,
+            location: event.location,
+          }}
+          contractAddress={EVENT_BOOK_ADDRESS}
+          onClose={() => setIsModalOpen(false)}
+          onPurchase={handlePurchase}
+        />
+      )}
     </div>
   );
 }

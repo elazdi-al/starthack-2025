@@ -384,11 +384,11 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       <DialogTrigger asChild>
         {/* Mobile button */}
         <button
-          className="md:hidden text-white/40 hover:text-white/80 active:text-white/90 active:scale-95 transition-all flex flex-col items-center gap-1 px-3 py-2 rounded-xl hover:bg-white/5 focus:outline-none focus:ring-0 focus:border-none"
+          className="md:hidden text-white hover:text-white/90 active:text-white/80 active:scale-95 transition-all flex flex-col items-center gap-1 px-3 py-2 rounded-xl hover:bg-white/5 focus:outline-none focus:ring-0 focus:border-none"
           type="button"
         >
-          <Plus size={24} weight="regular" />
-          <span className="text-[11px] font-semibold whitespace-nowrap">Create</span>
+          <Plus size={28} weight="regular" />
+          <span className="text-xs font-semibold whitespace-nowrap">Create</span>
         </button>
       </DialogTrigger>
       <DialogContent

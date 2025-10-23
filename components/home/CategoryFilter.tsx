@@ -44,8 +44,7 @@ export function CategoryFilter({
                   ? cn(
                       colors.bg,
                       colors.text,
-                      colors.border,
-                      "shadow-lg"
+                      colors.border
                     )
                   : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white/80"
               )}
