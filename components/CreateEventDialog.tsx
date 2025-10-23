@@ -70,7 +70,6 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     setImageFile(null);
     setImagePreviewUrl(null);
     setImageUploadData(null);
-    hasFinalized.current = false;
   }, []);
 
   // Use Base auth store for authentication check
@@ -279,6 +278,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         imageUrl: uploadedImage.url,
         tags: selectedTags,
       });
+
+      hasFinalized.current = false;
 
       // Call smart contract with imageURL stored on-chain
       writeContract({
