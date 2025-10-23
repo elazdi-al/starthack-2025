@@ -48,11 +48,12 @@ async function apiRequest<T>(
 
 // Events API
 export const eventsAPI = {
-  getAll: (params?: { page?: number; limit?: number; search?: string; all?: boolean }) => {
+  getAll: (params?: { page?: number; limit?: number; search?: string; category?: string; all?: boolean }) => {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.set('page', params.page.toString());
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.search) searchParams.set('search', params.search);
+    if (params?.category) searchParams.set('category', params.category);
     if (params?.all) searchParams.set('all', 'true');
 
     const url = `/api/events${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;

@@ -73,23 +73,25 @@ export function useEventsWithSearch(options?: {
 }
 
 /**
- * Fetch events with infinite scroll and on-chain search
- * This hook uses the smart contract's pagination and search functionality
+ * Fetch events with infinite scroll and on-chain search and category filtering
+ * This hook uses the smart contract's pagination, search, and category filtering functionality
  */
 export function useInfiniteEvents(options?: {
   enabled?: boolean;
   limit?: number;
   search?: string;
+  category?: string;
 }) {
-  const { enabled = true, limit = 20, search = '' } = options || {};
+  const { enabled = true, limit = 20, search = '', category = '' } = options || {};
 
   return useInfiniteQuery({
-    queryKey: eventKeys.list({ infinite: true, limit, search }),
+    queryKey: eventKeys.list({ infinite: true, limit, search, category }),
     queryFn: async ({ pageParam = 1 }) => {
       const response = await eventsAPI.getAll({
         page: pageParam,
         limit,
         search,
+        category,
       });
       return response;
     },

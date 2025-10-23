@@ -4,18 +4,19 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/events - Get all events with pagination and search (on-chain)
+// GET /api/events - Get all events with pagination, search, and category filter (on-chain)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Number.parseInt(searchParams.get('page') || '1', 10);
     const limit = Math.min(Number.parseInt(searchParams.get('limit') || '20', 10), 50); // Max 50 per page (smart contract limit)
     const search = searchParams.get('search') || '';
+    const category = searchParams.get('category') || '';
 
     // Calculate offset for pagination (zero-based)
     const offset = (page - 1) * limit;
 
-    // Call the new smart contract function with pagination and search
+    // Call the new smart contract function with pagination, search, and category filter
     const result = await publicClient.readContract({
       address: EVENT_BOOK_ADDRESS,
       abi: EVENT_BOOK_ABI,
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
         BigInt(offset),
         BigInt(limit),
         search,
+        category,
         true, // onlyUpcoming = true
       ],
     }) as [

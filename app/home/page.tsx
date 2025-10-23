@@ -11,18 +11,30 @@ import { DesktopNav } from "@/components/layout/DesktopNav";
 import { useInfiniteEvents } from "@/lib/hooks/useEvents";
 import { toast } from "sonner";
 import { SearchBar } from "@/components/home/SearchBar";
+import { CategoryFilter } from "@/components/home/CategoryFilter";
+import { parseEventMetadata } from "@/lib/utils/eventMetadata";
 
 export default function Home() {
   const router = useRouter();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Fetch events with infinite scroll and on-chain search
+  // Fetch ALL events first to get all categories (without filters)
+  const allEventsForCategories = useInfiniteEvents({
+    enabled: isAuthenticated && hasHydrated,
+    limit: 50, // Larger limit to get more events for categories
+    search: "", // No search filter for getting all categories
+    category: "", // No category filter for getting all categories
+  });
+
+  // Fetch events with infinite scroll, on-chain search, and category filtering
   const eventsQuery = useInfiniteEvents({
     enabled: isAuthenticated && hasHydrated,
     limit: 20,
     search: searchQuery,
+    category: selectedCategory || "",
   });
 
   // Flatten all pages into a single array of events
@@ -31,9 +43,28 @@ export default function Home() {
     return eventsQuery.data.pages.flatMap((page) => page.events);
   }, [eventsQuery.data?.pages]);
 
+  // Extract unique categories from ALL events (not just filtered ones)
+  const uniqueCategories = useMemo(() => {
+    const categorySet = new Set<string>();
+    if (allEventsForCategories.data?.pages) {
+      allEventsForCategories.data.pages.forEach((page) => {
+        page.events.forEach((event) => {
+          const metadata = parseEventMetadata(event.imageURI ?? null);
+          metadata.categories.forEach((cat) => categorySet.add(cat));
+        });
+      });
+    }
+    return Array.from(categorySet).sort();
+  }, [allEventsForCategories.data?.pages]);
+
   // Handle search
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
+  }, []);
+
+  // Handle category selection
+  const handleCategorySelect = useCallback((category: string | null) => {
+    setSelectedCategory(category);
   }, []);
 
   const isLoadingEvents = eventsQuery.isPending || eventsQuery.isFetching;
@@ -87,9 +118,20 @@ export default function Home() {
       <DesktopNav />
 
       {/* Search Bar */}
-      <div className="relative z-10 px-6 pb-6 flex justify-center">
+      <div className="relative z-10 px-6 pb-4 flex justify-center">
         <SearchBar onSearch={handleSearch} />
       </div>
+
+      {/* Category Filter - Horizontal scrollable on mobile */}
+      {uniqueCategories.length > 0 && (
+        <div className="relative z-10">
+          <CategoryFilter
+            categories={uniqueCategories}
+            selectedCategory={selectedCategory}
+            onSelectCategory={handleCategorySelect}
+          />
+        </div>
+      )}
 
       {/* Mobile Navigation */}
       <BottomNav />

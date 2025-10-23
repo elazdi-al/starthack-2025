@@ -219,10 +219,11 @@ contract EventBook {
     }
 
     /**
-     * @dev Get paginated events with optional search
+     * @dev Get paginated events with optional search and category filter
      * @param offset Starting index
      * @param limit Number of events to return (max 50)
      * @param searchQuery Optional search query (searches in name and location, case-insensitive)
+     * @param categoryFilter Optional category filter (searches in imageURI metadata, case-insensitive)
      * @param onlyUpcoming If true, only return events that haven't passed yet
      * @return eventIds Array of event IDs
      * @return names Array of event names
@@ -240,6 +241,7 @@ contract EventBook {
         uint256 offset,
         uint256 limit,
         string memory searchQuery,
+        string memory categoryFilter,
         bool onlyUpcoming
     )
         public
@@ -262,9 +264,11 @@ contract EventBook {
 
         bytes memory searchBytes = bytes(searchQuery);
         bool hasSearch = searchBytes.length > 0;
+        bytes memory categoryBytes = bytes(categoryFilter);
+        bool hasCategory = categoryBytes.length > 0;
 
         // First pass: count matching events
-        total = _countMatchingEvents(searchQuery, onlyUpcoming, hasSearch);
+        total = _countMatchingEvents(searchQuery, categoryFilter, onlyUpcoming, hasSearch, hasCategory);
 
         // Return empty arrays if offset is beyond available events
         if (offset >= total) {
@@ -306,8 +310,10 @@ contract EventBook {
             offset,
             resultCount,
             searchQuery,
+            categoryFilter,
             onlyUpcoming,
             hasSearch,
+            hasCategory,
             eventIds,
             names,
             locations,
@@ -326,11 +332,13 @@ contract EventBook {
      */
     function _countMatchingEvents(
         string memory searchQuery,
+        string memory categoryFilter,
         bool onlyUpcoming,
-        bool hasSearch
+        bool hasSearch,
+        bool hasCategory
     ) private view returns (uint256 count) {
         for (uint256 i = 0; i < events.length; i++) {
-            if (_eventMatches(events[i], searchQuery, onlyUpcoming, hasSearch)) {
+            if (_eventMatches(events[i], searchQuery, categoryFilter, onlyUpcoming, hasSearch, hasCategory)) {
                 count++;
             }
         }
@@ -343,8 +351,10 @@ contract EventBook {
         uint256 offset,
         uint256 resultCount,
         string memory searchQuery,
+        string memory categoryFilter,
         bool onlyUpcoming,
         bool hasSearch,
+        bool hasCategory,
         uint256[] memory eventIds,
         string[] memory names,
         string[] memory locations,
@@ -360,7 +370,7 @@ contract EventBook {
         uint256 resultIndex = 0;
 
         for (uint256 i = 0; i < events.length && resultIndex < resultCount; i++) {
-            if (_eventMatches(events[i], searchQuery, onlyUpcoming, hasSearch)) {
+            if (_eventMatches(events[i], searchQuery, categoryFilter, onlyUpcoming, hasSearch, hasCategory)) {
                 if (currentIndex >= offset) {
                     eventIds[resultIndex] = i;
                     names[resultIndex] = events[i].name;
@@ -385,15 +395,22 @@ contract EventBook {
     function _eventMatches(
         Event storage ev,
         string memory searchQuery,
+        string memory categoryFilter,
         bool onlyUpcoming,
-        bool hasSearch
+        bool hasSearch,
+        bool hasCategory
     ) private view returns (bool) {
         // Check if event is upcoming if required
         if (onlyUpcoming && block.timestamp >= ev.date) {
             return false;
         }
 
-        // If no search query, match all (that pass upcoming filter)
+        // Check category filter first (if specified)
+        if (hasCategory && !_containsIgnoreCase(ev.imageURI, categoryFilter)) {
+            return false;
+        }
+
+        // If no search query, match all (that pass upcoming and category filters)
         if (!hasSearch) {
             return true;
         }

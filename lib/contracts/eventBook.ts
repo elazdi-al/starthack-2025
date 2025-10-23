@@ -64,6 +64,7 @@ export const EVENT_BOOK_ABI = [
       { name: "offset", type: "uint256" },
       { name: "limit", type: "uint256" },
       { name: "searchQuery", type: "string" },
+      { name: "categoryFilter", type: "string" },
       { name: "onlyUpcoming", type: "bool" }
     ],
     outputs: [
