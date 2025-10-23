@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
-import { Calendar, MapPin, Users } from "lucide-react";
+import { MapPin } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { parseEventMetadata } from "@/lib/utils/eventMetadata";
@@ -34,7 +34,7 @@ export function EventCard({ event }: EventCardProps) {
 
   const eventDate = new Date(event.date * 1000);
 
-  // Format as a clean phrase
+  // Format date and time cleanly
   const now = new Date();
   const isToday = eventDate.toDateString() === now.toDateString();
   const isTomorrow = eventDate.toDateString() === new Date(now.getTime() + 86400000).toDateString();
@@ -46,7 +46,7 @@ export function EventCard({ event }: EventCardProps) {
     datePhrase = "Tomorrow";
   } else {
     datePhrase = eventDate.toLocaleDateString("en-US", {
-      month: "long",
+      month: "short",
       day: "numeric",
       year: eventDate.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
     });
@@ -58,108 +58,100 @@ export function EventCard({ event }: EventCardProps) {
     hour12: true,
   });
 
+  // Get initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <Card
-      className="bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/[0.07] transition-all duration-200 cursor-pointer overflow-hidden group p-1"
+      className="bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/[0.07] transition-all duration-200 cursor-pointer overflow-hidden group py-4"
       onClick={() => router.push(`/event/${event.id}`)}
     >
-      <div className="flex gap-5 px-3 py-2.5">
-        {/* Left: Square Image */}
-        <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-white/[0.02]">
-          {/* Shimmer loading animation */}
-          {imageLoading && imageUrl && !imageError && (
-            <div className="absolute inset-0 animate-shimmer" />
-          )}
+      <div className="flex flex-col px-4">
+        {/* Top section: Event info + Image */}
+        <div className="flex gap-4">
+          {/* Left: Event Info */}
+          <div className="flex-1 flex flex-col min-w-0 gap-2.5">
+            {/* Date & Time - First line, muted */}
+            <p className="text-white/50 text-sm">
+              {datePhrase} at {formattedTime}
+            </p>
 
-          {imageUrl && !imageError ? (
-            <Image
-              src={imageUrl}
-              alt={event.name}
-              fill
-              className={`object-cover transition-all duration-500 ${
-                imageLoading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'
-              }`}
-              sizes="96px"
-              quality={75}
-              loading="lazy"
-              onLoad={() => setImageLoading(false)}
-              onError={() => {
-                setImageError(true);
-                setImageLoading(false);
-              }}
-            />
-          ) : (
-            // Clean minimal fallback
-            <div className="w-full h-full bg-gradient-to-br from-white/[0.03] to-white/[0.01]" />
-          )}
-        </div>
+            {/* Event Title - Main color, bigger */}
+            <h3 className="text-white font-semibold text-2xl leading-tight line-clamp-2">
+              {event.name}
+            </h3>
 
-        {/* Right: Event Info */}
-        <div className="flex-1 flex flex-col min-w-0 py-0.5">
-          {/* Category badges */}
-          {categories.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-1.5">
-              {categories.slice(0, 2).map((category) => {
-                const colors = getCategoryColor(category);
-                return (
-                  <span
-                    key={category}
-                    className={`${colors.bg} ${colors.text} ${colors.border} border text-xs px-2 py-0.5 rounded-full font-medium`}
-                  >
-                    {category}
-                  </span>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Title */}
-          <h3 className="text-white font-semibold text-base mb-0.5 line-clamp-2 leading-snug">
-            {event.name}
-          </h3>
-
-          {/* Location - subtle */}
-          <p className="text-white/60 text-sm mb-1.5 line-clamp-1">
-            {event.location}
-          </p>
-
-          {/* Capacity info - always show */}
-          <p className="text-white/50 text-xs mb-1.5">
-            {event.maxCapacity > 0
-              ? `${event.ticketsSold} / ${event.maxCapacity} tickets sold`
-              : `${event.ticketsSold} tickets sold`
-            }
-          </p>
-
-          {/* Divider */}
-          <div className="border-t border-white/10 pt-1.5 mt-auto space-y-1">
-            {/* Date & Time */}
-            <div className="flex items-center gap-2">
-              <Calendar size={15} className="text-white/50 flex-shrink-0" strokeWidth={2} />
-              <span className="text-white/70 text-sm">
-                {datePhrase} at {formattedTime}
+            {/* Creator with avatar */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-white/70 text-xs font-medium">
+                  {getInitials(event.creator)}
+                </span>
+              </div>
+              <span className="text-white/60 text-sm line-clamp-1">
+                By {event.creator}
               </span>
             </div>
 
             {/* Location with icon */}
-            <div className="flex items-center gap-2">
-              <MapPin size={15} className="text-white/50 flex-shrink-0" strokeWidth={2} />
-              <span className="text-white/70 text-sm line-clamp-1">{event.location}</span>
-            </div>
-
-            {/* Attending */}
-            <div className="flex items-center gap-2">
-              <Users size={15} className="text-white/50 flex-shrink-0" strokeWidth={2} />
-              <span className="text-white/70 text-sm">{event.ticketsSold} attending</span>
-            </div>
-
-            {/* Event ended notice */}
-            {event.isPast && (
-              <div className="text-xs text-white/40 pt-0.5">
-                This event has ended
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                <MapPin size={18} className="text-white/50" />
               </div>
+              <span className="text-white/60 text-sm line-clamp-1">{event.location}</span>
+            </div>
+          </div>
+
+          {/* Right: Image */}
+          <div className="relative w-28 h-28 flex-shrink-0 rounded-lg overflow-hidden bg-white/[0.02]">
+            {imageLoading && imageUrl && !imageError && (
+              <div className="absolute inset-0 animate-shimmer" />
+            )}
+
+            {imageUrl && !imageError ? (
+              <Image
+                src={imageUrl}
+                alt={event.name}
+                fill
+                className={`object-cover transition-all duration-500 ${
+                  imageLoading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'
+                }`}
+                sizes="112px"
+                quality={75}
+                loading="lazy"
+                unoptimized={imageUrl.endsWith('.svg')}
+                onLoad={() => setImageLoading(false)}
+                onError={() => {
+                  setImageError(true);
+                  setImageLoading(false);
+                }}
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-white/[0.03] to-white/[0.01]" />
             )}
           </div>
+        </div>
+
+        {/* Bottom section: Category chips - full width */}
+        <div className="flex gap-1.5 pt-4 overflow-x-auto scrollbar-hide">
+          {categories.map((category) => {
+            const colors = getCategoryColor(category);
+            return (
+              <span
+                key={category}
+                className={`${colors.bg} ${colors.text} ${colors.border} border text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap flex-shrink-0`}
+              >
+                {category}
+              </span>
+            );
+          })}
         </div>
       </div>
     </Card>

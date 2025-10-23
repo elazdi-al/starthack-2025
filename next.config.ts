@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
         pathname: '/ipfs/**',
       },
     ],
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 
   // Add headers to allow Base Account popup to function
