@@ -1,25 +1,49 @@
 "use client";
 
 import { MagnifyingGlass, X } from "phosphor-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
   placeholder?: string;
+  debounceMs?: number;
 }
 
-export function SearchBar({ onSearch, placeholder = "Search events..." }: SearchBarProps) {
+export function SearchBar({ onSearch, placeholder = "Search events...", debounceMs = 500 }: SearchBarProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSearch = useCallback((value: string) => {
     setSearchQuery(value);
-    onSearch(value);
-  }, [onSearch]);
+
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set new timer for debounced search
+    debounceTimerRef.current = setTimeout(() => {
+      onSearch(value);
+    }, debounceMs);
+  }, [onSearch, debounceMs]);
 
   const handleClear = useCallback(() => {
     setSearchQuery("");
+    // Clear immediately on clear button
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
     onSearch("");
   }, [onSearch]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="relative w-full max-w-2xl">

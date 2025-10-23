@@ -6,6 +6,7 @@ import { Calendar, MapPin, Users } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { parseEventMetadata } from "@/lib/utils/eventMetadata";
+import { getCategoryColor } from "@/lib/utils/categoryColors";
 
 interface EventCardProps {
   event: {
@@ -29,6 +30,7 @@ export function EventCard({ event }: EventCardProps) {
 
   const parsedMetadata = parseEventMetadata(event.imageURI ?? null);
   const imageUrl = parsedMetadata.imageUrl ?? (event.imageURI ?? null);
+  const categories = parsedMetadata.categories.length > 0 ? parsedMetadata.categories : ["Event"];
 
   const eventDate = new Date(event.date * 1000);
 
@@ -94,6 +96,23 @@ export function EventCard({ event }: EventCardProps) {
 
         {/* Right: Event Info */}
         <div className="flex-1 flex flex-col min-w-0 py-0.5">
+          {/* Category badges */}
+          {categories.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {categories.slice(0, 2).map((category) => {
+                const colors = getCategoryColor(category);
+                return (
+                  <span
+                    key={category}
+                    className={`${colors.bg} ${colors.text} ${colors.border} border text-xs px-2 py-0.5 rounded-full font-medium`}
+                  >
+                    {category}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
           {/* Title */}
           <h3 className="text-white font-semibold text-base mb-0.5 line-clamp-2 leading-snug">
             {event.name}

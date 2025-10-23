@@ -1,5 +1,7 @@
 "use client";
 
+import { getCategoryColor } from "@/lib/utils/categoryColors";
+
 interface EventHeaderProps {
   title: string;
   categories: string[];
@@ -24,18 +26,18 @@ export function EventHeader({
           {title}
         </h1>
         {categories.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] uppercase tracking-[0.32em] text-white/40">
-              Categories
-            </span>
-            {categories.map((category) => (
-              <span
-                key={category}
-                className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs sm:text-sm font-medium tracking-tight text-white/80"
-              >
-                {category}
-              </span>
-            ))}
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => {
+              const colors = getCategoryColor(category);
+              return (
+                <span
+                  key={category}
+                  className={`${colors.bg} ${colors.text} ${colors.border} inline-flex items-center rounded-full border px-3 py-1 text-xs sm:text-sm font-medium tracking-tight`}
+                >
+                  {category}
+                </span>
+              );
+            })}
           </div>
         )}
       </div>

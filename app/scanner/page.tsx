@@ -2,6 +2,7 @@
 
 import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { TopBar } from "@/components/layout/TopBar";
+import { DesktopNav } from "@/components/layout/DesktopNav";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketVerification } from "@/lib/hooks/useTicketVerification";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -279,11 +280,26 @@ function ScannerPageContent() {
     return null;
   }
 
+  // Determine back path based on where user came from
+  const backPath = eventId ? `/event/${eventId}` : "/tickets";
+  const backTitle = eventId ? "Back to Event" : "Back to Tickets";
+
   return (
     <div className="fixed inset-0 flex flex-col bg-black overflow-hidden touch-none">
       <BackgroundGradient />
 
-      <TopBar title="Scan QR Code" showTitle={true} showBackButton={true} backPath="/tickets" />
+      {/* Mobile Top Bar */}
+      <div className="md:hidden">
+        <TopBar title="Scan QR Code" showTitle={true} showBackButton={true} backPath={backPath} backTitle={backTitle} />
+      </div>
+
+      {/* Desktop Navigation */}
+      <DesktopNav
+        variant="event-detail"
+        backPath={backPath}
+        backTitle={backTitle}
+        pageTitle="Scan QR Code"
+      />
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center overflow-hidden touch-none">
         {error ? (

@@ -1,11 +1,28 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { House, ShoppingCart, Ticket, CalendarCheck } from "phosphor-react";
+import { House, ShoppingCart, Ticket, CalendarCheck, QrCode, ArrowLeft } from "phosphor-react";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
+import { WalletBalance } from "@/components/layout/WalletBalance";
 import { memo, useCallback } from "react";
 
-export const DesktopNav = memo(function DesktopNav() {
+interface DesktopNavProps {
+  showScanner?: boolean;
+  onScannerClick?: () => void;
+  variant?: "default" | "event-detail";
+  backPath?: string;
+  backTitle?: string;
+  pageTitle?: string;
+}
+
+export const DesktopNav = memo(function DesktopNav({
+  showScanner = false,
+  onScannerClick,
+  variant = "default",
+  backPath = "/home",
+  backTitle = "Back to Events",
+  pageTitle
+}: DesktopNavProps) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -15,6 +32,45 @@ export const DesktopNav = memo(function DesktopNav() {
     router.push(path);
   }, [router]);
 
+  // Event detail variant - simplified layout
+  if (variant === "event-detail") {
+    return (
+      <div className="hidden md:flex fixed top-6 left-6 right-6 z-40 items-center justify-between">
+        {/* Left: Back button and page title */}
+        <div className="flex items-center gap-4">
+          <button
+            className="text-white/60 hover:text-white hover:bg-white/5 border-white/10 transition-all flex items-center gap-2 backdrop-blur-sm px-4 py-2 rounded-full border"
+            type="button"
+            onClick={() => navigateTo(backPath)}
+            title={backTitle}
+          >
+            <ArrowLeft size={20} weight="regular" />
+            <span className="text-sm font-medium">{backTitle}</span>
+          </button>
+          {pageTitle && (
+            <h1 className="text-white text-lg font-semibold">{pageTitle}</h1>
+          )}
+        </div>
+
+        {/* Right: Balance and QR scanner */}
+        <div className="flex items-center gap-3">
+          <WalletBalance />
+          {showScanner && (
+            <button
+              className="text-white/60 hover:text-white hover:bg-white/5 border-white/10 transition-all backdrop-blur-sm p-2.5 rounded-full border"
+              type="button"
+              onClick={onScannerClick}
+              title="Scan QR Code"
+            >
+              <QrCode size={22} weight="regular" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Default variant - full navigation
   return (
     <div className="hidden md:flex fixed top-6 right-6 z-40 items-center gap-3">
       {/* Home */}
@@ -76,6 +132,19 @@ export const DesktopNav = memo(function DesktopNav() {
         <Ticket size={20} weight={isActive('/tickets') ? 'fill' : 'regular'} />
         <span className="text-sm font-medium">Tickets</span>
       </button>
+
+      {/* QR Scanner - only show when needed */}
+      {showScanner && (
+        <button
+          className="text-white/60 hover:text-white hover:bg-white/5 border-white/10 transition-all flex items-center gap-2 backdrop-blur-sm px-4 py-2 rounded-full border"
+          type="button"
+          onClick={onScannerClick}
+          title="Scan QR Code"
+        >
+          <QrCode size={20} weight="regular" />
+          <span className="text-sm font-medium">Scan QR</span>
+        </button>
+      )}
 
       {/* Create Event */}
       <CreateEventDialog />

@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { useRouter, useParams } from "next/navigation";
-import { QrCode } from "phosphor-react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { DesktopNav } from "@/components/layout/DesktopNav";
 import { ticketsAPI } from "@/lib/api";
 import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
 import { formatEther } from "viem";
@@ -358,29 +358,32 @@ export default function EventPage() {
     : null;
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-[148px] sm:pb-24 md:pb-10">
+    <div className="relative min-h-screen flex flex-col bg-transparent pb-[148px] sm:pb-24 md:pb-10">
       <BackgroundGradient />
 
-      <TopBar
-        showBackButton={true}
+      {/* Mobile Top Bar - Fixed */}
+      <div className="md:hidden">
+        <TopBar
+          showBackButton={true}
+          backPath="/home"
+          backTitle="Back to Events"
+          showScanner={isEventOwner}
+          onScannerClick={handleScannerClick}
+        />
+      </div>
+
+      {/* Desktop Navigation with integrated QR scanner and back button */}
+      <DesktopNav
+        variant="event-detail"
+        showScanner={isEventOwner}
+        onScannerClick={handleScannerClick}
         backPath="/home"
         backTitle="Back to Events"
       />
 
-      {isEventOwner && (
-        <button
-          type="button"
-          onClick={handleScannerClick}
-          className="fixed top-6 right-6 z-20 bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-3 transition-all active:scale-95 md:top-8 md:right-8"
-          title="Scan QR Code"
-        >
-          <QrCode size={24} weight="regular" className="text-white/80" />
-        </button>
-      )}
-
       <BottomNav />
 
-      <div className="relative z-10 flex-1 pb-8 md:pb-12 max-w-4xl mx-auto w-full px-6 pt-16 sm:pt-20 md:pt-24">
+      <div className="relative z-10 flex-1 pb-8 md:pb-12 max-w-4xl mx-auto w-full px-6 pt-20 sm:pt-20 md:pt-24">
         <EventHeader
           title={event.title}
           categories={event.categories}
