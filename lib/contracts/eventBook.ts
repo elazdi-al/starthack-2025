@@ -59,6 +59,30 @@ export const EVENT_BOOK_ABI = [
   },
   {
     type: "function",
+    name: "getEvents",
+    inputs: [
+      { name: "offset", type: "uint256" },
+      { name: "limit", type: "uint256" },
+      { name: "searchQuery", type: "string" },
+      { name: "onlyUpcoming", type: "bool" }
+    ],
+    outputs: [
+      { name: "eventIds", type: "uint256[]" },
+      { name: "names", type: "string[]" },
+      { name: "locations", type: "string[]" },
+      { name: "dates", type: "uint256[]" },
+      { name: "prices", type: "uint256[]" },
+      { name: "creators", type: "address[]" },
+      { name: "ticketsSoldArray", type: "uint256[]" },
+      { name: "maxCapacities", type: "uint256[]" },
+      { name: "imageURIs", type: "string[]" },
+      { name: "isPrivateArray", type: "bool[]" },
+      { name: "total", type: "uint256" }
+    ],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
     name: "events",
     inputs: [{ name: "", type: "uint256" }],
     outputs: [

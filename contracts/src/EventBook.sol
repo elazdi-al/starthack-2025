@@ -187,10 +187,7 @@ contract EventBook {
         require(msg.value == ev.price, "Incorrect payment");
 
         ev.ticketsSold += 1;
-
-        // pay the event creator
-        (bool sent, ) = ev.creator.call{value: msg.value}("");
-        require(sent, "Payment to creator failed");
+        ev.revenueOwed += msg.value;
 
         // mint the ticket
         string memory tempTokenURI = ""; // TODO: Replace with real metadata URI
@@ -219,6 +216,241 @@ contract EventBook {
     // helper function to get total number of evts
     function getNumberOfEvents() public view returns (uint256) {
         return events.length;
+    }
+
+    /**
+     * @dev Get paginated events with optional search
+     * @param offset Starting index
+     * @param limit Number of events to return (max 50)
+     * @param searchQuery Optional search query (searches in name and location, case-insensitive)
+     * @param onlyUpcoming If true, only return events that haven't passed yet
+     * @return eventIds Array of event IDs
+     * @return names Array of event names
+     * @return locations Array of event locations
+     * @return dates Array of event dates
+     * @return prices Array of event prices
+     * @return creators Array of event creator addresses
+     * @return ticketsSoldArray Array of tickets sold counts
+     * @return maxCapacities Array of max capacity limits
+     * @return imageURIs Array of image URIs
+     * @return isPrivateArray Array of isPrivate flags
+     * @return total Total number of events matching the criteria
+     */
+    function getEvents(
+        uint256 offset,
+        uint256 limit,
+        string memory searchQuery,
+        bool onlyUpcoming
+    )
+        public
+        view
+        returns (
+            uint256[] memory eventIds,
+            string[] memory names,
+            string[] memory locations,
+            uint256[] memory dates,
+            uint256[] memory prices,
+            address[] memory creators,
+            uint256[] memory ticketsSoldArray,
+            uint256[] memory maxCapacities,
+            string[] memory imageURIs,
+            bool[] memory isPrivateArray,
+            uint256 total
+        )
+    {
+        require(limit > 0 && limit <= 50, "Limit must be 1-50");
+
+        bytes memory searchBytes = bytes(searchQuery);
+        bool hasSearch = searchBytes.length > 0;
+
+        // First pass: count matching events
+        total = _countMatchingEvents(searchQuery, onlyUpcoming, hasSearch);
+
+        // Return empty arrays if offset is beyond available events
+        if (offset >= total) {
+            return (
+                new uint256[](0),
+                new string[](0),
+                new string[](0),
+                new uint256[](0),
+                new uint256[](0),
+                new address[](0),
+                new uint256[](0),
+                new uint256[](0),
+                new string[](0),
+                new bool[](0),
+                total
+            );
+        }
+
+        // Calculate result count
+        uint256 resultCount = limit;
+        if (offset + limit > total) {
+            resultCount = total - offset;
+        }
+
+        // Initialize result arrays
+        eventIds = new uint256[](resultCount);
+        names = new string[](resultCount);
+        locations = new string[](resultCount);
+        dates = new uint256[](resultCount);
+        prices = new uint256[](resultCount);
+        creators = new address[](resultCount);
+        ticketsSoldArray = new uint256[](resultCount);
+        maxCapacities = new uint256[](resultCount);
+        imageURIs = new string[](resultCount);
+        isPrivateArray = new bool[](resultCount);
+
+        // Second pass: collect matching events
+        _collectMatchingEvents(
+            offset,
+            resultCount,
+            searchQuery,
+            onlyUpcoming,
+            hasSearch,
+            eventIds,
+            names,
+            locations,
+            dates,
+            prices,
+            creators,
+            ticketsSoldArray,
+            maxCapacities,
+            imageURIs,
+            isPrivateArray
+        );
+    }
+
+    /**
+     * @dev Internal helper to count matching events
+     */
+    function _countMatchingEvents(
+        string memory searchQuery,
+        bool onlyUpcoming,
+        bool hasSearch
+    ) private view returns (uint256 count) {
+        for (uint256 i = 0; i < events.length; i++) {
+            if (_eventMatches(events[i], searchQuery, onlyUpcoming, hasSearch)) {
+                count++;
+            }
+        }
+    }
+
+    /**
+     * @dev Internal helper to collect matching events
+     */
+    function _collectMatchingEvents(
+        uint256 offset,
+        uint256 resultCount,
+        string memory searchQuery,
+        bool onlyUpcoming,
+        bool hasSearch,
+        uint256[] memory eventIds,
+        string[] memory names,
+        string[] memory locations,
+        uint256[] memory dates,
+        uint256[] memory prices,
+        address[] memory creators,
+        uint256[] memory ticketsSoldArray,
+        uint256[] memory maxCapacities,
+        string[] memory imageURIs,
+        bool[] memory isPrivateArray
+    ) private view {
+        uint256 currentIndex = 0;
+        uint256 resultIndex = 0;
+
+        for (uint256 i = 0; i < events.length && resultIndex < resultCount; i++) {
+            if (_eventMatches(events[i], searchQuery, onlyUpcoming, hasSearch)) {
+                if (currentIndex >= offset) {
+                    eventIds[resultIndex] = i;
+                    names[resultIndex] = events[i].name;
+                    locations[resultIndex] = events[i].location;
+                    dates[resultIndex] = events[i].date;
+                    prices[resultIndex] = events[i].price;
+                    creators[resultIndex] = events[i].creator;
+                    ticketsSoldArray[resultIndex] = events[i].ticketsSold;
+                    maxCapacities[resultIndex] = events[i].maxCapacity;
+                    imageURIs[resultIndex] = events[i].imageURI;
+                    isPrivateArray[resultIndex] = events[i].isPrivate;
+                    resultIndex++;
+                }
+                currentIndex++;
+            }
+        }
+    }
+
+    /**
+     * @dev Check if an event matches the search criteria
+     */
+    function _eventMatches(
+        Event storage ev,
+        string memory searchQuery,
+        bool onlyUpcoming,
+        bool hasSearch
+    ) private view returns (bool) {
+        // Check if event is upcoming if required
+        if (onlyUpcoming && block.timestamp >= ev.date) {
+            return false;
+        }
+
+        // If no search query, match all (that pass upcoming filter)
+        if (!hasSearch) {
+            return true;
+        }
+
+        // Check if search query matches name or location (case-insensitive)
+        return _containsIgnoreCase(ev.name, searchQuery) || _containsIgnoreCase(ev.location, searchQuery);
+    }
+
+    /**
+     * @dev Case-insensitive substring search
+     * Note: This converts to lowercase by checking ASCII ranges
+     */
+    function _containsIgnoreCase(string memory source, string memory query) private pure returns (bool) {
+        bytes memory sourceBytes = bytes(source);
+        bytes memory queryBytes = bytes(query);
+
+        if (queryBytes.length == 0) return true;
+        if (sourceBytes.length < queryBytes.length) return false;
+
+        // Try to find query in source
+        for (uint256 i = 0; i <= sourceBytes.length - queryBytes.length; i++) {
+            bool found = true;
+            for (uint256 j = 0; j < queryBytes.length; j++) {
+                if (_toLower(sourceBytes[i + j]) != _toLower(queryBytes[j])) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) return true;
+        }
+        return false;
+    }
+
+    /**
+     * @dev Convert a byte to lowercase if it's an uppercase letter
+     */
+    function _toLower(bytes1 char) private pure returns (bytes1) {
+        if (char >= 0x41 && char <= 0x5A) {
+            // A-Z to a-z
+            return bytes1(uint8(char) + 32);
+        }
+        return char;
+    }
+
+    /**
+     * @dev Withdraw revenue from ticket sales
+     * @param eventId The event ID to withdraw from
+     */
+    function withdraw(uint256 eventId) public onlyEventCreator(eventId) {
+        Event storage ev = events[eventId];
+        uint256 amount = ev.revenueOwed;
+
+        if (amount > 0) {
+            ev.revenueOwed = 0;
+            (bool sent, ) = ev.creator.call{value: amount}("");
+            require(sent, "Payment to creator failed");
+        }
     }
 
     /**

@@ -37,7 +37,7 @@ contract EventBookTest is Test {
         uint256 date = block.timestamp + 1 days;
 
         vm.prank(creator);
-        book.createEvent("Concert", "NYC", date, 0.1 ether, 2, false); // public event
+        book.createEvent("Concert", "NYC", date, 0.1 ether, 2, "", false); // public event
 
         assertEq(book.getNumberOfEvents(), 1);
 
@@ -72,7 +72,7 @@ contract EventBookTest is Test {
         uint256 date = block.timestamp + 2 days;
 
         vm.prank(creator);
-        book.createEvent("Meetup", "Berlin", date, 0, 0, false); // full signature
+        book.createEvent("Meetup", "Berlin", date, 0, 0, "", false); // full signature
 
         vm.prank(creator);
         book.createEvent("Hackday", "SF", date, 0.05 ether, 0); // 5-arg overload

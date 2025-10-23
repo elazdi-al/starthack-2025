@@ -30,7 +30,7 @@ export const BottomNav = memo(function BottomNav() {
             onClick={() => navigateTo('/home')}
             title="Home"
           >
-            <House size={24} weight={isActive('/home') ? 'fill' : 'regular'} />
+            <House className="w-6 h-6" weight={isActive('/home') ? 'fill' : 'regular'} />
             <span className="text-[10px] font-semibold whitespace-nowrap">Home</span>
           </button>
 
@@ -45,7 +45,7 @@ export const BottomNav = memo(function BottomNav() {
             onClick={() => navigateTo('/marketplace')}
             title="Marketplace"
           >
-            <ShoppingCart size={24} weight={isActive('/marketplace') ? 'fill' : 'regular'} />
+            <ShoppingCart className="w-6 h-6" weight={isActive('/marketplace') ? 'fill' : 'regular'} />
             <span className="text-[10px] font-semibold whitespace-nowrap">Market</span>
           </button>
 
@@ -65,7 +65,7 @@ export const BottomNav = memo(function BottomNav() {
             onClick={() => navigateTo('/tickets')}
             title="My Tickets"
           >
-            <Ticket size={24} weight={isActive('/tickets') ? 'fill' : 'regular'} />
+            <Ticket className="w-6 h-6" weight={isActive('/tickets') ? 'fill' : 'regular'} />
             <span className="text-[10px] font-semibold whitespace-nowrap">Tickets</span>
           </button>
 
@@ -80,7 +80,7 @@ export const BottomNav = memo(function BottomNav() {
             onClick={() => navigateTo('/myevents')}
             title="My Events"
           >
-            <CalendarCheck size={24} weight={isActive('/myevents') ? 'fill' : 'regular'} />
+            <CalendarCheck className="w-6 h-6" weight={isActive('/myevents') ? 'fill' : 'regular'} />
             <span className="text-[10px] font-semibold whitespace-nowrap">Events</span>
           </button>
         </div>

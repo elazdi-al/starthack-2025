@@ -4,108 +4,81 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/events - Get all events with pagination and search
+// GET /api/events - Get all events with pagination and search (on-chain)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Number.parseInt(searchParams.get('page') || '1', 10);
-    const limit = Math.min(Number.parseInt(searchParams.get('limit') || '50', 10), 100); // Max 100 per page
+    const limit = Math.min(Number.parseInt(searchParams.get('limit') || '20', 10), 50); // Max 50 per page (smart contract limit)
     const search = searchParams.get('search') || '';
-    const includeAll = searchParams.get('all') === 'true'; // For client-side caching
 
-    // Get total number of events
-    const numberOfEvents = await publicClient.readContract({
+    // Calculate offset for pagination (zero-based)
+    const offset = (page - 1) * limit;
+
+    // Call the new smart contract function with pagination and search
+    const result = await publicClient.readContract({
       address: EVENT_BOOK_ADDRESS,
       abi: EVENT_BOOK_ABI,
-      functionName: 'getNumberOfEvents',
-    }) as bigint;
+      functionName: 'getEvents',
+      args: [
+        BigInt(offset),
+        BigInt(limit),
+        search,
+        true, // onlyUpcoming = true
+      ],
+    }) as [
+      bigint[], // eventIds
+      string[], // names
+      string[], // locations
+      bigint[], // dates
+      bigint[], // prices
+      string[], // creators
+      bigint[], // ticketsSold
+      bigint[], // maxCapacities
+      string[], // imageURIs
+      boolean[], // isPrivate
+      bigint // total
+    ];
 
-    const eventCount = Number(numberOfEvents);
-
-    // Use multicall to fetch all events in batches (viem handles this automatically)
-    const eventContracts = Array.from({ length: eventCount }, (_, index) => ({
-      address: EVENT_BOOK_ADDRESS,
-      abi: EVENT_BOOK_ABI,
-      functionName: 'events' as const,
-      args: [BigInt(index)],
-    }));
-
-    // Fetch all events using multicall - viem batches these automatically
-    const eventResults = await publicClient.multicall({
-      contracts: eventContracts,
-      allowFailure: false, // Fail if any call fails
-    }) as Array<[string, string, bigint, bigint, bigint, string, bigint, bigint, string, boolean, boolean]>;
+    const [
+      eventIds,
+      names,
+      locations,
+      dates,
+      prices,
+      creators,
+      ticketsSoldArray,
+      maxCapacities,
+      imageURIs,
+      isPrivateArray,
+      total,
+    ] = result;
 
     // Transform results
-    const allEvents = eventResults.map((eventData, index) => {
-      const [
-        name,
-        location,
-        date,
-        price,
-        _revenueOwed,
-        creator,
-        ticketsSold,
-        maxCapacity,
-        imageURI,
-        isPrivate,
-        whitelistIsLocked,
-      ] = eventData;
+    const events = eventIds.map((_, index) => ({
+      id: Number(eventIds[index]),
+      name: names[index],
+      location: locations[index],
+      date: Number(dates[index]),
+      price: prices[index].toString(),
+      creator: creators[index],
+      ticketsSold: Number(ticketsSoldArray[index]),
+      maxCapacity: Number(maxCapacities[index]),
+      imageURI: imageURIs[index],
+      isPrivate: isPrivateArray[index],
+      whitelistIsLocked: true, // All upcoming events should have locked whitelist
+      isPast: false, // We filtered for upcoming only
+      isFull: Number(maxCapacities[index]) > 0 && Number(ticketsSoldArray[index]) >= Number(maxCapacities[index]),
+    }));
 
-      return {
-        id: index,
-        name,
-        location,
-        date: Number(date),
-        price: price.toString(),
-        creator,
-        ticketsSold: Number(ticketsSold),
-        maxCapacity: Number(maxCapacity),
-        imageURI,
-        isPrivate,
-        whitelistIsLocked,
-        isPast: Number(date) < Math.floor(Date.now() / 1000),
-        isFull: Number(maxCapacity) > 0 && Number(ticketsSold) >= Number(maxCapacity),
-      };
-    });
-
-    // Apply search filter if provided
-    let filteredEvents = allEvents;
-    if (search) {
-      const query = search.toLowerCase();
-      filteredEvents = allEvents.filter(event =>
-        event.name.toLowerCase().includes(query) ||
-        event.location.toLowerCase().includes(query)
-      );
-    }
-
-    // Sort by date (upcoming first)
-    const sortedEvents = filteredEvents.sort((a, b) => a.date - b.date);
-
-    // Return all if requested (for initial cache)
-    if (includeAll) {
-      return NextResponse.json({
-        success: true,
-        events: sortedEvents,
-        count: eventCount,
-        total: filteredEvents.length,
-        page: 1,
-        limit: filteredEvents.length,
-        hasMore: false,
-      });
-    }
-
-    // Apply pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedEvents = sortedEvents.slice(startIndex, endIndex);
-    const hasMore = endIndex < sortedEvents.length;
+    const totalCount = Number(total);
+    const hasMore = offset + events.length < totalCount;
 
     return NextResponse.json({
       success: true,
-      events: paginatedEvents,
-      count: eventCount,
-      total: filteredEvents.length,
+      events,
+      count: events.length,
+      total: totalCount,
       page,
       limit,
       hasMore,

@@ -3,12 +3,12 @@
 import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { EventCard } from "@/components/home/EventCard";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { DesktopNav } from "@/components/layout/DesktopNav";
-import { useEvents } from "@/lib/hooks/useEvents";
+import { useInfiniteEvents } from "@/lib/hooks/useEvents";
 import { toast } from "sonner";
 import { SearchBar } from "@/components/home/SearchBar";
 
@@ -16,37 +16,47 @@ export default function Home() {
   const router = useRouter();
   const { isAuthenticated, hasHydrated } = useAuthCheck();
   const [searchQuery, setSearchQuery] = useState("");
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Fetch events with optimized multicall caching
-  // All events are fetched in one batch and cached for 5 minutes
-  const eventsQuery = useEvents({
+  // Fetch events with infinite scroll and on-chain search
+  const eventsQuery = useInfiniteEvents({
     enabled: isAuthenticated && hasHydrated,
+    limit: 20,
+    search: searchQuery,
   });
 
-  // Filter upcoming events (memoized to prevent recalculation)
-  const upcomingEvents = useMemo(() => {
-    if (!eventsQuery.data?.success) return [];
-    return eventsQuery.data.events.filter((event) => !event.isPast);
-  }, [eventsQuery.data]);
+  // Flatten all pages into a single array of events
+  const allEvents = useMemo(() => {
+    if (!eventsQuery.data?.pages) return [];
+    return eventsQuery.data.pages.flatMap((page) => page.events);
+  }, [eventsQuery.data?.pages]);
 
-  // Filter events based on search query (instant client-side filtering)
-  const filteredEvents = useMemo(() => {
-    if (!searchQuery.trim()) return upcomingEvents;
-
-    const query = searchQuery.toLowerCase();
-    return upcomingEvents.filter((event) => {
-      const matchesName = event.name.toLowerCase().includes(query);
-      const matchesLocation = event.location.toLowerCase().includes(query);
-      return matchesName || matchesLocation;
-    });
-  }, [upcomingEvents, searchQuery]);
-
-  // Handle search (debounced for better performance)
+  // Handle search
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
   }, []);
 
   const isLoadingEvents = eventsQuery.isPending || eventsQuery.isFetching;
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (!loadMoreRef.current || !eventsQuery.hasNextPage || eventsQuery.isFetchingNextPage) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && eventsQuery.hasNextPage && !eventsQuery.isFetchingNextPage) {
+          eventsQuery.fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(loadMoreRef.current);
+
+    return () => observer.disconnect();
+  }, [eventsQuery.hasNextPage, eventsQuery.isFetchingNextPage, eventsQuery]);
 
   // Show error toast
   useEffect(() => {
@@ -86,32 +96,41 @@ export default function Home() {
 
       {/* Event cards */}
       <div className="relative z-10 flex-1 px-6 pb-6">
-        {isLoadingEvents ? (
+        {isLoadingEvents && allEvents.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-6xl">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 h-48 animate-pulse" />
             ))}
           </div>
-        ) : filteredEvents.length === 0 ? (
+        ) : allEvents.length === 0 ? (
           <div className="text-center py-12">
             {searchQuery ? (
               <>
                 <p className="text-white/40 text-lg">No events found matching &quot;{searchQuery}&quot;</p>
                 <p className="text-white/30 text-sm mt-2">Try searching with different keywords</p>
               </>
-            ) : upcomingEvents.length === 0 ? (
+            ) : (
               <>
                 <p className="text-white/40 text-lg">No upcoming events available</p>
                 <p className="text-white/30 text-sm mt-2">Check back later for new events</p>
               </>
-            ) : null}
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-6xl">
-            {filteredEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-6xl">
+              {allEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+
+            {/* Infinite scroll trigger */}
+            <div ref={loadMoreRef} className="h-20 flex items-center justify-center mt-4">
+              {eventsQuery.isFetchingNextPage && (
+                <div className="text-white/40 text-sm">Loading more events...</div>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

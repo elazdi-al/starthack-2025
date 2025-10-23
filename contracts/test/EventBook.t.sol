@@ -37,7 +37,7 @@ contract EventBookTest is Test {
         uint256 date = block.timestamp + 1 days;
         vm.prank(creator);
         // public event (isPrivate=false) -> locked by default
-        book.createEvent("Concert", "NYC", date, 0.1 ether, 2, false);
+        book.createEvent("Concert", "NYC", date, 0.1 ether, 2, "", false);
 
         assertEq(book.getNumberOfEvents(), 1);
 
@@ -71,7 +71,7 @@ contract EventBookTest is Test {
     function testCreateEvent_Overload_UnlimitedCapacity() public {
         uint256 date = block.timestamp + 2 days;
         vm.prank(creator);
-        book.createEvent("Meetup", "Berlin", date, 0, 0, false);
+        book.createEvent("Meetup", "Berlin", date, 0, 0, "", false);
 
         vm.prank(creator);
         book.createEvent("Hackday", "SF", date, 0.05 ether, 0);
@@ -88,7 +88,7 @@ contract EventBookTest is Test {
         uint256 past = block.timestamp - 1;
         vm.prank(creator);
         vm.expectRevert("Date must be in the future");
-        book.createEvent("Past", "NYC", past, 0.1 ether, 0, false);
+        book.createEvent("Past", "NYC", past, 0.1 ether, 0, "", false);
     }
 
     // ----------------------------
@@ -101,7 +101,7 @@ contract EventBookTest is Test {
     {
         date = block.timestamp + 1 days;
         vm.prank(creator);
-        book.createEvent("Show", "LA", date, price, cap, isPrivate);
+        book.createEvent("Show", "LA", date, price, cap, "", isPrivate);
         eventId = book.getNumberOfEvents() - 1;
     }
 

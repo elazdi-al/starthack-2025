@@ -1,5 +1,5 @@
 import { eventsAPI, ticketsAPI } from "@/lib/api";
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 
 // Query keys for better cache management
 export const eventKeys = {
@@ -68,6 +68,42 @@ export function useEventsWithSearch(options?: {
     gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData, // Keep showing old data while fetching new
+    enabled,
+  });
+}
+
+/**
+ * Fetch events with infinite scroll and on-chain search
+ * This hook uses the smart contract's pagination and search functionality
+ */
+export function useInfiniteEvents(options?: {
+  enabled?: boolean;
+  limit?: number;
+  search?: string;
+}) {
+  const { enabled = true, limit = 20, search = '' } = options || {};
+
+  return useInfiniteQuery({
+    queryKey: eventKeys.list({ infinite: true, limit, search }),
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await eventsAPI.getAll({
+        page: pageParam,
+        limit,
+        search,
+      });
+      return response;
+    },
+    getNextPageParam: (lastPage) => {
+      // Return next page number if there are more pages
+      if (lastPage.hasMore) {
+        return lastPage.page + 1;
+      }
+      return undefined; // No more pages
+    },
+    initialPageParam: 1,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
     enabled,
   });
 }
