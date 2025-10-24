@@ -154,7 +154,7 @@ export default function EventPage() {
   const { invalidateTickets, invalidateDetail } = useInvalidateEvents();
   const clearDuplicates = useTicketStore((state) => state.clearDuplicates);
   const { address: walletAddress, isConnected } = useAccount();
-  const { connect } = useConnect();
+  const { connect, connectAsync } = useConnect();
   const connectors = useConnectors();
   const publicClient = usePublicClient({ chainId: currentChain.id });
   const { data: walletClient } = useWalletClient({ chainId: currentChain.id });
@@ -191,7 +191,11 @@ export default function EventPage() {
 
     const injected = connectors.find((connector) => connector.type === "injected");
     if (injected) {
-      connect({ connector: injected, chainId: currentChain.id });
+      try {
+        connect({ connector: injected, chainId: currentChain.id });
+      } catch (error) {
+        console.error("Auto-connect failed:", error);
+      }
     }
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 
@@ -267,6 +271,26 @@ export default function EventPage() {
         description: "Please connect your wallet to register for this event.",
       });
       return;
+    }
+
+    // Ensure wallet is connected before proceeding
+    if (!isConnected) {
+      try {
+        const injected = connectors.find((connector) => connector.type === "injected");
+        if (!injected) {
+          toast.error("Wallet not available", {
+            description: "Please install a Base-compatible wallet to continue.",
+          });
+          return;
+        }
+
+        await connectAsync({ connector: injected, chainId: currentChain.id });
+      } catch (error) {
+        toast.error("Connection failed", {
+          description: error instanceof Error ? error.message : "Failed to connect wallet.",
+        });
+        return;
+      }
     }
 
     try {

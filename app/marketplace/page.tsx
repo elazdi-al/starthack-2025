@@ -56,7 +56,7 @@ export default function Marketplace() {
 
   const observerTarget = useRef<HTMLDivElement>(null);
   const { address: walletAddress, isConnected } = useAccount();
-  const { connect } = useConnect();
+  const { connect, connectAsync } = useConnect();
   const connectors = useConnectors();
   const publicClient = usePublicClient({ chainId: currentChain.id });
   const { data: walletClient } = useWalletClient({ chainId: currentChain.id });
@@ -102,7 +102,13 @@ export default function Marketplace() {
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated || isConnected || connectors.length === 0) return;
     const injected = connectors.find((connector) => connector.type === "injected");
-    if (injected) connect({ connector: injected, chainId: currentChain.id });
+    if (injected) {
+      try {
+        connect({ connector: injected, chainId: currentChain.id });
+      } catch (error) {
+        console.error("Auto-connect failed:", error);
+      }
+    }
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 
   // Flatten listings
@@ -150,8 +156,33 @@ export default function Marketplace() {
 
   // Handle ticket purchase
   const handlePurchase = async (listing: Listing) => {
-    if (!walletAddress || !walletClient || !publicClient) {
+    if (!walletAddress) {
       toast.error("Wallet required", { description: "Connect your wallet to buy tickets." });
+      return;
+    }
+
+    // Ensure wallet is connected before proceeding
+    if (!isConnected) {
+      try {
+        const injected = connectors.find((connector) => connector.type === "injected");
+        if (!injected) {
+          toast.error("Wallet not available", {
+            description: "Please install a Base-compatible wallet to continue.",
+          });
+          return;
+        }
+
+        await connectAsync({ connector: injected, chainId: currentChain.id });
+      } catch (error) {
+        toast.error("Connection failed", {
+          description: error instanceof Error ? error.message : "Failed to connect wallet.",
+        });
+        return;
+      }
+    }
+
+    if (!walletClient || !publicClient) {
+      toast.error("Wallet client unavailable", { description: "Please reconnect your wallet." });
       return;
     }
 
