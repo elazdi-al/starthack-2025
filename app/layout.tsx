@@ -6,6 +6,10 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { SafeAreaWrapper } from "@/components/layout/SafeAreaWrapper";
+import { getConfig } from "@/config";
+import { cookieToInitialState } from "wagmi";
+import { headers } from "next/headers";
+import { Providers } from "./Providers";
 
 export const viewport = {
   width: "device-width",
@@ -49,56 +53,62 @@ const sourceCodePro = Source_Code_Pro({
   subsets: ["latin"],
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialState = cookieToInitialState(
+    getConfig(),
+    (await headers()).get('cookie')
+  )
   return (
-    <RootProvider>
-      <html lang="en" suppressHydrationWarning>
-        <head>
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                // Prevent zoom on double tap
-                let lastTouchEnd = 0;
-                document.addEventListener('touchend', function(event) {
-                  const now = Date.now();
-                  if (now - lastTouchEnd <= 300) {
-                    event.preventDefault();
-                  }
-                  lastTouchEnd = now;
-                }, { passive: false });
-
-                // Prevent zoom with gestures
-                document.addEventListener('gesturestart', function(e) {
-                  e.preventDefault();
-                }, { passive: false });
-
-                // Remove URL hash on load and prevent hash changes
-                if (window.location.hash) {
-                  history.replaceState(null, '', window.location.pathname + window.location.search);
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Prevent zoom on double tap
+              let lastTouchEnd = 0;
+              document.addEventListener('touchend', function(event) {
+                const now = Date.now();
+                if (now - lastTouchEnd <= 300) {
+                  event.preventDefault();
                 }
-                window.addEventListener('hashchange', function() {
-                  history.replaceState(null, '', window.location.pathname + window.location.search);
-                });
-              `,
-            }}
-          />
-        </head>
-        <body className={`${inter.variable} ${sourceCodePro.variable}`}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <SafeAreaWrapper>{children}</SafeAreaWrapper>
-            <Toaster />
-          </ThemeProvider>
-        </body>
-      </html>
-    </RootProvider>
+                lastTouchEnd = now;
+              }, { passive: false });
+
+              // Prevent zoom with gestures
+              document.addEventListener('gesturestart', function(e) {
+                e.preventDefault();
+              }, { passive: false });
+
+              // Remove URL hash on load and prevent hash changes
+              if (window.location.hash) {
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+              }
+              window.addEventListener('hashchange', function() {
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+              });
+            `,
+          }}
+        />
+      </head>
+      <body className={`${inter.variable} ${sourceCodePro.variable}`}>
+        <Providers initialState={initialState}>
+          <RootProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <SafeAreaWrapper>{children}</SafeAreaWrapper>
+              <Toaster />
+            </ThemeProvider>
+          </RootProvider>
+        </Providers>
+      </body>
+    </html>
   );
 }
