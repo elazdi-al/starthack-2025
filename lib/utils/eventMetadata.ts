@@ -1,78 +1,44 @@
 export interface ParsedEventMetadata {
   imageUrl: string | null;
-  imageCid: string | null;
   categories: string[];
 }
 
-interface EventMetadataV1 {
-  version?: number;
-  imageUrl?: unknown;
-  image?: unknown;
-  imageCid?: unknown;
-  cid?: unknown;
-  categories?: unknown;
+/**
+ * Parse event metadata - now just returns the imageURL as-is
+ * Categories come from the smart contract's categories field
+ */
+export function parseEventMetadata(imageURL: string | null | undefined): ParsedEventMetadata {
+  return {
+    imageUrl: imageURL || null,
+    categories: [], // Categories now come from the contract's categories array
+  };
 }
 
-export function parseEventMetadata(raw: string | null | undefined): ParsedEventMetadata {
-  if (!raw) {
-    return { imageUrl: null, imageCid: null, categories: [] };
+/**
+ * Parse categories from a comma-separated string returned by the smart contract
+ * @param categoriesString Comma-separated categories like "Gaming,Crypto,Networking"
+ * @returns Array of category strings
+ */
+export function parseCategoriesString(categoriesString: string | null | undefined): string[] {
+  if (!categoriesString || categoriesString.trim().length === 0) {
+    return [];
   }
 
-  const trimmed = raw.trim();
-
-  if (!trimmed.startsWith("{")) {
-    return {
-      imageUrl: raw,
-      imageCid: null,
-      categories: [],
-    };
-  }
-
-  try {
-    const parsed = JSON.parse(trimmed) as EventMetadataV1;
-
-    const imageCandidate = parsed.imageUrl ?? parsed.image;
-    const imageUrl =
-      typeof imageCandidate === "string" && imageCandidate.trim().length > 0
-        ? imageCandidate
-        : null;
-
-    const imageCidCandidate = parsed.imageCid ?? parsed.cid;
-    const imageCid =
-      typeof imageCidCandidate === "string" && imageCidCandidate.trim().length > 0
-        ? imageCidCandidate
-        : null;
-
-    const categories =
-      Array.isArray(parsed.categories)
-        ? parsed.categories.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-        : [];
-
-    return {
-      imageUrl,
-      imageCid,
-      categories,
-    };
-  } catch {
-    return {
-      imageUrl: raw,
-      imageCid: null,
-      categories: [],
-    };
-  }
+  return categoriesString
+    .split(',')
+    .map(cat => cat.trim())
+    .filter(cat => cat.length > 0);
 }
 
+/**
+ * This is no longer used - categories are passed separately to createEvent
+ * Kept for backwards compatibility during migration
+ */
 export function buildEventMetadataString(input: {
   imageUrl: string;
   imageCid?: string | null;
   categories?: string[];
 }) {
-  const payload = {
-    version: 1,
-    imageUrl: input.imageUrl,
-    imageCid: input.imageCid ?? null,
-    categories: Array.isArray(input.categories) ? input.categories.slice(0, 3) : [],
-  };
-
-  return JSON.stringify(payload);
+  // Just return the imageUrl - categories are now handled separately
+  return input.imageUrl;
 }

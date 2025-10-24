@@ -18,7 +18,6 @@ import { format } from "date-fns";
 import { useAuthStore } from "@/lib/store/authStore";
 import { base } from "viem/chains";
 import { useInvalidateEvents } from "@/lib/hooks/useEvents";
-import { buildEventMetadataString } from "@/lib/utils/eventMetadata";
 
 interface CreateEventDialogProps {
   onEventCreated?: () => void;
@@ -261,12 +260,6 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         return;
       }
 
-      const metadataString = buildEventMetadataString({
-        imageUrl: uploadedImage.url,
-        imageCid: uploadedImage.cid,
-        categories: selectedTags,
-      });
-
       console.log("Creating event with:", {
         name: formData.name,
         location: formData.location,
@@ -276,12 +269,12 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         address: EVENT_BOOK_ADDRESS,
         imageCid: uploadedImage.cid,
         imageUrl: uploadedImage.url,
-        tags: selectedTags,
+        categories: selectedTags,
       });
 
       hasFinalized.current = false;
 
-      // Call smart contract with imageURL stored on-chain
+      // Call smart contract with categories passed separately
       writeContract({
         address: EVENT_BOOK_ADDRESS,
         abi: EVENT_BOOK_ABI,
@@ -292,7 +285,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           BigInt(dateTimestamp),
           priceInWei,
           maxCapacity,
-          metadataString,
+          uploadedImage.url, // Just the image URL
+          selectedTags, // Categories as separate array
         ],
       });
 

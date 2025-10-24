@@ -108,21 +108,22 @@ export async function GET(request: NextRequest) {
           const eventData = await publicClient.readContract({
             address: EVENT_BOOK_ADDRESS,
             abi: EVENT_BOOK_ABI,
-            functionName: 'events',
+            functionName: 'getEvent',
             args: [eventId],
           }) as [
-            string,
-            string,
-            bigint,
-            bigint,
-            bigint,
-            string,
-            bigint,
-            bigint,
-            string,
-            boolean,
-            boolean
-          ];
+      string,    // name
+      string,    // location
+      bigint,    // date
+      bigint,    // price
+      bigint,    // revenueOwed
+      string,    // creator
+      bigint,    // ticketsSold
+      bigint,    // maxCapacity
+      string,    // imageURI
+      string[],  // categories
+      boolean,   // isPrivate
+      boolean    // whitelistIsLocked
+    ];
 
           const [name, location, date] = eventData;
 

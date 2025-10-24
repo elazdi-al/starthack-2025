@@ -73,6 +73,7 @@ export const eventsAPI = {
         isFull: boolean;
         imageURI: string;
         imageCid?: string | null;
+        categoriesString?: string;
         isPrivate: boolean;
         whitelistIsLocked: boolean;
       }>;
@@ -99,6 +100,7 @@ export const eventsAPI = {
       isFull: boolean;
       imageURI: string;
       imageCid?: string | null;
+      categoriesString?: string;
       isPrivate: boolean;
       whitelistIsLocked: boolean;
     };
@@ -262,4 +264,49 @@ export const farcasterAPI = {
         address,
       )}&address_type=${encodeURIComponent(addressType)}`,
     ),
+};
+
+// Leaderboard API
+export const leaderboardAPI = {
+  getLeaderboard: (limit: number = 10) =>
+    apiRequest<{
+      success: boolean;
+      leaderboard: Array<{
+        address: string;
+        eventsJoined: number;
+        rank: number;
+        username?: string | null;
+        displayName?: string | null;
+        pfpUrl?: string | null;
+      }>;
+      total: number;
+    }>(`/api/leaderboard?limit=${limit}`),
+
+  getUserStats: (address: string) =>
+    apiRequest<{
+      success: boolean;
+      stats: {
+        totalEvents: number;
+        monthlyEvents: number;
+        rank: number | null;
+      };
+    }>(`/api/leaderboard/user/${address}`),
+
+  getUserCategoryStats: (address: string, categories: string[]) =>
+    apiRequest<{
+      success: boolean;
+      categoryStats: Array<{
+        category: string;
+        eventsJoined: number;
+        badgeLevel: string;
+        progress: {
+          current: number;
+          nextLevel: number;
+          percentage: number;
+        };
+      }>;
+    }>(`/api/leaderboard/user/${address}/categories`, {
+      method: 'POST',
+      body: JSON.stringify({ categories }),
+    } as never),
 };

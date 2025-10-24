@@ -112,7 +112,7 @@ export default function Home() {
     <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
       <BackgroundGradient />
 
-      <TopBar title="Events" showTitle={true} />
+      <TopBar title="Events" showTitle={true} showLeaderboard={true} />
 
       {/* Desktop Navigation - Fixed at top right */}
       <DesktopNav />

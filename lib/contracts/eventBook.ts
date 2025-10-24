@@ -14,7 +14,8 @@ export const EVENT_BOOK_ABI = [
       { name: "date", type: "uint256" },
       { name: "price", type: "uint256" },
       { name: "maxCapacity", type: "uint256" },
-      { name: "imageURI", type: "string" }
+      { name: "imageURI", type: "string" },
+      { name: "categories", type: "string[]" }
     ],
     outputs: [],
     stateMutability: "nonpayable"
@@ -59,6 +60,26 @@ export const EVENT_BOOK_ABI = [
   },
   {
     type: "function",
+    name: "getEvent",
+    inputs: [{ name: "eventId", type: "uint256" }],
+    outputs: [
+      { name: "name", type: "string" },
+      { name: "location", type: "string" },
+      { name: "date", type: "uint256" },
+      { name: "price", type: "uint256" },
+      { name: "revenueOwed", type: "uint256" },
+      { name: "creator", type: "address" },
+      { name: "ticketsSold", type: "uint256" },
+      { name: "maxCapacity", type: "uint256" },
+      { name: "imageURI", type: "string" },
+      { name: "categories", type: "string[]" },
+      { name: "isPrivate", type: "bool" },
+      { name: "whitelistIsLocked", type: "bool" }
+    ],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
     name: "getEvents",
     inputs: [
       { name: "offset", type: "uint256" },
@@ -77,6 +98,7 @@ export const EVENT_BOOK_ABI = [
       { name: "ticketsSoldArray", type: "uint256[]" },
       { name: "maxCapacities", type: "uint256[]" },
       { name: "imageURIs", type: "string[]" },
+      { name: "categoriesArray", type: "string[]" },
       { name: "isPrivateArray", type: "bool[]" },
       { name: "total", type: "uint256" }
     ],
@@ -96,6 +118,7 @@ export const EVENT_BOOK_ABI = [
       { name: "ticketsSold", type: "uint256" },
       { name: "maxCapacity", type: "uint256" },
       { name: "imageURI", type: "string" },
+      { name: "categories", type: "string[]" },
       { name: "isPrivate", type: "bool" },
       { name: "whitelistIsLocked", type: "bool" }
     ],
@@ -166,5 +189,93 @@ export const EVENT_BOOK_ABI = [
     inputs: [{ name: "tokenId", type: "uint256" }],
     outputs: [],
     stateMutability: "payable"
+  },
+  {
+    type: "function",
+    name: "getLeaderboard",
+    inputs: [{ name: "limit", type: "uint256" }],
+    outputs: [
+      { name: "users", type: "address[]" },
+      { name: "eventCounts", type: "uint256[]" },
+      { name: "total", type: "uint256" }
+    ],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "getUserStats",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [
+      { name: "totalEvents", type: "uint256" },
+      { name: "monthlyEvents", type: "uint256" }
+    ],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "getUserCategoryStats",
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "categories", type: "string[]" }
+    ],
+    outputs: [
+      { name: "counts", type: "uint256[]" }
+    ],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "userCategoryCount",
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "category", type: "string" }
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "userTotalEvents",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "userMonthlyEvents",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "userLastActivity",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "getCurrentMonth",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "getUserMonthResetTime",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "getUserLeaderboardPosition",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [
+      { name: "isInLeaderboard", type: "bool" },
+      { name: "rank", type: "uint256" }
+    ],
+    stateMutability: "view"
   }
 ] as const;

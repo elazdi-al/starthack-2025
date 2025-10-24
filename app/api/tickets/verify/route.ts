@@ -55,18 +55,19 @@ export async function POST(request: NextRequest) {
     const eventData = await publicClient.readContract({
       address: EVENT_BOOK_ADDRESS,
       abi: EVENT_BOOK_ABI,
-      functionName: 'events',
+      functionName: 'getEvent',
       args: [BigInt(eventId)],
-    }) as [
+    }) as readonly [
       string, // name
       string, // location
       bigint, // date
       bigint, // price
       bigint, // revenueOwed
-      string, // creator
+      `0x${string}`, // creator
       bigint, // ticketsSold
       bigint, // maxCapacity
       string, // imageURI
+      readonly string[], // categories
       boolean, // isPrivate
       boolean  // whitelistIsLocked
     ];

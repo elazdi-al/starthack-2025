@@ -30,7 +30,7 @@ import {
   EventDetailsTab,
   PurchaseModal,
 } from "@/components/event-view";
-import { parseEventMetadata } from "@/lib/utils/eventMetadata";
+import { parseCategoriesString } from "@/lib/utils/eventMetadata";
 
 interface EventDetails {
   id: number;
@@ -74,15 +74,13 @@ const transformEvent = (raw: {
   isPast: boolean;
   isFull: boolean;
   imageURI?: string | null;
+  categoriesString?: string;
 }): EventDetails => {
-  const parsedMetadata = parseEventMetadata(raw.imageURI ?? null);
   const resolvedImageUri =
-    parsedMetadata.imageUrl ??
-    (raw.imageURI && raw.imageURI.trim().length > 0 ? raw.imageURI : null);
+    raw.imageURI && raw.imageURI.trim().length > 0 ? raw.imageURI : null;
+  const parsedCategories = parseCategoriesString(raw.categoriesString);
   const resolvedCategories =
-    parsedMetadata.categories.length > 0
-      ? parsedMetadata.categories
-      : ["Event"];
+    parsedCategories.length > 0 ? parsedCategories : ["Event"];
 
   const eventDate = new Date(raw.date * 1000);
   const time = eventDate.toLocaleTimeString("en-US", {

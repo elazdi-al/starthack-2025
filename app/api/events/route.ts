@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
       bigint[], // ticketsSold
       bigint[], // maxCapacities
       string[], // imageURIs
+      string[], // categoriesArray (comma-separated)
       boolean[], // isPrivate
       bigint // total
     ];
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
       ticketsSoldArray,
       maxCapacities,
       imageURIs,
+      categoriesArray,
       isPrivateArray,
       total,
     ] = result;
@@ -67,6 +69,7 @@ export async function GET(request: NextRequest) {
       ticketsSold: Number(ticketsSoldArray[index]),
       maxCapacity: Number(maxCapacities[index]),
       imageURI: imageURIs[index],
+      categoriesString: categoriesArray[index], // Store as comma-separated string
       isPrivate: isPrivateArray[index],
       whitelistIsLocked: true, // All upcoming events should have locked whitelist
       isPast: false, // We filtered for upcoming only

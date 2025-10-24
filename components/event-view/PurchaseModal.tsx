@@ -99,15 +99,6 @@ export function PurchaseModal({
               <p className="text-white text-lg font-medium">{event.location}</p>
             </div>
           </div>
-
-          <div className="bg-blue-500/15 border border-blue-500/30 rounded-2xl p-3 sm:p-4">
-            <p className="text-blue-100 text-sm">
-              Ticket settlement happens fully on-chain via the EventBook
-              contract. After the transaction confirms, your NFT ticket will
-              appear in the My Tickets tab and can be managed from your wallet.
-            </p>
-          </div>
-
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               type="button"

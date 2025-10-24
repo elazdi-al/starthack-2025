@@ -34,24 +34,25 @@ export async function GET(
       );
     }
 
-    // Fetch event data
+    // Fetch event data using custom getEvent function (supports dynamic arrays)
     const eventData = await publicClient.readContract({
       address: EVENT_BOOK_ADDRESS,
       abi: EVENT_BOOK_ABI,
-      functionName: 'events',
+      functionName: 'getEvent',
       args: [BigInt(eventId)],
     }) as [
-      string,
-      string,
-      bigint,
-      bigint,
-      bigint,
-      string,
-      bigint,
-      bigint,
-      string,
-      boolean,
-      boolean
+      string,    // name
+      string,    // location
+      bigint,    // date
+      bigint,    // price
+      bigint,    // revenueOwed
+      string,    // creator
+      bigint,    // ticketsSold
+      bigint,    // maxCapacity
+      string,    // imageURI
+      string[],  // categories
+      boolean,   // isPrivate
+      boolean    // whitelistIsLocked
     ];
 
     const [
@@ -64,6 +65,7 @@ export async function GET(
       ticketsSold,
       maxCapacity,
       imageURI,
+      categories,
       isPrivate,
       whitelistIsLocked,
     ] = eventData;
@@ -77,7 +79,8 @@ export async function GET(
       creator,
       ticketsSold: Number(ticketsSold),
       maxCapacity: Number(maxCapacity),
-      imageURI, // Using on-chain imageURI directly
+      imageURI,
+      categoriesString: Array.isArray(categories) ? categories.join(',') : (categories || ''),
       isPrivate,
       whitelistIsLocked,
       isPast: Number(date) < Math.floor(Date.now() / 1000),

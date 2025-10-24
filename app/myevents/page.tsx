@@ -76,7 +76,7 @@ export default function MyEvents() {
           <p className="text-sm text-white/40">Use the button above or your browser wallet to continue.</p>
         </div>
 
-        <BottomNav onEventCreated={() => eventsQuery.refetch()} />
+        <BottomNav />
       </div>
     );
   }
@@ -89,10 +89,10 @@ export default function MyEvents() {
       <TopBar title="My Events" showTitle={true} />
 
       {/* Desktop Navigation */}
-      <DesktopNav onEventCreated={() => eventsQuery.refetch()} />
+      <DesktopNav />
 
       {/* Bottom Navigation Bar - Mobile only */}
-      <BottomNav onEventCreated={() => eventsQuery.refetch()} />
+      <BottomNav />
 
       {/* Event cards */}
       <div className="relative z-10 flex-1 px-6 pt-6">

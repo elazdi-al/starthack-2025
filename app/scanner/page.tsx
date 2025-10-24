@@ -63,6 +63,9 @@ function ScannerPageContent() {
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated) return;
 
+    // Capture ref value at effect start for cleanup
+    const videoElement = videoRef.current;
+
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -88,9 +91,8 @@ function ScannerPageContent() {
 
     // Cleanup
     return () => {
-      const video = videoRef.current;
-      if (video?.srcObject) {
-        const stream = video.srcObject as MediaStream;
+      if (videoElement?.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
         const tracks = stream.getTracks();
         for (const track of tracks) {
           track.stop();

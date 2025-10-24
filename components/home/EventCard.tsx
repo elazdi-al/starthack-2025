@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { MapPin } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { parseEventMetadata } from "@/lib/utils/eventMetadata";
+import { parseCategoriesString } from "@/lib/utils/eventMetadata";
 import { getCategoryColor } from "@/lib/utils/categoryColors";
 
 interface EventCardProps {
@@ -20,6 +20,7 @@ interface EventCardProps {
     maxCapacity: number;
     isPast: boolean;
     imageURI?: string;
+    categoriesString?: string;
   };
 }
 
@@ -28,9 +29,8 @@ export function EventCard({ event }: EventCardProps) {
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
-  const parsedMetadata = parseEventMetadata(event.imageURI ?? null);
-  const imageUrl = parsedMetadata.imageUrl ?? (event.imageURI ?? null);
-  const categories = parsedMetadata.categories.length > 0 ? parsedMetadata.categories : ["Event"];
+  const imageUrl = event.imageURI ?? null;
+  const categories = parseCategoriesString(event.categoriesString);
 
   const eventDate = new Date(event.date * 1000);
 
