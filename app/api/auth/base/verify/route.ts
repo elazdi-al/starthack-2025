@@ -1,10 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http } from 'viem';
-import { base } from 'viem/chains';
+import { base, baseSepolia } from 'viem/chains';
 import { validateAndConsumeNonce } from '@/lib/nonceStore';
 
+const isTestnet = process.env.NEXT_PUBLIC_CHAIN_ENV === 'testnet';
+const chain = isTestnet ? baseSepolia : base;
+
 const client = createPublicClient({
-  chain: base,
+  chain,
   transport: http()
 });
 

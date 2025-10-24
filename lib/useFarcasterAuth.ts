@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useAuthStore } from './store/authStore';
 import { useConnect, useSwitchChain } from "wagmi";
-import { base } from "wagmi/chains";
+import { currentChain } from "./chain";
 
 /**
  * Farcaster Mini App Authentication Hook
@@ -110,7 +110,7 @@ export function useFarcasterAuth() {
 
       const connection = await connectAsync({
         connector: injectedConnector,
-        chainId: base.id,
+        chainId: currentChain.id,
       });
 
       const walletAddress = connection.accounts?.[0] ?? null;
@@ -119,9 +119,9 @@ export function useFarcasterAuth() {
         throw new Error('Wallet connection failed');
       }
 
-      if (connection.chainId !== base.id) {
+      if (connection.chainId !== currentChain.id) {
         try {
-          await switchChainAsync?.({ chainId: base.id });
+          await switchChainAsync?.({ chainId: currentChain.id });
         } catch (switchError) {
           const errorCode =
             typeof switchError === "object" &&
@@ -132,13 +132,13 @@ export function useFarcasterAuth() {
 
           if (errorCode === 4902) {
             throw new Error(
-              "Base network is not added in your wallet. Add Base Mainnet and try again."
+              `${currentChain.name} network is not added in your wallet. Please add it and try again.`
             );
           }
 
           throw switchError instanceof Error
             ? switchError
-            : new Error("Failed to switch to Base network.");
+            : new Error(`Failed to switch to ${currentChain.name}.`);
         }
       }
 

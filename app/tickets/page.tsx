@@ -23,7 +23,7 @@ import {
   usePublicClient,
   useWalletClient,
 } from "wagmi";
-import { base } from "wagmi/chains";
+import { currentChain } from "@/lib/chain";
 
 
 
@@ -45,8 +45,8 @@ export default function MyTickets() {
   const { address: walletAddress, isConnected} = useAccount();
   const { connect } = useConnect();
   const connectors = useConnectors();
-  const publicClient = usePublicClient({ chainId: base.id });
-  const { data: walletClient } = useWalletClient({ chainId: base.id });
+  const publicClient = usePublicClient({ chainId: currentChain.id });
+  const { data: walletClient } = useWalletClient({ chainId: currentChain.id });
   const { invalidateTickets } = useInvalidateEvents();
 
   const activeAddress = isAuthenticated && hasHydrated ? walletAddress ?? null : null;
@@ -109,7 +109,7 @@ export default function MyTickets() {
 
     const injected = connectors.find((connector) => connector.type === "injected");
     if (injected) {
-      connect({ connector: injected, chainId: base.id });
+      connect({ connector: injected, chainId: currentChain.id });
     }
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 

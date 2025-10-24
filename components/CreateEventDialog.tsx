@@ -16,7 +16,7 @@ import { parseEther } from "viem";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useAuthStore } from "@/lib/store/authStore";
-import { base } from "viem/chains";
+import { currentChain } from "@/lib/chain";
 import { useInvalidateEvents } from "@/lib/hooks/useEvents";
 
 interface CreateEventDialogProps {
@@ -88,10 +88,10 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     const switchToBase = async () => {
       if (hasTriedChainSwitch.current) return;
 
-      if (isConnected && chainId !== base.id){
+      if (isConnected && chainId !== currentChain.id){
         hasTriedChainSwitch.current = true;
         try {
-          await switchChainAsync({chainId:base.id})
+          await switchChainAsync({chainId:currentChain.id})
         } catch (error) {
           console.error("Failed to switch to Base chain", error)
         }
@@ -116,7 +116,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
       // Try to connect with the first available connector (usually injected wallet)
       const injectedConnector = connectors.find(c => c.type === 'injected');
       if (injectedConnector) {
-        connect({ connector: injectedConnector, chainId: base.id });
+        connect({ connector: injectedConnector, chainId: currentChain.id });
       }
     }
   }, [isAuthenticated, isConnected, connectors, connect]);

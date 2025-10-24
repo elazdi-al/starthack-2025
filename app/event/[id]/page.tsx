@@ -19,7 +19,7 @@ import {
   usePublicClient,
   useWalletClient,
 } from "wagmi";
-import { base } from "wagmi/chains";
+import { currentChain } from "@/lib/chain";
 import { useEvent, useInvalidateEvents } from "@/lib/hooks/useEvents";
 import { useFarcasterProfile } from "@/lib/hooks/useFarcasterProfile";
 import { sdk } from "@farcaster/miniapp-sdk";
@@ -79,8 +79,7 @@ const transformEvent = (raw: {
   const resolvedImageUri =
     raw.imageURI && raw.imageURI.trim().length > 0 ? raw.imageURI : null;
   const parsedCategories = parseCategoriesString(raw.categoriesString);
-  const resolvedCategories =
-    parsedCategories.length > 0 ? parsedCategories : ["Event"];
+  const resolvedCategories = parsedCategories;
 
   const eventDate = new Date(raw.date * 1000);
   const time = eventDate.toLocaleTimeString("en-US", {
@@ -157,8 +156,8 @@ export default function EventPage() {
   const { address: walletAddress, isConnected } = useAccount();
   const { connect } = useConnect();
   const connectors = useConnectors();
-  const publicClient = usePublicClient({ chainId: base.id });
-  const { data: walletClient } = useWalletClient({ chainId: base.id });
+  const publicClient = usePublicClient({ chainId: currentChain.id });
+  const { data: walletClient } = useWalletClient({ chainId: currentChain.id });
 
   const { data: eventData, isLoading: isLoadingEvent, error: fetchError } = useEvent(eventId);
 
@@ -192,7 +191,7 @@ export default function EventPage() {
 
     const injected = connectors.find((connector) => connector.type === "injected");
     if (injected) {
-      connect({ connector: injected, chainId: base.id });
+      connect({ connector: injected, chainId: currentChain.id });
     }
   }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
 

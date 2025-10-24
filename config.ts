@@ -1,16 +1,16 @@
-import { createConfig, cookieStorage, createStorage, http } from "wagmi";
-import { base } from "wagmi/chains";
+import { createConfig, cookieStorage, createStorage } from "wagmi";
 import { injected } from "wagmi/connectors";
+import { currentChain, getTransport } from "./lib/chain";
 
 export const config = createConfig({
-  chains: [base],
+  chains: [currentChain],
   connectors: [
     injected({
       shimDisconnect: false,
     }),
   ],
   transports: {
-    [base.id]: http(),
+    [currentChain.id]: getTransport(),
   },
   storage: createStorage({
     storage: cookieStorage,

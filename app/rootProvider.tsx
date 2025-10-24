@@ -2,13 +2,13 @@
 import { OnchainKitProvider } from "@coinbase/onchainkit";
 import "@coinbase/onchainkit/styles.css";
 import type { ReactNode } from "react";
-import { base } from "wagmi/chains";
+import { currentChain } from "@/lib/chain";
 
 export function RootProvider({ children }: { children: ReactNode }) {
   return (
     <OnchainKitProvider
       apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-      chain={base}
+      chain={currentChain}
       config={{
         appearance: {
           mode: "auto",
