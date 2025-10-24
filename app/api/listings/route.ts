@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
           abi: EVENT_BOOK_ABI,
           functionName: 'getEvent',
           args: [listingEventId],
-        }) as [
+        }) as readonly [
       string,    // name
       string,    // location
       bigint,    // date
@@ -52,9 +52,10 @@ export async function GET(request: NextRequest) {
       bigint,    // ticketsSold
       bigint,    // maxCapacity
       string,    // imageURI
-      string[],  // categories
+      readonly string[],  // categories
       boolean,   // isPrivate
-      boolean    // whitelistIsLocked
+      boolean,   // whitelistIsLocked
+      string     // farcasterURI
     ];
 
         const [name, location, date, originalPrice] = eventData;

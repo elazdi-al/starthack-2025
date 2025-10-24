@@ -192,9 +192,15 @@ function ScannerPageContent() {
           if (eventId && walletAddress) {
             handleVerifyTicket(code.data, eventId, walletAddress);
           } else {
-            toast.success("QR Code Scanned!", {
-              description: "Code detected successfully"
+            // If no eventId, treat as invalid scan
+            toast.error("Invalid Scan", {
+              description: "Please scan a valid ticket QR code"
             });
+            // Reset immediately for malformed codes
+            setTimeout(() => {
+              setScannedData(null);
+              setIsScanning(true);
+            }, 2000);
           }
         }
       } catch (err) {
@@ -211,61 +217,6 @@ function ScannerPageContent() {
       }
     };
   }, [isScanning, eventId, walletAddress, handleVerifyTicket]);
-
-  const handleReset = () => {
-    setScannedData(null);
-    verificationMutation.reset();
-    setIsScanning(true);
-    if (!scanIntervalRef.current && videoRef.current) {
-      // Restart scanning
-      const scanQRCode = async () => {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-
-        if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
-          return;
-        }
-
-        const context = canvas.getContext("2d");
-        if (!context) return;
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        try {
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          const { default: jsQR } = await import("jsqr");
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "dontInvert",
-          });
-
-          if (code) {
-            setScannedData(code.data);
-            setIsScanning(false);
-            if (scanIntervalRef.current) {
-              clearInterval(scanIntervalRef.current);
-            }
-            
-            if ('vibrate' in navigator) {
-              navigator.vibrate(200);
-            }
-
-            // Verify ticket if eventId is present
-            if (eventId && walletAddress) {
-              handleVerifyTicket(code.data, eventId, walletAddress);
-            } else {
-              toast.success("QR Code Scanned!");
-            }
-          }
-        } catch (err) {
-          console.error("QR scan error:", err);
-        }
-      };
-
-      scanIntervalRef.current = setInterval(scanQRCode, 300);
-    }
-  };
 
   // Show loading while hydrating
   if (!hasHydrated) {
@@ -335,113 +286,39 @@ function ScannerPageContent() {
                   verificationMutation.data.valid
                     ? 'bg-green-500/10 border-green-500/30'
                     : 'bg-red-500/10 border-red-500/30'
-                } border rounded-2xl p-6`}>
+                } border rounded-2xl p-8`}>
                   {verificationMutation.data.valid ? (
-                    <CheckCircle size={64} weight="fill" className="text-green-400 mx-auto mb-4" />
+                    <CheckCircle size={80} weight="fill" className="text-green-400 mx-auto mb-6" />
                   ) : (
-                    <XCircle size={64} weight="fill" className="text-red-400 mx-auto mb-4" />
+                    <XCircle size={80} weight="fill" className="text-red-400 mx-auto mb-6" />
                   )}
 
                   <p className={`${
                     verificationMutation.data.valid ? 'text-green-400' : 'text-red-400'
-                  } text-2xl font-bold mb-2 text-center`}>
-                    {verificationMutation.data.valid ? 'VALID TICKET ✓' : 'INVALID TICKET ✗'}
+                  } text-3xl font-bold mb-3 text-center`}>
+                    {verificationMutation.data.valid ? 'VALID TICKET' : 'INVALID TICKET'}
                   </p>
 
-                  <p className="text-white/80 text-center mb-6">
+                  {verificationMutation.data.details?.eventName && (
+                    <p className="text-white text-lg text-center mb-2">
+                      {verificationMutation.data.details.eventName}
+                    </p>
+                  )}
+
+                  <p className="text-white/60 text-center mb-8">
                     {verificationMutation.data.message}
                   </p>
 
-                  {verificationMutation.data.details && (
-                    <div className="bg-white/5 rounded-xl p-4 mb-6 space-y-3 text-sm">
-                      {verificationMutation.data.details.eventName && (
-                        <div>
-                          <span className="text-white/50">Event: </span>
-                          <span className="text-white font-semibold">{verificationMutation.data.details.eventName}</span>
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-white/50">Token ID: </span>
-                        <span className="text-white font-mono">{verificationMutation.data.details.tokenId}</span>
-                      </div>
-                      {verificationMutation.data.details.currentOwner && (
-                        <div>
-                          <span className="text-white/50">Holder: </span>
-                          <span className="text-white font-mono text-xs">
-                            {verificationMutation.data.details.currentOwner.slice(0, 6)}...
-                            {verificationMutation.data.details.currentOwner.slice(-4)}
-                          </span>
-                        </div>
-                      )}
-
-                      {verificationMutation.data.valid && verificationMutation.data.details.verifiedChecks && (
-                        <div className="pt-3 border-t border-white/10">
-                          <p className="text-white/50 text-xs mb-2">Verification Status:</p>
-                          {verificationMutation.data.details.verifiedChecks.map((check) => (
-                            <div key={check} className="flex items-start gap-2 text-xs mb-1">
-                              <span className={check.includes('⚠') ? 'text-yellow-400' : 'text-green-400'}>
-                                {check}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {verificationMutation.data.details.ownerChanged && (
-                        <div className="flex items-center gap-2 pt-2 border-t border-white/10">
-                          <Warning size={16} className="text-yellow-400" />
-                          <span className="text-yellow-400 text-xs">Note: Ticket was resold to current holder</span>
-                        </div>
-                      )}
+                  {verificationMutation.data.details?.ownerChanged && (
+                    <div className="flex items-center justify-center gap-2 mb-6">
+                      <Warning size={20} className="text-yellow-400" />
+                      <span className="text-yellow-400 text-sm">Ticket was resold</span>
                     </div>
                   )}
 
-                  {!verificationMutation.data.valid && verificationMutation.data.error && (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-6">
-                      <p className="text-red-300 text-xs font-semibold mb-1">Error:</p>
-                      <p className="text-red-200 text-xs">{verificationMutation.data.error}</p>
-                    </div>
-                  )}
 
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors"
-                  >
-                    Scan Next Ticket
-                  </button>
                 </div>
-              ) : (
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                  <CheckCircle size={48} weight="fill" className="text-green-400 mx-auto mb-4" />
-                  <p className="text-green-400 text-lg font-semibold mb-4 text-center">Scan Successful!</p>
-                  
-                  <div className="bg-white/5 rounded-xl p-4 mb-4">
-                    <p className="text-white/50 text-xs mb-2">Scanned Data:</p>
-                    <p className="text-white text-sm font-mono break-all">{scannedData}</p>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={handleReset}
-                      className="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors"
-                    >
-                      Scan Again
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(scannedData);
-                        toast.success("Copied to clipboard!");
-                      }}
-                      className="flex-1 bg-white text-gray-950 hover:bg-white/90 font-semibold py-3 rounded-xl transition-colors"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-              )}
+              ) : null}
             </div>
           </div>
         ) : (

@@ -60,7 +60,7 @@ export async function GET(
       abi: EVENT_BOOK_ABI,
       functionName: "getEvent",
       args: [BigInt(eventId)],
-    }) as [
+    }) as readonly [
       string,    // name
       string,    // location
       bigint,    // date
@@ -70,9 +70,10 @@ export async function GET(
       bigint,    // ticketsSold
       bigint,    // maxCapacity
       string,    // imageURI
-      string[],  // categories
+      readonly string[],  // categories
       boolean,   // isPrivate
-      boolean    // whitelistIsLocked
+      boolean,   // whitelistIsLocked
+      string     // farcasterURI
     ];
 
     if (!eventData?.[0]) {

@@ -13,7 +13,6 @@ import Image from "next/image";
 import { Plus, CalendarBlank } from "phosphor-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -410,22 +409,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="space-y-4 py-2 overflow-y-auto overflow-x-hidden flex-1 scrollbar-hide">
-          {/* Event Type Toggle */}
-          <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10">
-            <div className="space-y-0.5">
-              <Label htmlFor="event-type" className="text-base font-medium text-white/90">
-                Private Event
-              </Label>
-              <p className="text-sm text-white/50">
-                {isPrivate ? "Only invited attendees can join" : "Anyone can purchase tickets"}
-              </p>
-            </div>
-            <Switch
-              id="event-type"
-              checked={isPrivate}
-              onCheckedChange={setIsPrivate}
-            />
-          </div>
+         
 
           {/* Event Name */}
           <div className="space-y-2">

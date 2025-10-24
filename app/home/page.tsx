@@ -2,7 +2,6 @@
 
 import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { EventCard } from "@/components/home/EventCard";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
 import { TopBar } from "@/components/layout/TopBar";
@@ -16,7 +15,6 @@ import { parseEventMetadata } from "@/lib/utils/eventMetadata";
 import { NotificationPrompt } from "@/components/NotificationPrompt";
 
 export default function Home() {
-  const router = useRouter();
   const { isAuthenticated, isGuestMode, hasHydrated } = useAuthCheck();
   const { setGuestMode } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState("");

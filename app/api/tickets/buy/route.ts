@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       abi: EVENT_BOOK_ABI,
       functionName: 'getEvent',
       args: [BigInt(eventId)],
-    }) as [
+    }) as readonly [
       string,    // name
       string,    // location
       bigint,    // date
@@ -47,9 +47,10 @@ export async function POST(request: NextRequest) {
       bigint,    // ticketsSold
       bigint,    // maxCapacity
       string,    // imageURI
-      string[],  // categories
+      readonly string[],  // categories
       boolean,   // isPrivate
-      boolean    // whitelistIsLocked
+      boolean,   // whitelistIsLocked
+      string     // farcasterURI
     ];
 
     const [

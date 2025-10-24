@@ -266,7 +266,7 @@ export default function EventPage() {
     }
   }, [farcasterFid]);
 
-  const handleFarcasterURIUpdate = useCallback(async (newURI: string) => {
+  const handleFarcasterURIUpdate = useCallback(async (_newURI: string) => {
     // Invalidate the event query to refetch with updated farcasterURI
     if (eventId !== null) {
       await invalidateDetail(eventId);

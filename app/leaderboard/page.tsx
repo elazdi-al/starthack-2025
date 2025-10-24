@@ -49,9 +49,6 @@ export default function Leaderboard() {
   const leaderboardQuery = useLeaderboard({ limit: 10 });
   const timeRemaining = useTimeUntilEndOfMonth();
 
-  // Allow guests to view leaderboard, but only fetch data for authenticated users
-  const canViewLeaderboard = (isAuthenticated || isGuestMode) && hasHydrated;
-
   // Fetch all events to get categories
   const allEventsQuery = useInfiniteEvents({
     enabled: isAuthenticated && hasHydrated,

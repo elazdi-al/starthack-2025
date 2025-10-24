@@ -66,7 +66,7 @@ export function AuthFailureModal({
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
             <p className="text-white/70 text-sm leading-relaxed">
               You can retry connecting your wallet or continue browsing as a guest.
-              As a guest, you can explore events and the marketplace, but won't be
+              As a guest, you can explore events and the marketplace, but won&apos;t be
               able to purchase tickets or perform blockchain actions.
             </p>
           </div>

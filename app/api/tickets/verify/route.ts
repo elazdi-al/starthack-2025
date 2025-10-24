@@ -69,7 +69,8 @@ export async function POST(request: NextRequest) {
       string, // imageURI
       readonly string[], // categories
       boolean, // isPrivate
-      boolean  // whitelistIsLocked
+      boolean, // whitelistIsLocked
+      string   // farcasterURI
     ];
 
     const eventCreator = eventData[5];
