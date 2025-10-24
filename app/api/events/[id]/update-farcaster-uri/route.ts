@@ -1,11 +1,14 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { publicClient } from '@/lib/contracts/client';
 import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from '@/lib/contracts/eventBook';
+import { createWalletClient, http } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { baseSepolia } from 'viem/chains';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/events/[id] - Get a specific event
-export async function GET(
+// POST /api/events/[id]/update-farcaster-uri - Update event's farcasterURI
+export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
@@ -20,21 +23,24 @@ export async function GET(
       );
     }
 
-    // Get total number of events to validate ID
-    const numberOfEvents = await publicClient.readContract({
-      address: EVENT_BOOK_ADDRESS,
-      abi: EVENT_BOOK_ABI,
-      functionName: 'getNumberOfEvents',
-    }) as bigint;
+    const body = await request.json();
+    const { farcasterURI, creatorAddress } = body;
 
-    if (eventId >= Number(numberOfEvents)) {
+    if (!farcasterURI || typeof farcasterURI !== 'string') {
       return NextResponse.json(
-        { success: false, error: 'Event not found' },
-        { status: 404 }
+        { success: false, error: 'Invalid farcasterURI' },
+        { status: 400 }
       );
     }
 
-    // Fetch event data using custom getEvent function (supports dynamic arrays)
+    if (!creatorAddress) {
+      return NextResponse.json(
+        { success: false, error: 'Missing creator address' },
+        { status: 400 }
+      );
+    }
+
+    // Verify the requester is the event creator
     const eventData = await publicClient.readContract({
       address: EVENT_BOOK_ADDRESS,
       abi: EVENT_BOOK_ABI,
@@ -56,51 +62,30 @@ export async function GET(
       string     // farcasterURI
     ];
 
-    const [
-      name,
-      location,
-      date,
-      price,
-      _revenueOwed,
-      creator,
-      ticketsSold,
-      maxCapacity,
-      imageURI,
-      categories,
-      isPrivate,
-      whitelistIsLocked,
-      farcasterURI,
-    ] = eventData;
+    const creator = eventData[5];
 
-    const event = {
-      id: eventId,
-      name,
-      location,
-      date: Number(date),
-      price: price.toString(),
-      creator,
-      ticketsSold: Number(ticketsSold),
-      maxCapacity: Number(maxCapacity),
-      imageURI,
-      categoriesString: Array.isArray(categories) ? categories.join(',') : (categories || ''),
-      isPrivate,
-      whitelistIsLocked,
-      farcasterURI,
-      isPast: Number(date) < Math.floor(Date.now() / 1000),
-      isFull: Number(maxCapacity) > 0 && Number(ticketsSold) >= Number(maxCapacity),
-    };
+    if (creator.toLowerCase() !== creatorAddress.toLowerCase()) {
+      return NextResponse.json(
+        { success: false, error: 'Only event creator can update Farcaster URI' },
+        { status: 403 }
+      );
+    }
 
-    return NextResponse.json({ 
-      success: true, 
-      event 
+    // Return success - the actual transaction will be handled by the frontend
+    // This endpoint is primarily for validation
+    return NextResponse.json({
+      success: true,
+      message: 'Validation successful',
+      eventId,
+      farcasterURI,
     });
 
   } catch (error) {
-    console.error('Error fetching event:', error);
+    console.error('Error updating Farcaster URI:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to fetch event',
+        error: 'Failed to update Farcaster URI',
         message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

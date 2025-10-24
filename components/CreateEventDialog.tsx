@@ -285,6 +285,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           maxCapacity,
           uploadedImage.url, // Just the image URL
           selectedTags, // Categories as separate array
+          "", // farcasterURI - empty string initially
+          isPrivate, // isPrivate flag
         ],
       });
 

@@ -6,9 +6,9 @@ interface EventHeaderProps {
   title: string;
   categories: string[];
   isEventOwner: boolean;
-  activeTab: "details" | "attendees";
+  activeTab: "details" | "attendees" | "comments";
   attendeesCount: number;
-  onTabChange: (tab: "details" | "attendees") => void;
+  onTabChange: (tab: "details" | "attendees" | "comments") => void;
 }
 
 export function EventHeader({
@@ -42,19 +42,30 @@ export function EventHeader({
         )}
       </div>
 
-      {isEventOwner && (
-        <div className="flex gap-2 mb-6 sm:mb-8 border-b border-white/10">
-          <button
-            type="button"
-            onClick={() => onTabChange("details")}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === "details"
-                ? "text-white border-white"
-                : "text-white/50 border-transparent hover:text-white/70"
-            }`}
-          >
-            Event Details
-          </button>
+      <div className="flex gap-2 mb-6 sm:mb-8 border-b border-white/10">
+        <button
+          type="button"
+          onClick={() => onTabChange("details")}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "details"
+              ? "text-white border-white"
+              : "text-white/50 border-transparent hover:text-white/70"
+          }`}
+        >
+          Event Details
+        </button>
+        <button
+          type="button"
+          onClick={() => onTabChange("comments")}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "comments"
+              ? "text-white border-white"
+              : "text-white/50 border-transparent hover:text-white/70"
+          }`}
+        >
+          Comments
+        </button>
+        {isEventOwner && (
           <button
             type="button"
             onClick={() => onTabChange("attendees")}
@@ -66,8 +77,8 @@ export function EventHeader({
           >
             Attendees ({attendeesCount})
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

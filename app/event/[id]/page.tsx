@@ -29,6 +29,7 @@ import {
   EventHeader,
   EventDetailsTab,
   PurchaseModal,
+  CommentsTab,
 } from "@/components/event-view";
 import { parseCategoriesString } from "@/lib/utils/eventMetadata";
 
@@ -53,6 +54,7 @@ interface EventDetails {
   isPast: boolean;
   isFull: boolean;
   imageUri: string | null;
+  farcasterURI: string;
 }
 
 type PurchaseStage =
@@ -77,6 +79,7 @@ const transformEvent = (raw: {
   isFull: boolean;
   imageURI?: string | null;
   categoriesString?: string;
+  farcasterURI?: string;
 }): EventDetails => {
   const resolvedImageUri =
     raw.imageURI && raw.imageURI.trim().length > 0 ? raw.imageURI : null;
@@ -108,6 +111,7 @@ const transformEvent = (raw: {
     isPast: raw.isPast,
     isFull: raw.isFull,
     imageUri: resolvedImageUri,
+    farcasterURI: raw.farcasterURI || "",
   };
 };
 
@@ -168,7 +172,7 @@ export default function EventPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseStage, setPurchaseStage] = useState<PurchaseStage>("idle");
-  const [activeTab, setActiveTab] = useState<"details" | "attendees">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "attendees" | "comments">("details");
 
   const event = useMemo(() => {
     if (!eventData?.event) return null;
@@ -262,6 +266,13 @@ export default function EventPage() {
       });
     }
   }, [farcasterFid]);
+
+  const handleFarcasterURIUpdate = useCallback(async (newURI: string) => {
+    // Invalidate the event query to refetch with updated farcasterURI
+    if (eventId !== null) {
+      await invalidateDetail(eventId);
+    }
+  }, [eventId, invalidateDetail]);
 
 
 
@@ -503,6 +514,17 @@ export default function EventPage() {
               isLoading={attendeesQuery.isLoading}
             />
           </div>
+        )}
+
+        {activeTab === "comments" && event && (
+          <CommentsTab
+            eventId={event.id}
+            eventTitle={event.title}
+            farcasterURI={event.farcasterURI}
+            isEventOwner={isEventOwner}
+            creatorAddress={event.hostAddress}
+            onFarcasterURIUpdate={handleFarcasterURIUpdate}
+          />
         )}
 
         {/* Show button with loading state or actual state */}

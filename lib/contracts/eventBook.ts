@@ -15,7 +15,19 @@ export const EVENT_BOOK_ABI = [
       { name: "price", type: "uint256" },
       { name: "maxCapacity", type: "uint256" },
       { name: "imageURI", type: "string" },
-      { name: "categories", type: "string[]" }
+      { name: "categories", type: "string[]" },
+      { name: "farcasterURI", type: "string" },
+      { name: "isPrivate", type: "bool" }
+    ],
+    outputs: [],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
+    name: "updateFarcasterURI",
+    inputs: [
+      { name: "eventId", type: "uint256" },
+      { name: "newFarcasterURI", type: "string" }
     ],
     outputs: [],
     stateMutability: "nonpayable"
@@ -74,7 +86,8 @@ export const EVENT_BOOK_ABI = [
       { name: "imageURI", type: "string" },
       { name: "categories", type: "string[]" },
       { name: "isPrivate", type: "bool" },
-      { name: "whitelistIsLocked", type: "bool" }
+      { name: "whitelistIsLocked", type: "bool" },
+      { name: "farcasterURI", type: "string" }
     ],
     stateMutability: "view"
   },

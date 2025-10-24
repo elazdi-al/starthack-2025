@@ -1,10 +1,17 @@
 // Upstash Redis store for notification tokens
 import { Redis } from "@upstash/redis";
 
-// Initialize Upstash Redis client
+// Initialize Upstash Redis client with validation
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+if (!redisUrl || !redisToken) {
+  console.error("Missing Upstash Redis credentials. Please set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.");
+}
+
 const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  url: redisUrl || "",
+  token: redisToken || "",
 });
 
 interface NotificationDetails {

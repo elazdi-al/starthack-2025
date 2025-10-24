@@ -21,7 +21,8 @@ interface IEventBook {
         address creator,
         uint256 ticketsSold,
         uint256 maxCapacity,
-        string memory imageURI
+        string memory imageURI,
+        string memory farcasterURI
     );
 }
 
@@ -95,7 +96,7 @@ contract Ticket is ERC721, ERC721URIStorage, Ownable {
 
         // 1. Get Event Details from EventBook
         uint256 eventId = ticketToEvent[tokenId];
-        (string memory eventName, string memory eventLocation, uint256 eventDate,,,,,,string memory imageURI) = eventBookContract.events(eventId);
+        (string memory eventName, string memory eventLocation, uint256 eventDate,,,,,,string memory imageURI, string memory farcasterURI) = eventBookContract.events(eventId);
 
         // 2. Get Ticket Status (Checked In?)
         string memory status = isCheckedIn[tokenId] ? "Checked In" : "Ready to Scan";
@@ -109,6 +110,7 @@ contract Ticket is ERC721, ERC721URIStorage, Ownable {
                 '{"name": "', eventName, ' - Ticket #', Strings.toString(tokenId), '",',
                 '"description": "A ticket for ', eventName, ' in ', eventLocation, '.",',
                 '"image": "', imageURI, '",',
+                '"farcasterURI": "', farcasterURI, '",',
                 '"attributes": [',
                     '{"trait_type": "Event Date", "value": ', Strings.toString(eventDate), '},',
                     '{"trait_type": "Location", "value": "', eventLocation, '"},',

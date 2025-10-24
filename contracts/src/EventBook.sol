@@ -32,6 +32,7 @@ contract EventBook {
         string[] categories; // Event categories for badge tracking
         bool isPrivate;
         bool whitelistIsLocked; // whether is the whitelist has been set already or not
+        string farcasterURI;
     }
 
     struct LeaderboardEntry {
@@ -124,6 +125,7 @@ contract EventBook {
         uint256 maxCapacity,
         string memory imageURI,
         string[] memory categories,
+        string memory farcasterURI,
         bool isPrivate
     ) public {
         require(date > block.timestamp, "Date must be in the future");
@@ -141,6 +143,7 @@ contract EventBook {
             imageURI: imageURI,
             categories: categories,
             isPrivate: isPrivate,
+            farcasterURI: farcasterURI,
             whitelistIsLocked: !isPrivate // unlock if it is private
         }));
     }
@@ -153,9 +156,10 @@ contract EventBook {
         uint256 price,
         uint256 maxCapacity,
         string memory imageURI,
-        string[] memory categories
+        string[] memory categories,
+        string memory farcasterURI
     ) public {
-        createEvent(name, location, date, price, maxCapacity, imageURI, categories, false);
+        createEvent(name, location, date, price, maxCapacity, imageURI, categories, farcasterURI,false);
     }
 
     function createEvent(
@@ -164,10 +168,11 @@ contract EventBook {
         uint256 date,
         uint256 price,
         uint256 maxCapacity,
-        string memory imageURI
+        string memory imageURI,
+        string memory farcasterURI
     ) public {
         string[] memory emptyCategories = new string[](0);
-        createEvent(name, location, date, price, maxCapacity, imageURI, emptyCategories, false);
+        createEvent(name, location, date, price, maxCapacity, imageURI, emptyCategories, farcasterURI,false);
     }
 
     function createEvent(
@@ -178,7 +183,7 @@ contract EventBook {
         uint256 maxCapacity
     ) public {
         string[] memory emptyCategories = new string[](0);
-        createEvent(name, location, date, price, maxCapacity, "", emptyCategories, false);
+        createEvent(name, location, date, price, maxCapacity, "", emptyCategories, "",false);
     }
 
     function createEvent(
@@ -188,7 +193,7 @@ contract EventBook {
         uint256 price
     ) public {
         string[] memory emptyCategories = new string[](0);
-        createEvent(name, location, date, price, 0, "", emptyCategories, false);
+        createEvent(name, location, date, price, 0, "", emptyCategories, "",false);
     }
 
     function addToWhitelist(uint256 eventId, address user)
@@ -224,6 +229,14 @@ contract EventBook {
     {
         Event storage ev = events[eventId];
         ev.whitelistIsLocked = true;
+    }
+
+    function updateFarcasterURI(uint256 eventId, string memory newFarcasterURI)
+    public
+    onlyEventCreator(eventId)
+    {
+        Event storage ev = events[eventId];
+        ev.farcasterURI = newFarcasterURI;
     }
 
     function buyTicket(uint256 eventId)
@@ -290,7 +303,8 @@ contract EventBook {
         string memory imageURI,
         string[] memory categories,
         bool isPrivate,
-        bool whitelistIsLocked
+        bool whitelistIsLocked,
+        string memory farcasterURI
     ) {
         require(eventId < events.length, "Event does not exist");
         Event storage ev = events[eventId];
@@ -306,7 +320,8 @@ contract EventBook {
             ev.imageURI,
             ev.categories,
             ev.isPrivate,
-            ev.whitelistIsLocked
+            ev.whitelistIsLocked,
+            ev.farcasterURI
         );
     }
 
