@@ -7,7 +7,7 @@ import { DesktopNav } from "@/components/layout/DesktopNav";
 import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
 import { TICKET_ABI, TICKET_CONTRACT_ADDRESS } from "@/lib/contracts/ticket";
 import { useInvalidateEvents, useTickets } from "@/lib/hooks/useEvents";
-import { useAuthCheck } from "@/lib/store/authStore";
+import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
 import { type Ticket, useTicketStore } from "@/lib/store/ticketStore";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useRouter } from "next/navigation";
@@ -32,7 +32,8 @@ type ListingStage = "idle" | "approving" | "listing" | "confirming";
 
 export default function MyTickets() {
   const router = useRouter();
-  const { isAuthenticated, hasHydrated } = useAuthCheck();
+  const { isAuthenticated, isGuestMode, hasHydrated } = useAuthCheck();
+  const { exitGuestMode, setGuestMode } = useAuthStore();
   const { tickets, setTickets, listTicket, cancelListing, clearDuplicates } = useTicketStore();
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
   const [qrSize, setQrSize] = useState(200);
@@ -51,7 +52,8 @@ export default function MyTickets() {
   const { invalidateTickets } = useInvalidateEvents();
   const { ensureWalletConnected } = useWalletAuth();
 
-  const activeAddress = isAuthenticated && hasHydrated ? walletAddress ?? null : null;
+  // Only fetch tickets if authenticated (not guest mode) and has wallet address
+  const activeAddress = isAuthenticated && !isGuestMode && hasHydrated ? walletAddress ?? null : null;
   const ticketsQuery = useTickets(activeAddress);
   const isLoadingTickets = ticketsQuery.isPending;
   const refetchTickets = ticketsQuery.refetch;
@@ -68,10 +70,10 @@ export default function MyTickets() {
   }, [ticketsQuery.data, setTickets]);
 
   useEffect(() => {
-    if (hasHydrated && isAuthenticated && activeAddress) {
+    if (hasHydrated && isAuthenticated && !isGuestMode && activeAddress) {
       void refetchTickets({ throwOnError: false });
     }
-  }, [hasHydrated, isAuthenticated, activeAddress, refetchTickets]);
+  }, [hasHydrated, isAuthenticated, isGuestMode, activeAddress, refetchTickets]);
 
   useEffect(() => {
     if (ticketsQuery.isError) {
@@ -97,12 +99,12 @@ export default function MyTickets() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Redirect to login if not authenticated (only after hydration)
+  // Automatically enter guest mode if not authenticated
   useEffect(() => {
-    if (hasHydrated && !isAuthenticated) {
-      router.push("/");
+    if (hasHydrated && !isAuthenticated && !isGuestMode) {
+      setGuestMode(true);
     }
-  }, [hasHydrated, isAuthenticated, router]);
+  }, [hasHydrated, isAuthenticated, isGuestMode, setGuestMode]);
 
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated || isConnected || connectors.length === 0) {
@@ -392,8 +394,8 @@ export default function MyTickets() {
     });
   }, [tickets]);
 
-  // Show nothing while hydrating or if not authenticated after hydration
-  if (!hasHydrated || (hasHydrated && !isAuthenticated)) return null;
+  // Show nothing while hydrating or if neither authenticated nor guest after hydration
+  if (!hasHydrated || (hasHydrated && !isAuthenticated && !isGuestMode)) return null;
 
   const handleFlip = (ticketId: string) => {
     // Find the ticket
@@ -512,9 +514,31 @@ export default function MyTickets() {
 
         <TopBar title="My Tickets" showTitle={true} />
 
-        <div className="relative z-10 flex-1 px-6 flex flex-col items-center justify-center text-center space-y-3 text-white/60">
-          <p className="text-lg font-medium">Connect your wallet to see your tickets.</p>
-          <p className="text-sm text-white/40">Use the button above or your browser wallet to continue.</p>
+        {/* Desktop Navigation */}
+        <DesktopNav />
+
+        <div className="relative z-10 flex-1 px-6 flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto">
+          <svg className="w-16 h-16 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+          </svg>
+          <div className="space-y-3">
+            <p className="text-xl font-semibold text-white/70">Connect Wallet to View Your Tickets</p>
+            <p className="text-sm text-white/50">
+              {isGuestMode
+                ? "You're currently in guest mode. Connect your wallet to view tickets you own."
+                : "Connect your wallet to view and manage your tickets."
+              }
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              exitGuestMode();
+              router.push("/");
+            }}
+            className="bg-white text-gray-950 font-semibold py-3 px-6 rounded-xl transition-all hover:bg-white/90 active:scale-[0.98]"
+          >
+            Connect Wallet
+          </button>
         </div>
 
         <BottomNav />
@@ -533,7 +557,31 @@ export default function MyTickets() {
       <DesktopNav />
 
       <div className="relative z-10 flex-1 px-6 pt-6">
-        {isLoadingTickets ? (
+        {isGuestMode || (!walletAddress || !isConnected) ? (
+          <div className="flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto" style={{ minHeight: 'calc(100vh - 400px)' }}>
+            <svg className="w-16 h-16 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+            </svg>
+            <div className="space-y-3">
+              <p className="text-xl font-semibold text-white/70">Connect Wallet to View Your Tickets</p>
+              <p className="text-sm text-white/50">
+                {isGuestMode
+                  ? "You're currently in guest mode. Connect your wallet to view tickets you own."
+                  : "Connect your wallet to view and manage your tickets."
+                }
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                exitGuestMode();
+                router.push("/");
+              }}
+              className="bg-white text-gray-950 font-semibold py-3 px-6 rounded-xl transition-all hover:bg-white/90 active:scale-[0.98]"
+            >
+              Connect Wallet
+            </button>
+          </div>
+        ) : isLoadingTickets ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <TicketCardSkeleton key={i} />

@@ -1,28 +1,49 @@
 "use client";
 
-import { Wallet } from "phosphor-react";
+import { Wallet, User } from "phosphor-react";
 import { useAccount, useBalance } from 'wagmi';
-import { useAuthCheck } from "@/lib/store/authStore";
+import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
+import { useRouter } from "next/navigation";
 
 /**
  * WalletBalance Component
- * 
+ *
  * Displays the user's ETH balance for their Base Account.
- * Mini Apps in the Base App are automatically connected to the user's Base Account,
- * providing instant access to wallet functionality without connection flows.
- * 
+ * In guest mode, shows a guest indicator instead.
+ *
  * @see https://docs.base.org/mini-apps/core-concepts/base-account
  */
 export function WalletBalance() {
-  const { isAuthenticated } = useAuthCheck();
-  
+  const { isAuthenticated, isGuestMode } = useAuthCheck();
+  const { exitGuestMode } = useAuthStore();
+  const router = useRouter();
+
   // In Base mini apps, the wallet is automatically connected
   const { address, isConnected } = useAccount();
-  
+
   // Use wagmi's useBalance hook for efficient balance fetching
   const { data: balanceData, isLoading } = useBalance({
     address: address,
   });
+
+  // Show guest mode indicator with click to connect
+  if (isGuestMode) {
+    return (
+      <button
+        onClick={() => {
+          exitGuestMode();
+          router.push("/");
+        }}
+        className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 flex items-center gap-2 hover:bg-white/20 hover:border-white/30 transition-all active:scale-95"
+        title="Click to connect wallet"
+      >
+        <User size={18} weight="regular" className="text-white/50" />
+        <span className="text-white/60 text-sm font-medium">
+          Guest Mode
+        </span>
+      </button>
+    );
+  }
 
   if (!isAuthenticated || !isConnected || !address) {
     return null;

@@ -19,7 +19,7 @@ export default function Home() {
     }
   }, [setFrameReady, isFrameReady]);
 
-  // Redirect if already authenticated (only after hydration)
+  // Redirect if already authenticated (but NOT if in guest mode - allow guests to connect)
   useEffect(() => {
     if (hasHydrated && isAuthenticated) {
       router.push('/home');

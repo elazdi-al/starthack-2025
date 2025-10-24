@@ -14,6 +14,7 @@ interface Listing {
 interface ListingCardProps {
   listing: Listing;
   onBuyClick: (listing: Listing) => void;
+  isGuestMode?: boolean;
 }
 
 const formatPrice = (price: string) => {
@@ -33,7 +34,7 @@ const formatPrice = (price: string) => {
   return parsed.toFixed(6);
 };
 
-export function ListingCard({ listing, onBuyClick }: ListingCardProps) {
+export function ListingCard({ listing, onBuyClick, isGuestMode = false }: ListingCardProps) {
   const router = useRouter();
 
   return (
@@ -84,12 +85,19 @@ export function ListingCard({ listing, onBuyClick }: ListingCardProps) {
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          onBuyClick(listing);
+          if (!isGuestMode) {
+            onBuyClick(listing);
+          }
         }}
-        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+        disabled={isGuestMode}
+        className={`w-full font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 ${
+          isGuestMode
+            ? "bg-white/10 text-white/40 cursor-not-allowed"
+            : "bg-emerald-600 hover:bg-emerald-700 text-white"
+        }`}
       >
         <ShoppingCart size={20} weight="regular" />
-        Buy Ticket
+        {isGuestMode ? "Wallet Not Connected" : "Buy Ticket"}
       </button>
     </div>
   );

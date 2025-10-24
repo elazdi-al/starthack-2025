@@ -2,7 +2,7 @@
 
 import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { useEffect, useMemo, useRef } from "react";
-import { useAuthCheck } from "@/lib/store/authStore";
+import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
 import { useTicketStore } from "@/lib/store/ticketStore";
 import { useMarketplace } from "@/lib/store/marketplaceStore";
 import { TopBar } from "@/components/layout/TopBar";
@@ -50,7 +50,8 @@ async function fetchListings({ pageParam = 0 }): Promise<ListingsResponse> {
 }
 
 export default function Marketplace() {
-  useAuthCheck();
+  const { isAuthenticated, isGuestMode, hasHydrated } = useAuthCheck();
+  const { setGuestMode } = useAuthStore();
   const { tickets, cancelListing, clearDuplicates } = useTicketStore();
   const { selectedListing, isPurchasing, purchaseStage, setSelectedListing, setPurchasing } = useMarketplace();
 
@@ -98,6 +99,13 @@ export default function Marketplace() {
       if (currentTarget) observer.unobserve(currentTarget);
     };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Automatically enter guest mode if not authenticated
+  useEffect(() => {
+    if (hasHydrated && !isAuthenticated && !isGuestMode) {
+      setGuestMode(true);
+    }
+  }, [hasHydrated, isAuthenticated, isGuestMode, setGuestMode]);
 
   // Auto-connect wallet
   useEffect(() => {
@@ -299,6 +307,7 @@ export default function Marketplace() {
                 key={listing.tokenId}
                 listing={listing}
                 onBuyClick={(listing) => setSelectedListing(listing)}
+                isGuestMode={isGuestMode}
               />
             ))}
           </div>

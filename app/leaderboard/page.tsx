@@ -3,7 +3,7 @@
 import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { TopBar } from "@/components/layout/TopBar";
 import { DesktopNav } from "@/components/layout/DesktopNav";
-import { useAuthCheck } from "@/lib/store/authStore";
+import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useLeaderboard, useUserCategoryStats } from "@/lib/hooks/useLeaderboard";
@@ -43,10 +43,14 @@ function useTimeUntilEndOfMonth() {
 
 export default function Leaderboard() {
   const router = useRouter();
-  const { isAuthenticated, hasHydrated } = useAuthCheck();
+  const { isAuthenticated, isGuestMode, hasHydrated } = useAuthCheck();
+  const { exitGuestMode, setGuestMode } = useAuthStore();
   const { address } = useAccount();
   const leaderboardQuery = useLeaderboard({ limit: 10 });
   const timeRemaining = useTimeUntilEndOfMonth();
+
+  // Allow guests to view leaderboard, but only fetch data for authenticated users
+  const canViewLeaderboard = (isAuthenticated || isGuestMode) && hasHydrated;
 
   // Fetch all events to get categories
   const allEventsQuery = useInfiniteEvents({
@@ -76,15 +80,15 @@ export default function Leaderboard() {
     uniqueCategories.length > 0 ? uniqueCategories : []
   );
 
-  // Redirect to login if not authenticated
+  // Automatically enter guest mode if not authenticated
   useEffect(() => {
-    if (hasHydrated && !isAuthenticated) {
-      router.push("/");
+    if (hasHydrated && !isAuthenticated && !isGuestMode) {
+      setGuestMode(true);
     }
-  }, [hasHydrated, isAuthenticated, router]);
+  }, [hasHydrated, isAuthenticated, isGuestMode, setGuestMode]);
 
-  // Show nothing while hydrating or if not authenticated after hydration
-  if (!hasHydrated || (hasHydrated && !isAuthenticated)) return null;
+  // Show nothing while hydrating or if neither authenticated nor guest after hydration
+  if (!hasHydrated || (hasHydrated && !isAuthenticated && !isGuestMode)) return null;
 
   return (
     <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">
@@ -136,7 +140,22 @@ export default function Leaderboard() {
         {/* Badge Progress Section - Hidden on mobile, shown on desktop */}
         <div className="hidden md:block">
           <h2 className="text-2xl font-semibold text-white mb-5 tracking-tight">Your Badges</h2>
-          {allEventsQuery.isPending || allEventsQuery.isFetching ? (
+          {isGuestMode ? (
+            <div className="text-center py-12 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+              <Lock size={48} weight="regular" className="mx-auto text-white/40 mb-4" />
+              <p className="text-white/60 text-lg mb-2">Connect Wallet to View Badges</p>
+              <p className="text-white/40 text-sm mb-6">Track your progress and earn badges by attending events</p>
+              <button
+                onClick={() => {
+                  exitGuestMode();
+                  router.push("/");
+                }}
+                className="bg-white text-gray-950 font-semibold py-3 px-6 rounded-xl transition-all hover:bg-white/90 active:scale-[0.98]"
+              >
+                Connect Wallet
+              </button>
+            </div>
+          ) : allEventsQuery.isPending || allEventsQuery.isFetching ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[1, 2, 3, 4].map((i) => (
                 <div
@@ -181,7 +200,21 @@ export default function Leaderboard() {
         <div className="px-6 mb-3">
           <h3 className="text-lg font-semibold text-white tracking-tight">Your Badges</h3>
         </div>
-        {allEventsQuery.isPending || allEventsQuery.isFetching ? (
+        {isGuestMode ? (
+          <div className="mx-6 text-center py-8 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+            <Lock size={32} weight="regular" className="mx-auto text-white/40 mb-3" />
+            <p className="text-white/60 text-sm mb-4">Connect wallet to view badges</p>
+            <button
+              onClick={() => {
+                exitGuestMode();
+                router.push("/");
+              }}
+              className="bg-white text-gray-950 font-semibold py-2 px-5 rounded-xl transition-all hover:bg-white/90 active:scale-[0.98] text-sm"
+            >
+              Connect Wallet
+            </button>
+          </div>
+        ) : allEventsQuery.isPending || allEventsQuery.isFetching ? (
           <div className="flex gap-3 px-6 overflow-x-auto pb-2 scrollbar-hide">
             {[1, 2, 3].map((i) => (
               <div

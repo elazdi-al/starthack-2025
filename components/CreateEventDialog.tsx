@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useCallback, useEffect, useState, useRef, type ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
 
 interface CreateEventDialogProps {
   onEventCreated?: () => void;
@@ -50,6 +51,7 @@ const INITIAL_FORM_STATE = {
 
 export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const [isPrivate, setIsPrivate] = useState(false);
   const [date, setDate] = useState<Date>();
   const [formData, setFormData] = useState(() => ({ ...INITIAL_FORM_STATE }));
@@ -73,7 +75,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   }, []);
 
   // Use Base auth store for authentication check
-  const { isAuthenticated, isSessionValid } = useAuthStore();
+  const { isAuthenticated, isSessionValid, isGuestMode, exitGuestMode } = useAuthStore();
   const { isConnected } = useAccount(); // Still need wagmi for transaction signing
   const { connect } = useConnect();
   const connectors = useConnectors();
@@ -358,6 +360,16 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     void finalizeCreation();
   }, [isConfirmed, hash, invalidateAll, onEventCreated, resetFormState]);
 
+  // Handle guest mode - redirect to auth page
+  const handleCreateClick = (e: React.MouseEvent) => {
+    if (isGuestMode) {
+      e.preventDefault();
+      exitGuestMode();
+      router.push("/");
+      return;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
@@ -365,10 +377,11 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         <button
           className="hidden md:flex text-white/40 hover:text-white/80 transition-colors items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10"
           type="button"
+          onClick={handleCreateClick}
         >
           <Plus size={20} weight="regular" />
           <span className="text-sm tracking-tight">Create Event</span>
-        
+
         </button>
       </DialogTrigger>
       <DialogTrigger asChild>
@@ -376,6 +389,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
         <button
           className="md:hidden text-white hover:text-white/90 active:text-white/80 active:scale-95 transition-all flex flex-col items-center gap-1 px-3 py-2 rounded-xl hover:bg-white/5 focus:outline-none focus:ring-0 focus:border-none"
           type="button"
+          onClick={handleCreateClick}
         >
           <Plus size={28} weight="regular" />
           <span className="text-xs font-semibold whitespace-nowrap">Create</span>

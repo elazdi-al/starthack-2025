@@ -46,8 +46,10 @@ export function useFarcasterAuth() {
     token,
     address,
     authMethod,
+    isGuestMode,
     setAuth,
     clearAuth,
+    setGuestMode,
     isSessionValid
   } = useAuthStore();
   const { connectAsync, connectors } = useConnect();
@@ -193,15 +195,28 @@ export function useFarcasterAuth() {
     });
   }, [clearAuth]);
 
+  /**
+   * Enter guest mode - allows browsing without wallet connection
+   */
+  const enterGuestMode = useCallback(() => {
+    setGuestMode(true);
+    setAuthState({
+      isLoading: false,
+      error: null,
+    });
+  }, [setGuestMode]);
+
   return {
     isLoading: authState.isLoading,
     error: authState.error,
     isAuthenticated,
+    isGuestMode,
     fid,
     address,
     token,
     authMethod,
     signIn,
     signOut,
+    enterGuestMode,
   };
 }

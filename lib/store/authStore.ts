@@ -16,12 +16,15 @@ interface AuthState {
   authenticatedAt: number | null;
   expiresAt: number | null;
   authMethod: AuthMethod | null;
+  isGuestMode: boolean;
   _hasHydrated: boolean;
 }
 
 interface AuthActions {
   setAuth: (params: SetAuthParams) => void;
   clearAuth: () => void;
+  setGuestMode: (isGuest: boolean) => void;
+  exitGuestMode: () => void;
   isSessionValid: () => boolean;
   setHasHydrated: (state: boolean) => void;
 }
@@ -56,6 +59,7 @@ export const useAuthStore = create<AuthStore>()(
       authenticatedAt: null,
       expiresAt: null,
       authMethod: null,
+      isGuestMode: false,
       _hasHydrated: false,
 
       // Set Farcaster authentication
@@ -66,6 +70,7 @@ export const useAuthStore = create<AuthStore>()(
           authenticatedAt: now,
           _hasHydrated: true,
           authMethod: params.method,
+          isGuestMode: false,
         };
 
         if (params.method === 'farcaster') {
@@ -100,7 +105,25 @@ export const useAuthStore = create<AuthStore>()(
           authenticatedAt: null,
           expiresAt: null,
           authMethod: null,
+          isGuestMode: false,
         });
+      },
+
+      // Set guest mode
+      setGuestMode: (isGuest: boolean) => {
+        set({
+          isGuestMode: isGuest,
+          isAuthenticated: false,
+          fid: null,
+          token: null,
+          address: null,
+          authMethod: null,
+        });
+      },
+
+      // Exit guest mode only (preserves any existing auth)
+      exitGuestMode: () => {
+        set({ isGuestMode: false });
       },
 
       // Check if session is still valid
@@ -165,7 +188,7 @@ export const useAuthStore = create<AuthStore>()(
  * Use this in protected routes to avoid flash of unauthenticated content.
  */
 export const useAuthCheck = () => {
-  const { isSessionValid, isAuthenticated, fid, address, authMethod, _hasHydrated } = useAuthStore();
+  const { isSessionValid, isAuthenticated, fid, address, authMethod, isGuestMode, _hasHydrated } = useAuthStore();
 
   // Check validity on every use
   const isValid = isSessionValid();
@@ -175,6 +198,7 @@ export const useAuthCheck = () => {
     fid: isValid ? fid : null,
     address: isValid ? address : null,
     authMethod: isValid ? authMethod : null,
+    isGuestMode,
     hasHydrated: _hasHydrated,
   };
 };

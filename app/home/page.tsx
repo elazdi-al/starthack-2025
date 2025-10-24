@@ -4,7 +4,7 @@ import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { EventCard } from "@/components/home/EventCard";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useAuthCheck } from "@/lib/store/authStore";
+import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { DesktopNav } from "@/components/layout/DesktopNav";
@@ -17,14 +17,18 @@ import { NotificationPrompt } from "@/components/NotificationPrompt";
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated, hasHydrated } = useAuthCheck();
+  const { isAuthenticated, isGuestMode, hasHydrated } = useAuthCheck();
+  const { setGuestMode } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
+  // Allow both authenticated users and guests to view events
+  const canViewEvents = (isAuthenticated || isGuestMode) && hasHydrated;
+
   // Fetch ALL events first to get all categories (without filters)
   const allEventsForCategories = useInfiniteEvents({
-    enabled: isAuthenticated && hasHydrated,
+    enabled: canViewEvents,
     limit: 50, // Larger limit to get more events for categories
     search: "", // No search filter for getting all categories
     category: "", // No category filter for getting all categories
@@ -32,7 +36,7 @@ export default function Home() {
 
   // Fetch events with infinite scroll, on-chain search, and category filtering
   const eventsQuery = useInfiniteEvents({
-    enabled: isAuthenticated && hasHydrated,
+    enabled: canViewEvents,
     limit: 20,
     search: searchQuery,
     category: selectedCategory || "",
@@ -99,15 +103,15 @@ export default function Home() {
     }
   }, [eventsQuery.isError, eventsQuery.error]);
 
-  // Redirect to login if not authenticated
+  // Automatically enter guest mode if not authenticated
   useEffect(() => {
-    if (hasHydrated && !isAuthenticated) {
-      router.push("/");
+    if (hasHydrated && !isAuthenticated && !isGuestMode) {
+      setGuestMode(true);
     }
-  }, [hasHydrated, isAuthenticated, router]);
+  }, [hasHydrated, isAuthenticated, isGuestMode, setGuestMode]);
 
-  // Show nothing while hydrating or if not authenticated after hydration
-  if (!hasHydrated || (hasHydrated && !isAuthenticated)) return null;
+  // Show nothing while hydrating
+  if (!hasHydrated) return null;
 
   return (
     <div className="relative min-h-screen flex flex-col bg-transparent overflow-hidden pb-24 md:pb-6">

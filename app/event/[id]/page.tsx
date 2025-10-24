@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
 import { useRouter, useParams } from "next/navigation";
-import { useAuthCheck } from "@/lib/store/authStore";
+import { useAuthCheck, useAuthStore } from "@/lib/store/authStore";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { DesktopNav } from "@/components/layout/DesktopNav";
@@ -152,7 +152,8 @@ export default function EventPage() {
   const params = useParams();
   const eventId = params?.id ? Number.parseInt(params.id as string, 10) : null;
 
-  const { isAuthenticated, hasHydrated } = useAuthCheck();
+  const { isAuthenticated, isGuestMode, hasHydrated } = useAuthCheck();
+  const { setGuestMode } = useAuthStore();
   const { invalidateTickets, invalidateDetail } = useInvalidateEvents();
   const clearDuplicates = useTicketStore((state) => state.clearDuplicates);
   const { address: walletAddress, isConnected } = useAccount();
@@ -181,11 +182,12 @@ export default function EventPage() {
     !!event &&
     (farcasterProfileQuery.isFetching || farcasterProfileQuery.isFetched);
 
+  // Automatically enter guest mode if not authenticated
   useEffect(() => {
-    if (hasHydrated && !isAuthenticated) {
-      router.push("/");
+    if (hasHydrated && !isAuthenticated && !isGuestMode) {
+      setGuestMode(true);
     }
-  }, [hasHydrated, isAuthenticated, router]);
+  }, [hasHydrated, isAuthenticated, isGuestMode, setGuestMode]);
 
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated || isConnected || connectors.length === 0) {
@@ -205,8 +207,10 @@ export default function EventPage() {
   const isRegisterDisabled = useMemo(() => {
     if (!event) return true;
     if (event.isPast || event.isFull) return true;
+    // Disable for guests - they can view but not purchase
+    if (isGuestMode) return true;
     return false;
-  }, [event]);
+  }, [event, isGuestMode]);
 
   const isEventOwner = useMemo(() => {
     if (!event || !walletAddress) return false;
@@ -394,7 +398,8 @@ export default function EventPage() {
     );
   }
 
-  if (!isAuthenticated) {
+  // Allow both authenticated users and guests to view events
+  if (!isAuthenticated && !isGuestMode) {
     return null;
   }
 
@@ -426,6 +431,8 @@ export default function EventPage() {
     ? "This event has already taken place."
     : event?.isFull
     ? "This event is fully booked."
+    : isGuestMode
+    ? "Connect wallet to purchase tickets"
     : null;
 
   return (
