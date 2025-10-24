@@ -157,7 +157,7 @@ export default function EventPage() {
   const eventId = params?.id ? Number.parseInt(params.id as string, 10) : null;
 
   const { isAuthenticated, isGuestMode, hasHydrated } = useAuthCheck();
-  const { setGuestMode } = useAuthStore();
+  const { setGuestMode, exitGuestMode } = useAuthStore();
   const { invalidateTickets, invalidateDetail } = useInvalidateEvents();
   const clearDuplicates = useTicketStore((state) => state.clearDuplicates);
   const { address: walletAddress, isConnected } = useAccount();
@@ -211,10 +211,9 @@ export default function EventPage() {
   const isRegisterDisabled = useMemo(() => {
     if (!event) return true;
     if (event.isPast || event.isFull) return true;
-    // Disable for guests - they can view but not purchase
-    if (isGuestMode) return true;
+    // Guest mode allows clicking to connect wallet
     return false;
-  }, [event, isGuestMode]);
+  }, [event]);
 
   const isEventOwner = useMemo(() => {
     if (!event || !walletAddress) return false;
@@ -535,7 +534,14 @@ export default function EventPage() {
             ) : (
               <button
                 type="button"
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  if (isGuestMode) {
+                    exitGuestMode();
+                    router.push("/");
+                  } else {
+                    setIsModalOpen(true);
+                  }
+                }}
                 disabled={isRegisterDisabled}
                 className="w-full bg-white text-gray-950 font-semibold py-3.5 sm:py-4 px-6 rounded-xl transition-all hover:bg-white/90 active:scale-[0.98] disabled:bg-white/30 disabled:text-gray-600 disabled:cursor-not-allowed shadow-none"
               >

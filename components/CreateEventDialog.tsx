@@ -483,11 +483,11 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
                   className="w-full bg-white/5 backdrop-blur-sm border border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:bg-white/10 rounded-md px-3 h-11 text-left flex items-center justify-between hover:bg-white/10 transition-colors text-base"
                 >
                   {selectedTags.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex gap-2 overflow-x-auto scrollbar-hide flex-1 min-w-0">
                       {selectedTags.map((tag) => (
                         <span
                           key={tag}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-sm text-white"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-sm text-white whitespace-nowrap flex-shrink-0"
                         >
                           {tag}
                         </span>
@@ -533,13 +533,13 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
                 Select up to {MAX_SELECTED_TAGS} tags to help attendees find your event.
               </p>
             ) : (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
                 {selectedTags.map((tag) => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => removeTag(tag)}
-                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 hover:bg-white/15 transition-colors"
+                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 hover:bg-white/15 transition-colors whitespace-nowrap flex-shrink-0"
                   >
                     <span>{tag}</span>
                     <span aria-hidden className="text-white/60">×</span>
