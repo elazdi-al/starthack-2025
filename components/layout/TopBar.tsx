@@ -109,22 +109,8 @@ export function TopBar({
         </div>
       )}
 
-      {/* Top Right Corner - Desktop only when showing title without back button */}
-      {showTitle && !showBackButton && (
-        <div className="fixed top-6 right-6 z-40 hidden md:flex items-center gap-3">
-          <WalletBalance />
-          {showLeaderboard && (
-            <button
-              onClick={handleLeaderboard}
-              className="bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 hover:border-white/30 transition-all p-3 rounded-full group"
-              title="View Leaderboard"
-              type="button"
-            >
-              <Trophy size={24} weight="fill" className="text-yellow-400 group-hover:text-yellow-300 transition-colors" />
-            </button>
-          )}
-        </div>
-      )}
+      {/* Top Right Corner - Desktop only when showing title without back button
+          Note: This is hidden on pages that use DesktopNav (like home page) to avoid duplication */}
 
       {/* Wallet Balance - Top Right - Desktop only when not showing title */}
       {!showTitle && (

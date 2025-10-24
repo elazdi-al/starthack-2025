@@ -343,6 +343,21 @@ export default function EventPage() {
       ]);
       clearDuplicates();
 
+      // Notify event creator (fire and forget - don't block user flow)
+      if (eventId !== null && accountAddress) {
+        fetch('/api/tickets/notify-creator', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId,
+            buyerAddress: accountAddress,
+          }),
+        }).catch((error) => {
+          console.error('Failed to notify creator:', error);
+          // Don't show error to user - notification is optional
+        });
+      }
+
       toast.success("Ticket purchased!", {
         description: "You can view this ticket in the My Tickets tab.",
       });

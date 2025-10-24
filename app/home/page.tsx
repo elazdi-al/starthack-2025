@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { SearchBar } from "@/components/home/SearchBar";
 import { CategoryFilter } from "@/components/home/CategoryFilter";
 import { parseEventMetadata } from "@/lib/utils/eventMetadata";
+import { NotificationPrompt } from "@/components/NotificationPrompt";
 
 export default function Home() {
   const router = useRouter();
@@ -115,7 +116,7 @@ export default function Home() {
       <TopBar title="Events" showTitle={true} showLeaderboard={true} />
 
       {/* Desktop Navigation - Fixed at top right */}
-      <DesktopNav />
+      <DesktopNav showLeaderboard={true} />
 
       {/* Search Bar */}
       <div className="relative z-10 px-6 pb-4 flex justify-center">
@@ -135,6 +136,9 @@ export default function Home() {
 
       {/* Mobile Navigation */}
       <BottomNav />
+
+      {/* Notification Prompt */}
+      <NotificationPrompt />
 
       {/* Event cards */}
       <div className="relative z-10 flex-1 px-6 pb-6">

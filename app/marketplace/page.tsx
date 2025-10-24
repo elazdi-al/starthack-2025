@@ -101,7 +101,7 @@ export default function Marketplace() {
 
   // Auto-connect wallet
   useEffect(() => {
-    if (!isConnected || connectors.length === 0) return;
+    if (isConnected || connectors.length === 0) return;
     const injected = connectors.find((connector) => connector.type === "injected");
     if (injected) {
       try {
@@ -110,7 +110,7 @@ export default function Marketplace() {
         console.error("Auto-connect failed:", error);
       }
     }
-  }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
+  }, [connect, connectors, isConnected]);
 
   // Flatten listings
   const allListings = useMemo(() => data?.pages.flatMap((page) => page.listings) ?? [], [data]);

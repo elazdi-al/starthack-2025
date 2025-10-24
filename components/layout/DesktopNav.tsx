@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { House, ShoppingCart, Ticket, CalendarCheck, QrCode, ArrowLeft } from "phosphor-react";
+import { House, ShoppingCart, Ticket, CalendarCheck, QrCode, ArrowLeft, Trophy } from "phosphor-react";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 import { WalletBalance } from "@/components/layout/WalletBalance";
 import { memo, useCallback } from "react";
@@ -13,6 +13,7 @@ interface DesktopNavProps {
   backPath?: string;
   backTitle?: string;
   pageTitle?: string;
+  showLeaderboard?: boolean;
 }
 
 export const DesktopNav = memo(function DesktopNav({
@@ -21,7 +22,8 @@ export const DesktopNav = memo(function DesktopNav({
   variant = "default",
   backPath = "/home",
   backTitle = "Back to Events",
-  pageTitle
+  pageTitle,
+  showLeaderboard = false
 }: DesktopNavProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -30,6 +32,10 @@ export const DesktopNav = memo(function DesktopNav({
 
   const navigateTo = useCallback((path: string) => {
     router.push(path);
+  }, [router]);
+
+  const handleLeaderboard = useCallback(() => {
+    router.push("/leaderboard");
   }, [router]);
 
   // Event detail variant - simplified layout
@@ -73,6 +79,21 @@ export const DesktopNav = memo(function DesktopNav({
   // Default variant - full navigation
   return (
     <div className="hidden md:flex fixed top-6 right-6 z-40 items-center gap-3">
+      {/* Wallet Balance */}
+      <WalletBalance />
+
+      {/* Leaderboard */}
+      {showLeaderboard && (
+        <button
+          onClick={handleLeaderboard}
+          className="bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 hover:border-white/30 transition-all p-2.5 rounded-full group"
+          title="View Leaderboard"
+          type="button"
+        >
+          <Trophy size={20} weight="fill" className="text-yellow-400 group-hover:text-yellow-300 transition-colors" />
+        </button>
+      )}
+
       {/* Home */}
       <button
         className={`${
