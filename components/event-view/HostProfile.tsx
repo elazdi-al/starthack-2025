@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { sdk } from "@farcaster/miniapp-sdk";
 
 interface FarcasterProfile {
   fid: number;
@@ -109,7 +110,30 @@ export function HostProfile({
         </div>
         <button
           type="button"
-          onClick={onViewProfile}
+          onClick={async () => {
+            try {
+              const inMiniApp = await sdk.isInMiniApp();
+              if (inMiniApp) {
+                onViewProfile();
+              } else {
+                // Redirect to Warpcast profile URL
+                if (profile.username) {
+                  window.open(`https://warpcast.com/${profile.username}`, '_blank');
+                } else {
+                  // Fallback to FID-based URL if username is not available
+                  window.open(`https://warpcast.com/~/profiles/${profile.fid}`, '_blank');
+                }
+              }
+            } catch (error) {
+              console.error("Failed to check miniapp status:", error);
+              // Fallback to web URL on error
+              if (profile.username) {
+                window.open(`https://warpcast.com/${profile.username}`, '_blank');
+              } else {
+                window.open(`https://warpcast.com/~/profiles/${profile.fid}`, '_blank');
+              }
+            }
+          }}
           className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white font-medium px-4 py-2 rounded-xl transition-colors"
         >
           View Profile
