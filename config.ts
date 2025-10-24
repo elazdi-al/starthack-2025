@@ -1,5 +1,6 @@
-import { createConfig, cookieStorage, createStorage } from "wagmi";
+import { createConfig, createStorage } from "wagmi";
 import { injected } from "wagmi/connectors";
+import { base, baseSepolia } from "wagmi/chains";
 import { currentChain, getTransport } from "./lib/chain";
 
 export const config = createConfig({
@@ -10,10 +11,11 @@ export const config = createConfig({
     }),
   ],
   transports: {
-    [currentChain.id]: getTransport(),
+    [base.id]: getTransport(),
+    [baseSepolia.id]: getTransport(),
   },
   storage: createStorage({
-    storage: cookieStorage,
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
   }),
   ssr: true,
   multiInjectedProviderDiscovery: true,
