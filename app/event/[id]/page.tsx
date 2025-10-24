@@ -32,6 +32,8 @@ import {
 } from "@/components/event-view";
 import { parseCategoriesString } from "@/lib/utils/eventMetadata";
 
+import { useWalletAuth } from "@/lib/hooks/useWalletAuth";
+
 interface EventDetails {
   id: number;
   title: string;
@@ -158,6 +160,7 @@ export default function EventPage() {
   const connectors = useConnectors();
   const publicClient = usePublicClient({ chainId: currentChain.id });
   const { data: walletClient } = useWalletClient({ chainId: currentChain.id });
+  const { ensureWalletConnected } = useWalletAuth();
 
   const { data: eventData, isLoading: isLoadingEvent, error: fetchError } = useEvent(eventId);
 
@@ -252,7 +255,12 @@ export default function EventPage() {
     }
   }, [farcasterFid]);
 
+
+
   const handlePurchase = useCallback(async () => {
+    const isConnected = await ensureWalletConnected();
+    if (!isConnected) return;
+
     if (!event) {
       toast.error("Event unavailable", {
         description: "Unable to locate this event on-chain.",
@@ -326,6 +334,7 @@ export default function EventPage() {
       setPurchaseStage("idle");
     }
   }, [
+    ensureWalletConnected,
     event,
     walletAddress,
     walletClient,

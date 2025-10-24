@@ -24,6 +24,7 @@ import {
   useWalletClient,
 } from "wagmi";
 import { currentChain } from "@/lib/chain";
+import { useWalletAuth } from "@/lib/hooks/useWalletAuth";
 
 
 
@@ -48,6 +49,7 @@ export default function MyTickets() {
   const publicClient = usePublicClient({ chainId: currentChain.id });
   const { data: walletClient } = useWalletClient({ chainId: currentChain.id });
   const { invalidateTickets } = useInvalidateEvents();
+  const { ensureWalletConnected } = useWalletAuth();
 
   const activeAddress = isAuthenticated && hasHydrated ? walletAddress ?? null : null;
   const ticketsQuery = useTickets(activeAddress);
@@ -121,10 +123,15 @@ export default function MyTickets() {
     return dateValid && ticket.status === 'owned';
   }, []);
 
+
+
   const confirmListing = useCallback(async () => {
     if (!listingTicket) {
       return;
     }
+
+    const isConnected = await ensureWalletConnected();
+    if (!isConnected) return;
 
     const trimmedPrice = trimmedListingPrice;
     if (!trimmedPrice) {
@@ -248,6 +255,7 @@ export default function MyTickets() {
       setListingStage("idle");
     }
   }, [
+    ensureWalletConnected,
     invalidateTickets,
     listTicket,
     trimmedListingPrice,
@@ -260,6 +268,9 @@ export default function MyTickets() {
 
   const handleCancelListing = useCallback(
     async (ticket: Ticket) => {
+      const isConnected = await ensureWalletConnected();
+      if (!isConnected) return;
+
       if (!ticket.tokenId) {
         toast.error("Missing token information", {
           description: "Unable to locate the on-chain token id for this ticket.",
@@ -329,6 +340,7 @@ export default function MyTickets() {
       }
     },
     [
+      ensureWalletConnected,
       cancelListing,
       invalidateTickets,
       publicClient,

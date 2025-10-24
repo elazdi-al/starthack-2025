@@ -1,7 +1,6 @@
 "use client";
 
 import { BackgroundGradient } from "@/components/layout/BackgroundGradient";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketStore } from "@/lib/store/ticketStore";
@@ -18,6 +17,8 @@ import { ListingCardSkeleton } from "./ListingCardSkeleton";
 import { PurchaseModal } from "./PurchaseModal";
 import { UserListings } from "./UserListings";
 import { DesktopNav } from "@/components/layout/DesktopNav";
+
+import { useWalletAuth } from "@/lib/hooks/useWalletAuth";
 
 // Types
 interface Listing {
@@ -49,8 +50,7 @@ async function fetchListings({ pageParam = 0 }): Promise<ListingsResponse> {
 }
 
 export default function Marketplace() {
-  const router = useRouter();
-  const { isAuthenticated, hasHydrated } = useAuthCheck();
+  useAuthCheck();
   const { tickets, cancelListing, clearDuplicates } = useTicketStore();
   const { selectedListing, isPurchasing, purchaseStage, setSelectedListing, setPurchasing } = useMarketplace();
 
@@ -61,6 +61,7 @@ export default function Marketplace() {
   const publicClient = usePublicClient({ chainId: currentChain.id });
   const { data: walletClient } = useWalletClient({ chainId: currentChain.id });
   const queryClient = useQueryClient();
+  const { ensureWalletConnected } = useWalletAuth();
 
   // Fetch listings with infinite scroll
   const {
@@ -100,10 +101,10 @@ export default function Marketplace() {
 
   // Auto-connect wallet
   useEffect(() => {
-    if (!hasHydrated || !isAuthenticated || isConnected || connectors.length === 0) return;
+    if (!isConnected || connectors.length === 0) return;
     const injected = connectors.find((connector) => connector.type === "injected");
     if (injected) connect({ connector: injected, chainId: currentChain.id });
-  }, [connect, connectors, hasHydrated, isAuthenticated, isConnected]);
+  }, [connect, connectors, isConnected]);
 
   // Flatten listings
   const allListings = useMemo(() => data?.pages.flatMap((page) => page.listings) ?? [], [data]);
@@ -140,16 +141,11 @@ export default function Marketplace() {
     return allListings.filter((listing) => listing.seller.toLowerCase() !== lowerAddress);
   }, [allListings, walletAddress]);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (hasHydrated && !isAuthenticated) router.push("/");
-  }, [hasHydrated, isAuthenticated, router]);
-
-  // Show nothing while hydrating or if not authenticated after hydration
-  if (!hasHydrated || (hasHydrated && !isAuthenticated)) return null;
-
   // Handle ticket purchase
   const handlePurchase = async (listing: Listing) => {
+    const isConnected = await ensureWalletConnected();
+    if (!isConnected) return;
+
     if (!walletAddress || !walletClient || !publicClient) {
       toast.error("Wallet required", { description: "Connect your wallet to buy tickets." });
       return;
@@ -209,6 +205,9 @@ export default function Marketplace() {
         <UserListings
           tickets={userListedTickets}
           onCancel={async (ticket) => {
+            const isConnected = await ensureWalletConnected();
+            if (!isConnected) return;
+
             if (!ticket.tokenId || !walletAddress || !walletClient || !publicClient) {
               toast.error("Missing required data");
               return;

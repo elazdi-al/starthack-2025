@@ -7,7 +7,7 @@ import { useAuthCheck } from "@/lib/store/authStore";
 import { useTicketVerification } from "@/lib/hooks/useTicketVerification";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, Warning, XCircle } from "phosphor-react";
-import { useEffect, useRef, useState, Suspense, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { toast } from "sonner";
 import { useAccount } from "wagmi";
 
@@ -72,9 +72,9 @@ function ScannerPageContent() {
           video: { facingMode: "environment" }, // Use back camera on mobile
         });
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
+        if (videoElement) {
+          videoElement.srcObject = stream;
+          videoElement.play();
           setIsScanning(true);
           setError(null);
         }

@@ -1,23 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef, type ChangeEvent } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Plus, CalendarBlank } from "phosphor-react";
-import Image from "next/image";
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnect, useConnectors, useChainId, useSwitchChain, usePublicClient } from "wagmi";
-import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from "@/lib/contracts/eventBook";
-import { parseEther } from "viem";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import { useAuthStore } from "@/lib/store/authStore";
-import { currentChain } from "@/lib/chain";
+import { useWalletAuth } from "@/lib/hooks/useWalletAuth";
 import { useInvalidateEvents } from "@/lib/hooks/useEvents";
+import { currentChain } from "@/lib/chain";
+import { useAuthStore } from "@/lib/store/authStore";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { parseEther } from "viem";
+import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from "@/lib/contracts/eventBook";
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnect, useConnectors, useChainId, useSwitchChain, usePublicClient } from "wagmi";
+import Image from "next/image";
+import { Plus, CalendarBlank } from "phosphor-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useCallback, useEffect, useState, useRef, type ChangeEvent } from "react";
 
 interface CreateEventDialogProps {
   onEventCreated?: () => void;
@@ -73,7 +74,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
 
   // Use Base auth store for authentication check
   const { isAuthenticated, isSessionValid } = useAuthStore();
-  const { address, isConnected } = useAccount(); // Still need wagmi for transaction signing
+  const { isConnected } = useAccount(); // Still need wagmi for transaction signing
   const { connect } = useConnect();
   const connectors = useConnectors();
   const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
@@ -84,6 +85,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const _publicClient = usePublicClient();
   const chainId = useChainId();
   const { invalidateAll } = useInvalidateEvents();
+  const { ensureWalletConnected } = useWalletAuth();
+
   useEffect(() => {
     const switchToBase = async () => {
       if (hasTriedChainSwitch.current) return;
@@ -209,21 +212,14 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     }
   }, [imageFile, imageUploadData]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    const isConnected = await ensureWalletConnected();
+    if (!isConnected) return;
 
     // Check authentication with Base auth system
     if (!isAuthenticated || !isSessionValid()) {
       toast.error("Not authenticated", {
         description: "Please sign in with Base to create an event",
-      });
-      return;
-    }
-
-    // Check if wallet is connected for transaction signing
-    if (!address || !isConnected) {
-      toast.error("Wallet not connected", {
-        description: "Please ensure your wallet extension (MetaMask, Coinbase Wallet, etc.) is installed and connected",
       });
       return;
     }
@@ -396,7 +392,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="space-y-4 py-2 overflow-y-auto overflow-x-hidden flex-1 scrollbar-hide">
           {/* Event Type Toggle */}
           <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10">
@@ -705,7 +701,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
               Cancel
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               className="flex-1 px-6 py-3.5 rounded-xl bg-white/90 hover:bg-white active:bg-white/80 text-black font-bold text-base transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               disabled={isPending || isConfirming || isUploadingImage}
             >
@@ -716,7 +713,7 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
                 : "Create Event"}
             </button>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
