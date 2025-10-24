@@ -21,6 +21,11 @@ const nextConfig: NextConfig = {
         hostname: 'gateway.pinata.cloud',
         pathname: '/ipfs/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**'
+      },
     ],
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
