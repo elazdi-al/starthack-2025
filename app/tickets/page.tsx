@@ -26,7 +26,7 @@ import {
 import { currentChain } from "@/lib/chain";
 import { useWalletAuth } from "@/lib/hooks/useWalletAuth";
 
-
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 type ListingStage = "idle" | "approving" | "listing" | "confirming";
 
@@ -210,6 +210,27 @@ export default function MyTickets() {
 
         const approveHash = await walletClient.writeContract(approveRequest);
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
+
+        // Poll for approval status after the approve transaction is confirmed
+        let approvalConfirmed = false;
+        for (let i = 0; i < 5; i++) { // Try up to 5 times
+          await delay(500); // Wait 500ms
+          const currentApprovedFor = (await publicClient.readContract({
+            address: TICKET_CONTRACT_ADDRESS,
+            abi: TICKET_ABI,
+            functionName: "getApproved",
+            args: [tokenId],
+          })) as `0x${string}`;
+
+          if (currentApprovedFor.toLowerCase() === EVENT_BOOK_ADDRESS.toLowerCase()) {
+            approvalConfirmed = true;
+            break;
+          }
+        }
+
+        if (!approvalConfirmed) {
+          throw new Error("Approval failed to register on-chain after multiple attempts. Please try again.");
+        }
       }
 
       setListingStage("listing");
