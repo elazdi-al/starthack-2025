@@ -16,8 +16,8 @@ export async function GET() {
     miniapp: withValidProperties({
       version: "1",
       name: "Stars",
-      subtitle: "Your AI Ad Companion",
-      description: "Ads",
+      subtitle: "Join the constellation",
+      description: "Experience events on the blockchain",
       screenshotUrls: [`${URL}/screenshot-portrait.png`],
       iconUrl: `${URL}/app-icon.png`,
       splashImageUrl: `${URL}/hero.png`,

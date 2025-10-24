@@ -7,8 +7,8 @@
   "miniapp": {
     "version": "1",
     "name": "Stars",
-    "subtitle": "Your AI Ad Companion",
-    "description": "Ads",
+    "subtitle": "Join the constellation",
+    "description": "Experience events on the blockchain",
     "iconUrl": "https://starthack-2025-iota.vercel.app/app-icon.png",
     "splashImageUrl": "https://starthack-2025-iota.vercel.app/hero.png",
     "splashBackgroundColor": "#000000",

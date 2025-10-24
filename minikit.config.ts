@@ -15,8 +15,8 @@ export const minikitConfig = {
   miniapp: {
     version: "1",
     name: "Stars",
-    subtitle: "Your AI Ad Companion",
-    description: "Ads",
+    subtitle: "Join the constellation",
+    description: "Experience events on the blockchain",
     screenshotUrls: [`${ROOT_URL}/screenshot-portrait.png`],
     iconUrl: `${ROOT_URL}/app-icon.png`,
     splashImageUrl: `${ROOT_URL}/hero.png`,
