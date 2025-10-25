@@ -22,7 +22,7 @@ export function getChain() {
  */
 export function getTransport() {
   const chainEnv = process.env.NEXT_PUBLIC_CHAIN_ENV;
-  const alchemyKey = process.env.ALCHEMY_API_KEY;
+  const alchemyKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
 
   if (chainEnv === "testnet" && alchemyKey) {
     return http(`https://base-sepolia.g.alchemy.com/v2/${alchemyKey}`);

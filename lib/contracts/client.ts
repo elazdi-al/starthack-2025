@@ -5,8 +5,8 @@ import { base, baseSepolia } from 'viem/chains';
 const isTestnet = process.env.NEXT_PUBLIC_CHAIN_ENV === 'testnet';
 const chain = isTestnet ? baseSepolia : base;
 const rpcUrl = isTestnet
-  ? `https://base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
-  : `https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`;
+  ? `https://base-sepolia.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`
+  : `https://base-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`;
 
 // Public client for reading from the blockchain
 export const publicClient = createPublicClient({

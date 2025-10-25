@@ -2,10 +2,13 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 /**
- * Farcaster Mini App Authentication Store
- * 
- * Manages authentication state for Farcaster mini apps using Quick Auth.
- * Automatically persists to localStorage and validates session expiry.
+ * Authentication Store
+ *
+ * Manages authentication state for both Farcaster mini apps (Quick Auth) and wallet connections.
+ * Automatically persists to localStorage.
+ *
+ * - Farcaster: Stores FID and token from Quick Auth
+ * - Wallet: Stores connected wallet address
  */
 
 interface AuthState {
@@ -39,14 +42,11 @@ type SetAuthParams =
       fid: number;
       token: string;
       address?: string | null;
-      expiresInDays?: number;
     }
   | {
       method: 'wallet';
       address: string;
     };
-
-const DEFAULT_EXPIRY_DAYS = 7;
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -62,7 +62,7 @@ export const useAuthStore = create<AuthStore>()(
       isGuestMode: false,
       _hasHydrated: false,
 
-      // Set Farcaster authentication
+      // Set authentication
       setAuth: (params: SetAuthParams) => {
         const now = Date.now();
         const nextState: Partial<AuthState> = {
@@ -74,16 +74,15 @@ export const useAuthStore = create<AuthStore>()(
         };
 
         if (params.method === 'farcaster') {
-          const expiresInDays = params.expiresInDays ?? DEFAULT_EXPIRY_DAYS;
-          const expiresAt = now + expiresInDays * 24 * 60 * 60 * 1000;
-
+          // For mini apps: no expiry, re-auth on app load
           Object.assign(nextState, {
             fid: params.fid,
             token: params.token,
             address: params.address ?? null,
-            expiresAt,
+            expiresAt: null,
           });
         } else {
+          // For wallet: no expiry needed
           Object.assign(nextState, {
             fid: null,
             token: null,
@@ -129,32 +128,22 @@ export const useAuthStore = create<AuthStore>()(
       // Check if session is still valid
       isSessionValid: () => {
         const state = get();
-        
+
         if (!state.isAuthenticated) {
           return false;
         }
 
+        // Validate wallet auth
         if (state.authMethod === 'wallet') {
-          if (!state.address) {
-            get().clearAuth();
-            return false;
-          }
-          return true;
+          return !!state.address;
         }
 
-        if (state.authMethod !== 'farcaster' || !state.expiresAt) {
-          get().clearAuth();
-          return false;
+        // Validate Farcaster auth
+        if (state.authMethod === 'farcaster') {
+          return !!(state.fid && state.token);
         }
 
-        const now = Date.now();
-
-        if (now > state.expiresAt) {
-          get().clearAuth();
-          return false;
-        }
-
-        return !!state.token;
+        return false;
       },
 
       // Set hydration state
@@ -166,14 +155,9 @@ export const useAuthStore = create<AuthStore>()(
       name: 'farcaster-auth-storage',
       storage: createJSONStorage(() => localStorage),
       
-      // Hydration: Check session validity when loading from storage
+      // Hydration: Mark as loaded from storage
       onRehydrateStorage: () => (state) => {
         if (state) {
-          // Check validity first
-          if (!state.isSessionValid()) {
-            state.clearAuth();
-          }
-          // Mark as hydrated
           state.setHasHydrated(true);
         }
       },

@@ -1,24 +1,24 @@
 "use client";
 
-import { useWalletAuth } from "@/lib/hooks/useWalletAuth";
-import { useInvalidateEvents } from "@/lib/hooks/useEvents";
-import { currentChain } from "@/lib/chain";
-import { useAuthStore } from "@/lib/store/authStore";
-import { format } from "date-fns";
-import { toast } from "sonner";
-import { parseEther } from "viem";
-import { EVENT_BOOK_ADDRESS, EVENT_BOOK_ABI } from "@/lib/contracts/eventBook";
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnect, useConnectors, useChainId, useSwitchChain, usePublicClient } from "wagmi";
-import Image from "next/image";
-import { Plus, CalendarBlank } from "phosphor-react";
 import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useCallback, useEffect, useState, useRef, type ChangeEvent } from "react";
+import { currentChain } from "@/lib/chain";
+import { EVENT_BOOK_ABI, EVENT_BOOK_ADDRESS } from "@/lib/contracts/eventBook";
+import { useInvalidateEvents } from "@/lib/hooks/useEvents";
+import { useWalletAuth } from "@/lib/hooks/useWalletAuth";
+import { useAuthStore } from "@/lib/store/authStore";
+import { format } from "date-fns";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { CalendarBlank, Plus } from "phosphor-react";
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { parseEther } from "viem";
+import { useAccount, useConnect, useConnectors, usePublicClient, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 
 interface CreateEventDialogProps {
   onEventCreated?: () => void;
@@ -61,7 +61,6 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const MAX_DESCRIPTION_LENGTH = 250;
   const hasFinalized = useRef(false);
-  const hasTriedChainSwitch = useRef(false);
 
   const resetFormState = useCallback(() => {
     setFormData({ ...INITIAL_FORM_STATE });
@@ -73,8 +72,8 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     setImageUploadData(null);
   }, []);
 
-  // Use Base auth store for authentication check
-  const { isAuthenticated, isSessionValid, isGuestMode, exitGuestMode } = useAuthStore();
+  // Use auth store for authentication check
+  const { isAuthenticated, isGuestMode, exitGuestMode } = useAuthStore();
   const { isConnected } = useAccount(); // Still need wagmi for transaction signing
   const { connect } = useConnect();
   const connectors = useConnectors();
@@ -82,27 +81,9 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
   });
-  const { switchChainAsync } = useSwitchChain();
   const _publicClient = usePublicClient();
-  const chainId = useChainId();
   const { invalidateAll } = useInvalidateEvents();
   const { ensureWalletConnected } = useWalletAuth();
-
-  useEffect(() => {
-    const switchToBase = async () => {
-      if (hasTriedChainSwitch.current) return;
-
-      if (isConnected && chainId !== currentChain.id){
-        hasTriedChainSwitch.current = true;
-        try {
-          await switchChainAsync({chainId:currentChain.id})
-        } catch (error) {
-          console.error("Failed to switch to Base chain", error)
-        }
-      }
-    };
-    void switchToBase();
-  }, [isConnected, chainId, switchChainAsync]);
 
   useEffect(() => {
     if (!imagePreviewUrl) {
@@ -217,10 +198,10 @@ export function CreateEventDialog({ onEventCreated }: CreateEventDialogProps) {
     const isConnected = await ensureWalletConnected();
     if (!isConnected) return;
 
-    // Check authentication with Base auth system
-    if (!isAuthenticated || !isSessionValid()) {
+    // Check authentication
+    if (!isAuthenticated) {
       toast.error("Not authenticated", {
-        description: "Please sign in with Base to create an event",
+        description: "Please sign in to create an event",
       });
       return;
     }

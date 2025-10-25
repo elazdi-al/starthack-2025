@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useCallback, useEffect } from 'react';
 import { sdk } from "@farcaster/miniapp-sdk";
-import { useAuthStore } from './store/authStore';
+import { useCallback, useState } from 'react';
 import { useConnect, useSwitchChain } from "wagmi";
 import { currentChain } from "./chain";
+import { useAuthStore } from './store/authStore';
 
 /**
- * Farcaster Mini App Authentication Hook
- * 
- * Provides authentication using Farcaster Quick Auth for mini apps.
- * Handles token management, session validation, and automatic persistence.
- * 
+ * Farcaster Authentication Hook
+ *
+ * Provides authentication using:
+ * - Farcaster Quick Auth (for mini apps)
+ * - Wallet connection (for browser)
+ *
+ * Tokens are persisted to localStorage automatically.
+ *
  * @see https://docs.base.org/mini-apps/core-concepts/authentication
  */
 
@@ -50,18 +53,12 @@ export function useFarcasterAuth() {
     setAuth,
     clearAuth,
     setGuestMode,
-    isSessionValid
   } = useAuthStore();
   const { connectAsync, connectors } = useConnect();
   const { switchChainAsync } = useSwitchChain();
 
-  // Validate session on mount
-  useEffect(() => {
-    isSessionValid();
-  }, [isSessionValid]);
-
   /**
-   * Sign in with Farcaster Quick Auth
+   * Sign in with Farcaster Quick Auth (mini app) or Wallet (browser)
    */
   const signIn = useCallback(async (): Promise<AuthResult> => {
     setAuthState({ isLoading: true, error: null });
